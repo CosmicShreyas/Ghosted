@@ -1,0 +1,27 @@
+{
+  "name": "ghosted-api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file=.env src/dev.ts",
+    "typecheck": "tsc --noEmit",
+    "start": "tsx --env-file=.env src/dev.ts",
+    "admin:create": "tsx --env-file=.env scripts/create-admin.ts"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.14.0",
+    "@hono/zod-validator": "^0.7.0",
+    "@supabase/supabase-js": "^2.57.0",
+    "@vercel/functions": "^3.9.9",
+    "hono": "^4.9.0",
+    "nodemailer": "^10.0.12",
+    "obscenity": "^0.4.6",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^22.16.5",
+    "@types/nodemailer": "^8.0.2",
+    "tsx": "^4.20.0",
+    "typescript": "^5.8.3"
+  }
+}

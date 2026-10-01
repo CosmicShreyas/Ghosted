@@ -1,0 +1,4 @@
+/* The site's styles, plus Tailwind scanning admin/ for its own classes. Kept separate so the public
+   site's CSS never contains anything from the admin panel. */
+@import "../../src/styles.css";
+@source "../src";

@@ -1,0 +1,273 @@
+// Company and legal pages. Before launch, fill in `entity` and have Indian counsel review.
+// Written against: Digital Personal Data Protection Act, 2023 and DPDP Rules, 2025;
+// Information Technology Act, 2000; IT (Intermediary Guidelines and Digital Media Ethics Code) Rules, 2021;
+// Bharatiya Nyaya Sanhita, 2023.
+
+export const entity = {
+  name: "[Legal Entity Name] Private Limited",
+  brand: "Ghosted",
+  address: "[Registered office address], India",
+  city: "[City]",
+  site: "ghosted.[domain]",
+  supportEmail: "support@ghosted.[domain]",
+  privacyEmail: "privacy@ghosted.[domain]",
+  grievanceOfficer: "[Grievance Officer name]",
+  grievanceEmail: "grievance@ghosted.[domain]",
+  effective: "29 September 2026",
+  github: "https://github.com/CosmicShreyas/Ghosted",
+};
+
+// A block is a paragraph (string) or a bulleted list (string[]).
+export type Block = string | string[];
+export type Section = { id: string; heading: string; blocks: Block[] };
+export type Doc = { eyebrow: string; title: string; intro: string; updated: string; sections: Section[] };
+
+const e = entity;
+
+export type Founder = { name: string; role: string; seed: string; pastel: string; linkedin: string; bio: string };
+
+export const founders: Founder[] = [
+  { name: "Shreyas", role: "Founder", seed: "shreyas-founder", pastel: "bg-avatar-sky", linkedin: "in/shreyasbrilliant", bio: "Spent too many evenings reading friends' screenshots of “we'll get back to you” messages that never got a follow-up. Builds the product and keeps the platform honest." },
+  { name: "Shreya", role: "Co-founder", seed: "shreya-cofounder", pastel: "bg-avatar-lilac", linkedin: "in/shreyabrilliant", bio: "Believes the best career advice comes from the person who interviewed there last month. Shapes the community, the rules and every word you read here." },
+];
+
+export const aboutDoc: Doc = {
+  eyebrow: "About Ghosted",
+  title: "We built the place we wished existed.",
+  intro: "Ghosted is a free, anonymous platform where job seekers, employees and ex-employees in India share what really happens at work and in hiring, and rate companies on how they treat people. One honest story can save the next person weeks of silence, an unpaid assignment or a lowball offer.",
+  updated: e.effective,
+  sections: [
+    { id: "story", heading: "Our story", blocks: [
+      "It started with our group chats. Every week someone we knew had a new story: four interview rounds followed by total silence, an offer withdrawn a day after they resigned, a “two-hour” assignment that ate an entire weekend, a salary range that shrank at the final call.",
+      "Then we noticed it was everywhere: in comment sections, in Reddit threads, in conversations with strangers at cafés. So many people were struggling to get hired, being ghosted, underpaid or burnt out, and almost none of them could say it publicly. Everyone was worried the same thing: what if my manager sees this? What if HR finds out? What if the next company I apply to thinks I'm difficult?",
+      "So the stories stayed in private chats, the same companies kept doing the same things, and the next candidate walked into the same trap. We decided that had to change.",
+    ] },
+    { id: "why", heading: "Why we built Ghosted", blocks: [
+      "We wanted a place where anyone can speak honestly about a company without being bothered by their HR, their manager or a future recruiter. That meant making anonymity the default, not an afterthought.",
+      "On Ghosted you post under a random handle. Your name, email and employer are never shown, and companies can't pay to find out who you are. If you want credit for your story, you can choose to reveal your role, experience or LinkedIn, and only those details.",
+      "At its heart, Ghosted is a place to share the pain of every candidate, employee and ex-employee, so that it turns into something useful: a warning, a benchmark, a reason for a company to do better.",
+    ] },
+    { id: "vs-linkedin", heading: "Why not just post on LinkedIn?", blocks: [
+      "LinkedIn is where your boss, your colleagues and every future recruiter can see what you write. That's great for announcing a new job, and terrible for telling the truth about a bad one.",
+      [
+        "Your name is attached to everything. On LinkedIn, honesty can cost you your next offer. On Ghosted, you're anonymous unless you decide otherwise.",
+        "Posts disappear into a feed. A LinkedIn post is gone in two days. On Ghosted, every story is attached to the company's page, where the next candidate will find it before their interview.",
+        "Stories become data. Ratings roll up into a company's Flag Score, and salary reports build real pay ranges, so one experience adds to a bigger picture.",
+        "Built for candidates, not employers. Review sites that sell recruiting services to companies have a conflict of interest. Companies can't pay us to hide, edit or boost reviews.",
+        "Specific to hiring. We ask about the things that matter: number of rounds, time to hear back, whether the pay matched the posting. Not generic star ratings.",
+      ],
+      "Twitter threads, Reddit posts and WhatsApp forwards help too, but they're scattered, hard to search and easy to lose. Ghosted puts every experience in one place, organised by company.",
+    ] },
+    { id: "what", heading: "What you can do here", blocks: [[
+      "Share your hiring experience anonymously: the rounds, the timelines, the pay and the outcome.",
+      "Rate companies on five things that matter to candidates: hiring process, communication, work culture, pay transparency and growth.",
+      "Read other candidates' experiences before you apply, interview or accept an offer.",
+    ]] },
+    { id: "flag-score", heading: "How the Flag Score works", blocks: [
+      "Every company gets a Flag Score from 0 to 100, based on ratings from candidates who went through its hiring process.",
+      ["70 to 100: Green Flag. Candidates generally had a fair, respectful experience.", "40 to 69: Mixed Signals. Experiences vary; read the stories.", "0 to 39: Red Flag. Candidates consistently report serious problems."],
+      "Scores reflect community opinion. They are not audits or certifications, and companies cannot pay to change them.",
+    ] },
+    { id: "principles", heading: "What we stand for", blocks: [[
+      "Anonymous by default. You never have to reveal who you are. If you choose to share details, you decide which ones.",
+      "Never for sale. Companies cannot buy, hide or edit reviews, and we do not sell your personal data.",
+      `Open by design. Ghosted is open source (${e.github}), so anyone can check how your identity is protected instead of taking our word for it.`,
+      "Fair to everyone. We remove content that is abusive, false or identifies private individuals, even when it targets a company we'd rather not defend.",
+      "Useful over loud. The best posts are specific: what happened, when, and what the next candidate should know.",
+    ]] },
+    { id: "companies", heading: "For employers", blocks: [
+      `Companies can respond publicly to stories and report content they believe breaks our Community Rules or the law. Write to ${e.supportEmail} from an official company address. We review every report, but we do not remove honest reviews simply because they are negative.`,
+    ] },
+    { id: "contact", heading: "Contact", blocks: [
+      `${e.brand} is operated by ${e.name}, ${e.address}.`,
+      [`General questions: ${e.supportEmail}`, `Privacy and data requests: ${e.privacyEmail}`, `Grievances and legal notices: ${e.grievanceEmail}`],
+    ] },
+  ],
+};
+
+export const privacyDoc: Doc = {
+  eyebrow: "Privacy Policy",
+  title: "Your identity is the whole point. We protect it.",
+  intro: `This policy explains what personal data ${e.brand} collects, why, and the rights you have over it under the Digital Personal Data Protection Act, 2023 ("DPDP Act") and the rules made under it. ${e.name} ("we", "us") is the Data Fiduciary for your personal data.`,
+  updated: e.effective,
+  sections: [
+    { id: "summary", heading: "The short version", blocks: [[
+      "Your posts are anonymous by default. Other users and companies see a random handle, not your name or email.",
+      "We collect only what we need to run the service and keep it safe.",
+      "We never sell your personal data, and we never share your identity with employers.",
+      "You can access, correct or delete your data, and withdraw consent, at any time.",
+    ]] },
+    { id: "collect", heading: "1. Data we collect", blocks: [
+      "Data you give us:",
+      ["Account details: your full name, email address and password. Passwords are stored only in hashed form, and your name is encrypted at rest and never shown unless you choose to reveal it.", "Profile choices: your generated handle, chosen avatar, and any optional details you decide to show publicly, such as name, role, experience, city or LinkedIn URL.", "Content: stories, ratings, salary ranges, comments and reactions you post.", "Messages you send us, such as support requests, reports and grievances."],
+      "Data collected automatically:",
+      ["Technical data: IP address, device and browser type, and log records of access, used for security and abuse prevention.", "Sign-in records: for each device you are signed in on, its type (phone, tablet or computer), browser, operating system, an approximate city-level location derived from your network's public IP address (looked up through our hosting provider or the geolocation service ipwho.is), a masked form of that IP address with its last half hidden (for example 49.36.x.x; the full address is never stored), a random device identifier kept in a cookie so one browser shows up once instead of once per sign-in (only a keyed hash of it is stored), and when it signed in and was last active. We show these to you in Settings → Security and in the security email sent for each new sign-in, and delete a record as soon as that device is signed out.", "Usage data: pages viewed and features used, in aggregated form, to improve the service.", "Feedback you send us: what you write, the part of the app it's about, an optional rating, and for bug reports, if you leave the box ticked, your browser, screen size, theme and the page you were on (never your IP address). Only the Ghosted team reads it."],
+      "We do not ask for, and ask you not to post, sensitive information such as financial account details, health information, government ID numbers or caste, religion or other personal characteristics.",
+    ] },
+    { id: "purpose", heading: "2. Why we use it", blocks: [
+      "We process personal data only for the purposes described below, on the basis of your consent or for legitimate uses permitted under Section 7 of the DPDP Act:",
+      ["To create and secure your account and let you log in.", "To publish your content under your anonymous handle, or with the details you choose to reveal.", "To calculate company Flag Scores and show aggregated salary and hiring data.", "To detect and prevent spam, fraud, abuse and fake reviews.", "To respond to your requests, reports and grievances.", "To comply with Indian law, court orders and lawful requests from government authorities."],
+    ] },
+    { id: "anonymity", heading: "3. How anonymity works", blocks: [
+      "Your email address and any details you have not chosen to reveal are never shown to other users or to companies. Employers cannot pay us to learn who wrote a review.",
+      "Anonymity has limits you should know about. What you write can identify you: a very specific timeline, team name or event may be recognisable to your interviewer. We may also be legally required to disclose information to law enforcement or a court under a valid order issued under Indian law. Where the law allows, we will tell you before we do.",
+    ] },
+    { id: "sharing", heading: "4. Who we share it with", blocks: [[
+      "Service providers who process data on our behalf, such as cloud hosting, email delivery and security, under contracts that require them to protect it and use it only for our instructions.",
+      "Razorpay, only if you choose to donate: it processes the payment (UPI, card, netbanking or wallet) directly, so we never see or store your card or bank details. We keep the amount, the date, the Razorpay order and payment references, your optional note, and whether you asked to appear on the thank-you wall.",
+      "Authorities, where required by law, a court order or a lawful direction under the Information Technology Act, 2000 or other applicable law.",
+      "A successor entity, if Ghosted is merged or acquired, subject to this policy.",
+    ], "We do not sell personal data or share it with employers, recruiters or advertisers."] },
+    { id: "retention", heading: "5. How long we keep it", blocks: [
+      "We keep account data for as long as your account is active. If you delete your account, we erase your personal data within 30 days, except where we must keep it longer to meet a legal obligation, for example security logs and records we are required to retain under the DPDP Rules, 2025 and the Intermediary Rules, 2021.",
+      "Posts you have published may remain on the platform in anonymised form after deletion, with no link back to you, unless you delete them first.",
+    ] },
+    { id: "rights", heading: "6. Your rights", blocks: [
+      "As a Data Principal under the DPDP Act, you have the right to:",
+      ["Access a summary of the personal data we hold about you and how we process it.", "Correct, complete or update inaccurate or incomplete data.", "Erase your personal data, subject to legal retention requirements.", "Withdraw your consent at any time. This will not affect processing already carried out, but we may no longer be able to provide the service.", "Nominate another person to exercise your rights in the event of your death or incapacity.", "Seek grievance redressal from us, and then complain to the Data Protection Board of India."],
+      `Most of this can be done from your account settings. You can also email ${e.privacyEmail}. We may ask you to verify your identity before acting on a request.`,
+    ] },
+    { id: "children", heading: "7. Children", blocks: [
+      "Ghosted is only for people aged 18 and over. We do not knowingly process the personal data of children as defined by the DPDP Act. If we learn that an account belongs to someone under 18, we will delete it.",
+    ] },
+    { id: "security", heading: "8. Security and breaches", blocks: [
+      `We use reasonable security safeguards to protect personal data, including encryption in transit, hashed passwords, AES-256 encryption of names and other identifying details at rest, strict access controls, rate limiting and monitoring. Our code is open source at ${e.github}, so these safeguards can be independently checked.`,
+      "If a personal data breach occurs, we will inform affected users and the Data Protection Board of India as required by the DPDP Act and the DPDP Rules, 2025, explaining what happened, the likely impact and the steps we are taking.",
+    ] },
+    { id: "cookies", heading: "9. Cookies", blocks: [
+      "We use essential cookies to keep you logged in and secure, and privacy-friendly analytics to understand overall usage. We do not use third-party advertising or cross-site tracking cookies.",
+      "On your first visit we ask for your choice: Accept all (essential cookies plus analytics), Necessary only, or Decline (no optional cookies; essential ones remain, because signing in can't work without them). Your choice is remembered for one year in your browser and you can change it at any time from “Cookie settings” at the bottom of every page. Withdrawing consent is as easy as giving it, and doesn't affect anything you've already done on Ghosted.",
+    ] },
+    { id: "transfers", heading: "10. Where data is stored", blocks: [
+      "Your data may be processed on servers located in or outside India. Any transfer outside India is made only in accordance with Section 16 of the DPDP Act and any restrictions notified by the Central Government.",
+    ] },
+    { id: "grievance", heading: "11. Grievance Officer", blocks: [
+      "In accordance with the DPDP Act and Rule 3(2) of the Information Technology (Intermediary Guidelines and Digital Media Ethics Code) Rules, 2021, you can contact our Grievance Officer:",
+      [`Name: ${e.grievanceOfficer}`, `Email: ${e.grievanceEmail}`, `Address: ${e.name}, ${e.address}`],
+      "We will acknowledge your grievance within 24 hours and resolve it within 15 days of receipt. If you are not satisfied with our response, you may approach the Data Protection Board of India.",
+    ] },
+    { id: "changes", heading: "12. Changes to this policy", blocks: [
+      "We may update this policy from time to time. If the changes are significant, we will notify you by email or on the site before they take effect. The date at the top shows when it was last updated.",
+    ] },
+  ],
+};
+
+export const termsDoc: Doc = {
+  eyebrow: "Terms & Conditions",
+  title: "The ground rules for using Ghosted.",
+  intro: `These Terms govern your use of ${e.site} and related services ("Ghosted"), operated by ${e.name}. By creating an account or using Ghosted, you agree to these Terms, our Privacy Policy and our Community Rules. If you do not agree, please do not use the service.`,
+  updated: e.effective,
+  sections: [
+    { id: "eligibility", heading: "1. Who can use Ghosted", blocks: [[
+      "You must be at least 18 years old and able to enter into a binding contract under the Indian Contract Act, 1872.",
+      "You must register with your real, full name as it appears on your government ID, and a working email address you control. Fake, borrowed or impersonated names are not allowed and may lead to the account being closed.",
+      "You may hold only one account, and you are responsible for keeping your login details secure.",
+      "You must not create an account on behalf of an employer to post reviews about that employer or its competitors.",
+    ]] },
+    { id: "identity", heading: "2. Your identity stays private", blocks: [
+      "We ask for your real name so that every story comes from a real, accountable person. That's what keeps Ghosted trustworthy. It does not mean your name is shown to anyone.",
+      [
+        "Your name and email are never shown publicly unless you choose to reveal them in your settings. Otherwise others only see your anonymous handle and avatar. What you reveal applies to your whole account: it appears on all your stories and chitchats, including ones posted before, and hiding it again hides it everywhere.",
+        "Your full name is stored encrypted, and we never sell, share or disclose your identity to any employer, recruiter, company or other organisation, and they cannot pay us to find out who you are.",
+        "The only exception is a valid order from a court or a lawfully authorised government authority under Indian law. Where the law allows, we will tell you before complying.",
+      ],
+    ] },
+    { id: "service", heading: "3. What Ghosted is", blocks: [
+      "Ghosted is a platform for users to share their own experiences of hiring processes and to rate companies. We are an intermediary under the Information Technology Act, 2000: we host content posted by users, but we do not write, verify or endorse it.",
+      "Flag Scores, ratings and salary figures are aggregated from user contributions. They are opinions, not facts certified by Ghosted, and should not be your only basis for career decisions.",
+    ] },
+    { id: "content", heading: "4. Your content", blocks: [
+      "You keep ownership of what you post. By posting, you give Ghosted a worldwide, non-exclusive, royalty-free licence to host, display, reproduce, adapt (for example, for formatting or translation) and distribute your content on and in connection with the service. This licence ends when you delete the content, except for copies retained as required by law.",
+      "You confirm that everything you post:",
+      ["Describes your own genuine experience, and is honest and accurate to the best of your knowledge.", "Is your opinion, clearly expressed as such, and does not state falsehoods as fact.", "Does not identify private individuals by name or reveal anyone's personal data, including recruiters and interviewers.", "Does not disclose confidential information, trade secrets or material you are legally or contractually bound to keep private.", "Complies with our Community Rules and all applicable Indian laws."],
+    ] },
+    { id: "prohibited", heading: "5. What you must not do", blocks: [
+      "In line with Rule 3(1)(b) of the Information Technology (Intermediary Guidelines and Digital Media Ethics Code) Rules, 2021, you must not post or share content that:",
+      ["Is defamatory, obscene, invasive of another's privacy, harassing, hateful or discriminatory on the basis of religion, caste, gender, disability or any other characteristic.", "You know to be false or misleading, or that impersonates another person or organisation.", "Infringes any patent, trademark, copyright or other intellectual property right.", "Threatens the unity, integrity, defence, security or sovereignty of India, public order, or relations with foreign states.", "Contains software viruses or code designed to disrupt any computer resource.", "Is otherwise unlawful under any law for the time being in force."],
+      "You also must not post fake reviews, pay or incentivise others to post reviews, scrape or copy the service at scale, attempt to discover the identity of other users, or interfere with the security of the platform.",
+    ] },
+    { id: "moderation", heading: "6. Moderation and removal", blocks: [
+      "We may review, refuse, edit for formatting, hide or remove content, and suspend or terminate accounts, that we believe in good faith breach these Terms, our Community Rules or the law.",
+      "We act on court orders and lawful government directions within the timelines prescribed by the Intermediary Rules, 2021. Complaints about content that exposes a person's private areas, shows nudity or impersonates an individual are acted on within 24 hours of receipt.",
+      "If we remove your content or restrict your account, we will tell you why where the law allows, and you may ask us to reconsider through the grievance process below.",
+    ] },
+    { id: "employers", heading: "7. Employers and reported content", blocks: [
+      `Companies may report content they believe is false, defamatory or unlawful by writing to ${e.grievanceEmail} with the link to the content and the reasons. We will review it against these Terms and applicable law, including the Bharatiya Nyaya Sanhita, 2023. We do not remove honest opinions simply because they are critical.`,
+      "We will not disclose a user's identity to an employer except under a valid order of a competent court or authority.",
+    ] },
+    { id: "open-source", heading: "8. Open source and trademarks", blocks: [
+      `Ghosted is open source. Anyone can read, audit and suggest improvements to the code that runs this platform, including exactly how we protect your identity, at ${e.github}. Use of the source code is governed by the licence published in that repository.`,
+      "The open-source licence covers the code only. The Ghosted name and logo, and the content posted by users, are not licensed for reuse. You may not use our name or logo in a way that suggests a fork, copy or other service is operated or endorsed by us.",
+    ] },
+    { id: "disclaimer", heading: "9. Disclaimers", blocks: [
+      "Ghosted is provided \"as is\" and \"as available\". We do not guarantee that content posted by users is accurate, complete or current, or that the service will be uninterrupted or error-free. Company names and trademarks belong to their respective owners, and their appearance on Ghosted does not imply any affiliation or endorsement.",
+    ] },
+    { id: "liability", heading: "10. Limitation of liability", blocks: [
+      "To the fullest extent permitted by law, Ghosted and its officers, employees and partners are not liable for any indirect, incidental or consequential loss, or for any loss arising from content posted by users or decisions you make based on it. Our total liability to you for any claim relating to the service is limited to ₹1,000. Nothing in these Terms limits liability that cannot be limited under Indian law.",
+    ] },
+    { id: "indemnity", heading: "11. Indemnity", blocks: [
+      "You agree to indemnify Ghosted against claims, damages and costs, including reasonable legal fees, arising from content you post or your breach of these Terms or the law.",
+    ] },
+    { id: "termination", heading: "12. Ending your account", blocks: [
+      "You can delete your account at any time from your settings. We may suspend or terminate your access if you breach these Terms or if required by law. The sections on content licence (to the extent content is retained), disclaimers, liability, indemnity and governing law continue after termination.",
+    ] },
+    { id: "grievance", heading: "13. Grievances and appeals", blocks: [
+      "Under the Information Technology Act, 2000 and the Intermediary Rules, 2021, our Grievance Officer handles complaints about content and these Terms:",
+      [`Name: ${e.grievanceOfficer}`, `Email: ${e.grievanceEmail}`, `Address: ${e.name}, ${e.address}`],
+      "We will acknowledge your complaint within 24 hours and resolve it within 15 days. If you are dissatisfied with the decision, you may appeal to the Grievance Appellate Committee constituted by the Government of India within 30 days of receiving it.",
+    ] },
+    { id: "law", heading: "14. Governing law and disputes", blocks: [
+      `These Terms are governed by the laws of India. Subject to the grievance process above, the courts at ${e.city} have exclusive jurisdiction over any dispute arising from them.`,
+    ] },
+    { id: "changes", heading: "15. Changes to these Terms", blocks: [
+      "We may update these Terms. We will give notice of significant changes by email or on the site before they take effect. Continuing to use Ghosted after that means you accept the updated Terms.",
+    ] },
+  ],
+};
+
+export const communityDoc: Doc = {
+  eyebrow: "Community Rules",
+  title: "Be honest. Be specific. Be decent.",
+  intro: "Ghosted only works if people can trust what they read here. These rules keep stories useful for candidates and fair to everyone involved. Breaking them can lead to posts being removed and accounts being suspended.",
+  updated: e.effective,
+  sections: [
+    { id: "real", heading: "1. Share your own real experience", blocks: [
+      "Post only about hiring processes you personally went through. Second-hand stories, rumours and \"a friend told me\" posts are removed.",
+      "One company, one experience, one review. Don't post the same story multiple times or from multiple accounts.",
+    ] },
+    { id: "specific", heading: "2. Be specific and factual", blocks: [
+      "The most helpful stories say what happened, when, and what the next candidate should know.",
+      [
+        "Good: \"Four rounds over six weeks. After the final round the recruiter said we'd hear by Friday. It's been 40 days and three follow-ups.\"",
+        "Not helpful: \"Worst company ever, total scam, avoid.\"",
+      ],
+      "Present opinions as opinions (\"I felt\", \"in my experience\"). Don't state as fact things you can't back up.",
+    ] },
+    { id: "people", heading: "3. Talk about companies, not people", blocks: [
+      "Criticise processes and decisions, not individuals. Don't name or describe recruiters, interviewers or employees in a way that identifies them, and never share anyone's photos, phone numbers, emails or social profiles.",
+      "Posts that target or harass an individual are removed, and repeat offenders are banned.",
+    ] },
+    { id: "respect", heading: "4. No hate, harassment or threats", blocks: [
+      "We remove content that attacks people based on religion, caste, gender, sexual orientation, disability, region, language or any other characteristic, along with threats, slurs and sexually explicit material.",
+    ] },
+    { id: "confidential", heading: "5. Keep confidential things confidential", blocks: [
+      "Don't post interview questions or assignments you agreed not to share, internal documents, client names or trade secrets. Describe the experience instead: \"a 17-requirement take-home estimated at two hours\" tells people everything they need.",
+    ] },
+    { id: "safe", heading: "6. Protect your own anonymity", blocks: [[
+      "Leave out details only you would know, such as exact dates, team names or unusual events, if you want to stay anonymous.",
+      "Don't include your own phone number, email or documents in posts.",
+      "Remember you can choose exactly which details to reveal, and switch back to anonymous at any time.",
+    ]] },
+    { id: "integrity", heading: "7. No fake reviews or manipulation", blocks: [
+      "Employers, recruiters and agencies must not post reviews about themselves or competitors, or offer anything in return for reviews. Coordinated campaigns to raise or lower a Flag Score are removed and can lead to a company being marked on its page.",
+    ] },
+    { id: "enforcement", heading: "8. How we enforce these rules", blocks: [
+      "Our moderators review reported posts and use automated checks to spot spam and abuse. Depending on how serious a violation is, we may:",
+      ["Ask you to edit a post.", "Hide or remove the post.", "Temporarily suspend your account.", "Permanently ban accounts for serious or repeated violations."],
+      "If you think we got it wrong, reply to the notice we send you or write to the Grievance Officer. See our Terms & Conditions for the full process.",
+    ] },
+    { id: "report", heading: "9. Report a post", blocks: [
+      `Use the report option on any post, or email ${e.grievanceEmail} with a link and a short explanation. Reports are confidential; we don't tell the author who reported them.`,
+    ] },
+  ],
+};

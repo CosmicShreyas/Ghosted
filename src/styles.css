@@ -1,0 +1,393 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Design system definition.
+ *
+ * The @theme inline block maps CSS custom properties to Tailwind utility
+ * classes (e.g. --color-primary -> bg-primary, text-primary).
+ *
+ * The :root and .dark blocks define the actual color values using oklch.
+ * All colors MUST use oklch format.
+ *
+ * To add a new semantic color:
+ * 1. Add the variable to :root (light value) and .dark (dark value)
+ * 2. Register it in @theme inline as --color-<name>: var(--<name>)
+ */
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ring-offset-background: var(--background);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-flag-green: var(--flag-green);
+  --color-flag-amber: var(--flag-amber);
+  --color-flag-red: var(--flag-red);
+  --color-avatar-mint: var(--avatar-mint);
+  --color-avatar-sky: var(--avatar-sky);
+  --color-avatar-pink: var(--avatar-pink);
+  --color-avatar-amber: var(--avatar-amber);
+  --color-avatar-lilac: var(--avatar-lilac);
+  --color-logo-violet: var(--logo-violet);
+  --color-logo-coral: var(--logo-coral);
+  --color-logo-blue: var(--logo-blue);
+  --color-logo-green: var(--logo-green);
+  --color-logo-pink: var(--logo-pink);
+  --color-logo-amber: var(--logo-amber);
+  --color-logo-red: var(--logo-red);
+  --font-display: "Space Grotesk", sans-serif;
+  --font-sans: "Inter", sans-serif;
+  /* Hard offset shadows use their own ink: the text colour in light mode, violet after hours. */
+  --shadow-hard: 4px 4px 0 var(--shadow-ink);
+  --shadow-hard-sm: 2px 2px 0 var(--shadow-ink);
+}
+
+:root {
+  --radius: 0.75rem;
+  --background: oklch(0.977 0.008 78);
+  --foreground: oklch(0.16 0.01 70);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.16 0.01 70);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.16 0.01 70);
+  --primary: oklch(0.49 0.25 293);
+  --primary-foreground: oklch(0.985 0.003 90);
+  --secondary: oklch(0.93 0.025 80);
+  --secondary-foreground: oklch(0.16 0.01 70);
+  --muted: oklch(0.94 0.012 75);
+  --muted-foreground: oklch(0.45 0.02 65);
+  --accent: oklch(0.91 0.08 100);
+  --accent-foreground: oklch(0.16 0.01 70);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.984 0.003 247.858);
+  --border: oklch(0.16 0.01 70);
+  --input: oklch(0.78 0.01 75);
+  --ring: oklch(0.49 0.25 293);
+  --flag-green: oklch(0.72 0.19 145);
+  --flag-amber: oklch(0.77 0.17 70);
+  --flag-red: oklch(0.64 0.22 27);
+  --avatar-mint: oklch(0.91 0.07 160);
+  --avatar-sky: oklch(0.91 0.06 235);
+  --avatar-pink: oklch(0.92 0.06 350);
+  --avatar-amber: oklch(0.92 0.08 80);
+  --avatar-lilac: oklch(0.9 0.07 300);
+  --logo-violet: oklch(0.63 0.23 293);
+  --logo-coral: oklch(0.72 0.18 35);
+  --logo-blue: oklch(0.65 0.16 245);
+  --logo-green: oklch(0.7 0.17 150);
+  --logo-pink: oklch(0.72 0.18 350);
+  --logo-amber: oklch(0.78 0.16 75);
+  --logo-red: oklch(0.64 0.22 27);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.984 0.003 247.858);
+  --sidebar-foreground: oklch(0.129 0.042 264.695);
+  --sidebar-primary: oklch(0.208 0.042 265.755);
+  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
+  --sidebar-accent: oklch(0.968 0.007 247.896);
+  --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
+  --sidebar-border: oklch(0.929 0.013 255.508);
+  --sidebar-ring: oklch(0.704 0.04 256.788);
+  --shadow-ink: var(--foreground);
+  /* Chart series (charts read these, so they re-colour with the theme). */
+  --chart-violet: #6d28d9;
+  --chart-cyan: #0891b2;
+}
+
+/* ---------- Dark mode: "after hours" ----------
+   HR's gone home, the lights are off, you're reading receipts at 11 pm. A warm plum night (not
+   neutral black) with cream ink for text AND the thick outlines, so the neo-brutalist frame
+   survives. The one bold move: hard shadows turn violet. Violet, the yellow accent and the flag
+   reds stay; they're only lifted enough to stay legible on dark. */
+.dark {
+  --background: #16111d;          /* night plum */
+  --foreground: #f2e9d8;          /* cream ink: text and borders */
+  --card: #211a2b;
+  --card-foreground: #f2e9d8;
+  --popover: #231c2e;
+  --popover-foreground: #f2e9d8;
+  --primary: #9f7aea;             /* violet, lifted for contrast on plum */
+  --primary-foreground: #150f1c;  /* dark text on violet reads better than white here */
+  --secondary: #2a2135;
+  --secondary-foreground: #f2e9d8;
+  --muted: #2c2338;
+  --muted-foreground: #b3a8bd;
+  --accent: #f4c44e;              /* the yellowish tone, as a warm mustard */
+  --accent-foreground: #1a140f;
+  --destructive: #f25c5c;
+  --destructive-foreground: #150f1c;
+  --border: #f2e9d8;
+  --input: #4a3f57;
+  --ring: #b794f6;
+  --flag-green: #3dd68c;
+  --flag-amber: #f5b544;
+  --flag-red: #f25c5c;
+  --avatar-mint: #7fd8b4;
+  --avatar-sky: #86c3ee;
+  --avatar-pink: #f0a6c8;
+  --avatar-amber: #f4c979;
+  --avatar-lilac: #c3a6f2;
+  --logo-violet: #8b5cf6;
+  --logo-coral: #f0855f;
+  --logo-blue: #4f9cf0;
+  --logo-green: #3fbf7f;
+  --logo-pink: #ec6fa8;
+  --logo-amber: #f0b43c;
+  --logo-red: #f25c5c;
+  --shadow-ink: #7c4dde;          /* the signature: violet hard shadows */
+  --chart-violet: #b794f6;
+  --chart-cyan: #38bdf8;
+}
+
+@layer base {
+  /* Edge/IE add their own reveal and clear buttons to inputs; we draw our own eye toggle. */
+  input::-ms-reveal,
+  input::-ms-clear {
+    display: none;
+  }
+  * {
+    border-color: var(--color-border);
+  }
+
+  /* Grid items default to "at least as wide as their content", so one long unbreakable line
+     (a truncated name, a long word) makes a column wider than the screen and pushes the whole
+     section off the right edge on phones. Letting every grid item shrink fixes that site-wide. */
+  .grid > * {
+    min-width: 0;
+  }
+
+  /* Tailwind v4 dropped the pointer cursor on buttons; restore it for everything clickable. */
+  button:not(:disabled),
+  a[href],
+  [role="button"]:not([aria-disabled="true"]),
+  [role="tab"],
+  [role="radio"],
+  [role="checkbox"],
+  [role="switch"],
+  [role="menuitem"]:not([data-disabled]),
+  [role="menuitemcheckbox"],
+  [role="menuitemradio"],
+  [role="option"],
+  label[for],
+  label:has(> input[type="checkbox"], > button[role="switch"], > button[role="checkbox"]),
+  summary,
+  select {
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: not-allowed;
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    letter-spacing: 0;
+    margin: 0;
+    /* App feel on touch screens: no grey tap flash, no double-tap zoom delay, no rubber-band
+       bounce revealing the page behind, and no accidental text-size bumps on rotate. */
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: none;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+  a, button, [role="button"], input, select, textarea, label, summary {
+    touch-action: manipulation;
+  }
+  @media (hover: none) {
+    /* Buttons and links give a small press, like native controls, instead of hover styles. */
+    button:not(:disabled):active, a:active, [role="button"]:active {
+      transition: transform 80ms ease-out;
+    }
+    button:not(:disabled):not([data-no-press]):active {
+      transform: scale(0.97);
+    }
+    /* Chrome (buttons, nav) shouldn't select on long-press; content still can. */
+    button, nav {
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-touch-callout: none;
+    }
+  }
+
+  h1, h2, h3, h4 {
+    font-family: var(--font-display);
+    letter-spacing: 0;
+  }
+
+  h1 > span {
+    display: block;
+    min-height: 1.94em;
+  }
+
+  ::selection {
+    background: var(--primary);
+    color: var(--primary-foreground);
+  }
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes dial-in {
+  from { stroke-dashoffset: 157; }
+}
+
+@utility animate-fade-up { animation: fade-up 0.55s ease-out both; }
+@utility animate-dial { animation: dial-in 0.9s cubic-bezier(.2,.8,.2,1) both; }
+@utility card-lift { transition: transform .2s ease, box-shadow .2s ease; &:hover { transform: translateY(-3px); box-shadow: var(--shadow-hard); } }
+
+@keyframes marquee-left {
+  to { transform: translateX(-50%); }
+}
+
+@keyframes hero-orbit {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes hero-orbit-reverse {
+  to { transform: rotate(-360deg); }
+}
+
+@utility hero-float { will-change: auto; }
+@utility hero-float-slow { will-change: auto; }
+@utility hero-float-reverse { will-change: auto; }
+@utility hero-orbit { animation: hero-orbit 28s linear infinite; }
+@utility hero-orbit-delayed { animation: hero-orbit-reverse 20s linear infinite; }
+
+.hero-scene .top-42 { top: 10.5rem; }
+
+@utility marquee-track {
+  width: max-content;
+  animation: marquee-left 28s linear infinite;
+}
+
+@utility marquee-track-reverse {
+  width: max-content;
+  animation: marquee-left 34s linear infinite reverse;
+}
+
+@utility pause-on-hover {
+  &:hover { animation-play-state: paused; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
+
+/* After hours, yellow surfaces (the greeting card, hero cards, badges) keep dark ink: cream text on
+   mustard doesn't read. Violet deepens there too. Cards nested inside go back to night colours. */
+.dark :is(.bg-accent, .bg-flag-amber) {
+  color: var(--accent-foreground);
+  --muted-foreground: #5b4a2c;
+  --primary: #5b21b6;
+  --primary-foreground: #fbf7ff;
+}
+.dark :is(.bg-accent, .bg-flag-amber) :is(.bg-card, .bg-background, .bg-muted) {
+  color: var(--foreground);
+  --muted-foreground: #b3a8bd;
+  --primary: #9f7aea;
+  --primary-foreground: #150f1c;
+}
+
+/* Popup opened from a popup (e.g. "List a company" from the share form): only the first overlay
+   dims the page. Overlays are portalled into <body> in opening order, so any later one is a sibling. */
+.ghosted-overlay ~ .ghosted-overlay {
+  background: transparent !important;
+  backdrop-filter: none !important;
+}
+
+/* Slow-load reveal (see __root.tsx): Motion renders entrance animations on the server as inline
+   `opacity:0`. On a slow load those would stay blank until the JavaScript arrives, so show them. */
+html[data-slow] [style*="opacity:0"] {
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+/* Settings → Appearance → Reduce motion (set on <html> by the root layout). */
+html[data-reduce-motion] *,
+html[data-reduce-motion] *::before,
+html[data-reduce-motion] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* Site-wide scrollbars: slim and violet everywhere (page, popups, menus, lists).
+   Firefox and Chrome/Edge 121+ use the standard properties; older Chrome/Safari use ::-webkit-. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklch, var(--primary), transparent 25%) transparent;
+}
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: color-mix(in oklch, var(--primary), transparent 25%);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover { background: var(--primary); background-clip: padding-box; }
+*::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+*::-webkit-scrollbar-corner { background: transparent; }
+
+/* Scrolls normally (wheel, trackpad, touch, keyboard) but draws no scrollbar. */
+.no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* Loading placeholders: a soft light wave sweeping across grey blocks. */
+@keyframes skeleton-wave {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.skeleton {
+  border-radius: 0.375rem;
+  background: linear-gradient(90deg, var(--muted) 0%, color-mix(in oklch, var(--muted), white 55%) 45%, var(--muted) 90%);
+  background-size: 200% 100%;
+  animation: skeleton-wave 1.4s ease-in-out infinite;
+}

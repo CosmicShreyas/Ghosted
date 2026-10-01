@@ -1,0 +1,116 @@
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
+import { motion } from "motion/react";
+import { ArrowLeft, PenLine } from "lucide-react";
+import { Sidebar, Topbar, type View } from "@/components/dashboard/shell";
+import { FeedStory } from "@/components/dashboard/widgets";
+import { ShareModal } from "@/components/dashboard/share-story";
+import { CompanyActions, CompanyHeader, CompanyRail, ReportCompanyDialog, WhatPeopleSay } from "@/components/dashboard/company-page";
+import { LogoutDialog } from "@/components/dashboard/confirm-dialogs";
+import { Preloader } from "@/components/preloader";
+import { BackButton } from "@/components/back-button";
+import { SlidingPill, usePill } from "@/components/sliding-pill";
+import { Button } from "@/components/ui/button";
+import { useCompanyPage } from "@/lib/companies";
+import { useReachEnd, useStoryFeed } from "@/lib/feed";
+import { useSaved } from "@/lib/saved";
+import { useAccountActions, useAuthGuard, useMe, useTone, voice } from "@/lib/session";
+import { cn } from "@/lib/utils";
+import type { Company } from "@/mock/data";
+
+// A company's page, addressed by its slug. Same layout as people pages: header, what people say,
+// stories (filterable), and the stats rail.
+export const Route = createFileRoute("/c/$slug")({
+  head: () => ({ meta: [{ title: "Company | Ghosted" }, { name: "description", content: "Hiring stories, Flag Score and salaries from candidates who interviewed here." }] }),
+  component: CompanyPageRoute,
+});
+
+const FILTERS = [{ id: "all", label: "All stories" }, { id: "positive", label: "Positive" }, { id: "critical", label: "Critical" }] as const;
+type Filter = (typeof FILTERS)[number]["id"];
+// Sample stories have no ratings; approximate sentiment from how they ended.
+const sampleSentiment = (outcome: string) => (outcome === "offer" ? "positive" : outcome === "rejected" ? "mixed" : "critical");
+
+function CompanyPageRoute() {
+  const { slug } = Route.useParams();
+  const navigate = useNavigate();
+  const tone = useTone();
+  const { me } = useMe();
+  const { waiting } = useAuthGuard("private");
+  const { logout } = useAccountActions();
+  const hook = useCompanyPage(slug);
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<Filter>("all");
+  const filterPill = usePill(filter);
+  const [share, setShare] = useState(false);
+  const [reporting, setReporting] = useState(false);
+  const [saved, toggleSave] = useSaved();
+  const [confirmLogout, setConfirmLogout] = useState(false);
+  const page = hook.page;
+
+  const matches = (text: string) => !query || text.toLowerCase().includes(query.toLowerCase());
+  const feed = useStoryFeed({
+    sample: (page?.stories ?? []).filter((s) => filter === "all" || sampleSentiment(s.outcome) === filter),
+    signature: `${slug}|${filter}|${query}`,
+    filter: (s) => matches(`${s.title ?? ""} ${s.body} ${s.role ?? ""}`),
+    path: `/v1/companies/${slug}/stories`, params: `&sentiment=${filter}`, topic: `company:${slug}`,
+  });
+  const sentinel = useReachEnd(feed.loadMore, feed.hasMore);
+  const goView = (v: View) => navigate({ to: "/dashboard", search: { view: v } });
+  const openCompany = (c: Company) => navigate({ to: "/c/$slug", params: { slug: c.id } });
+
+  if (waiting || hook.loading) return <Preloader />;
+
+  const shell = (body: React.ReactNode) => <div className="min-h-screen bg-background lg:pl-60">
+    <Sidebar view={null} onChange={goView} me={me} savedCount={saved.size} />
+    <Topbar query={query} onQuery={setQuery} onShare={() => setShare(true)} me={me} view={null} onChange={goView} onLogout={() => setConfirmLogout(true)} savedCount={saved.size} />
+    <main className="mx-auto max-w-[1500px] p-4 pb-28 sm:p-6 sm:pb-28 lg:pb-6">{body}</main>
+    {/* "Share a story" from a company page starts with the company already picked. */}
+    <ShareModal open={share} onOpenChange={setShare} presetCompany={page?.company.id ?? null} />
+    <LogoutDialog open={confirmLogout} onOpenChange={setConfirmLogout} onConfirm={async () => { await logout(); setConfirmLogout(false); navigate({ to: "/auth" }); }} />
+  </div>;
+
+  if (hook.notFound || hook.error || !page) return shell(<div className="mx-auto max-w-lg rounded-xl border-2 border-dashed border-foreground/40 p-10 text-center">
+    <p className="font-display text-xl font-bold">{hook.error ? "Couldn't load this company" : "No company here"}</p>
+    <p className="mt-2 text-sm text-muted-foreground">{hook.error ? "Check your connection and try again." : voice(tone, "Either it was never listed, or it ghosted us too.", "This company isn't listed.")}</p>
+    <Button className="mt-5" variant="outline" asChild><Link to="/dashboard" search={{ view: "companies" }}><ArrowLeft />All companies</Link></Button>
+  </div>);
+
+  const list = feed.items.map((i) => i.story);
+  const name = page.company.name;
+
+  return shell(<div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+    <div className="min-w-0 space-y-6">
+      <BackButton fallback={{ to: "/dashboard", search: { view: "companies" } }} />
+      <CompanyHeader page={page} actions={<CompanyActions page={page} hook={hook} onShare={() => setShare(true)} onReport={() => setReporting(true)} />} />
+      <WhatPeopleSay stats={page.stats} />
+
+      {/* Phones/tablets: the stats as a swipeable strip (desktop shows them on the right). */}
+      <section className="xl:hidden"><p className="mb-3 text-xs font-bold uppercase text-primary">Swipe for the numbers</p><CompanyRail page={page} layout="strip" /></section>
+
+      <section>
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+          <div><p className="text-xs font-bold uppercase text-primary">The receipts</p><h2 className="text-2xl font-bold">{query ? `Results for “${query}”` : `Stories about ${name}`}</h2></div>
+          <div ref={filterPill.ref} className="relative flex flex-wrap gap-2" role="tablist" aria-label="Filter stories">
+            <SlidingPill pill={filterPill} className="rounded-full bg-primary" />
+            {FILTERS.map((f) => <button key={f.id} data-pill={f.id} type="button" role="tab" aria-selected={filter === f.id} onClick={() => setFilter(f.id)} className={cn("relative rounded-full border-2 border-foreground px-3 py-1 text-xs font-bold transition-colors", filter === f.id ? "text-primary-foreground" : "bg-card hover:bg-muted")}>
+              <span className="relative">{f.label}</span>
+            </button>)}
+          </div>
+        </div>
+        {list.length === 0 && !feed.loadingFirst
+          ? <div className="rounded-xl border-2 border-dashed border-foreground/40 p-10 text-center">
+              <p className="font-display text-xl font-bold">{filter === "all" ? voice(tone, "Suspiciously quiet.", "No stories yet.") : `No ${filter} stories yet.`}</p>
+              <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">{voice(tone, `Interviewed at ${name}? Your story could save someone six rounds.`, `Interviewed at ${name}? Share how it went.`)}</p>
+              <Button className="mt-5" onClick={() => setShare(true)}><PenLine />Share a story about {name}</Button>
+            </div>
+          : <div className="space-y-4">
+              {list.map((s) => <FeedStory key={s.id} story={s} saved={saved.has(s.id)} onSave={() => toggleSave(s.id)} onOpenCompany={openCompany} />)}
+              {(feed.loadingFirst || feed.loadingMore) && <div className="space-y-4" aria-busy="true">{[0, 1].map((i) => <div key={i} className="skeleton h-40 rounded-xl border-2 border-foreground/20" />)}</div>}
+              <div ref={sentinel} aria-hidden="true" />
+            </div>}
+      </section>
+    </div>
+    <div data-lenis-prevent className="hidden xl:sticky xl:top-[5.5rem] xl:block xl:max-h-[calc(100vh-6.5rem)] xl:self-start xl:overflow-y-auto xl:overflow-x-hidden xl:overscroll-contain xl:pb-2 xl:pr-2 no-scrollbar"><CompanyRail page={page} /></div>
+    <ReportCompanyDialog open={reporting} onOpenChange={setReporting} name={name} onSubmit={hook.report} />
+  </div>);
+}

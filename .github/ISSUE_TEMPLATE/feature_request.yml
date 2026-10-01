@@ -1,0 +1,45 @@
+name: Feature proposal
+description: Propose a focused improvement to Ghosted
+title: "[Proposal]: "
+labels: ["enhancement", "needs-discussion"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What user problem should this solve, and who experiences it?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Explain the behavior, including privacy, accessibility, and responsive-layout considerations.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: dropdown
+    id: area
+    attributes:
+      label: Primary area
+      options:
+        - Main app
+        - Admin panel
+        - API or database
+        - Email or scheduled job
+        - Documentation or developer experience
+    validations:
+      required: true
+  - type: checkboxes
+    id: principles
+    attributes:
+      label: Product principles
+      options:
+        - label: This proposal does not add direct messaging.
+          required: true
+        - label: I searched existing issues and discussions first.
+          required: true
+
