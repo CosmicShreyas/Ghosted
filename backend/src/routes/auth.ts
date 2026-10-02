@@ -67,7 +67,7 @@ export const authRoutes = new Hono<AppEnv>()
     avatarSeed: z.string().refine(isAvatarSeed, "Invalid avatar").optional(),
     pastel: z.string().refine(isPastel, "Invalid colour").optional(),
     // Must be exactly true: the Terms and Privacy Policy have to be accepted to sign up.
-    acceptTerms: z.literal(true, { errorMap: () => ({ message: "Please accept the Terms and Privacy Policy" }) }),
+    acceptTerms: z.literal(true, { error: "Please accept the Terms and Privacy Policy" }),
     captchaToken,
   }).strict()), async (c) => {
     await ensureOpen("signupsOpen");

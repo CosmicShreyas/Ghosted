@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { FileText } from "lucide-react";
+import { ExternalLink, FileText, Mail } from "lucide-react";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import type { Doc } from "@/content/legal";
 
@@ -45,7 +45,7 @@ export function LegalPage({ doc, insertAfter = {} }: { doc: Doc; insertAfter?: R
         <article className="rounded-xl border-2 border-foreground bg-card p-5 shadow-hard [overflow-wrap:anywhere] sm:p-10">
           {doc.sections.map((s, i) => <section key={s.id} id={s.id} className={i ? "mt-10 scroll-mt-24 border-t-2 border-dashed border-foreground/20 pt-10" : "scroll-mt-24"}>
             <h2 className="text-2xl font-bold">{s.heading}</h2>
-            <div className="mt-4 space-y-4 leading-relaxed text-foreground/85">{s.blocks.map((b, j) => typeof b === "string" ? <p key={j}>{b}</p> : <ul key={j} className="space-y-2">{b.map((item) => <li key={item} className="flex gap-3"><span className="mt-2.5 size-1.5 shrink-0 rounded-full bg-primary" aria-hidden="true" /><span>{item}</span></li>)}</ul>)}</div>
+            <div className="mt-4 space-y-4 leading-relaxed text-foreground/85">{s.blocks.map((b, j) => typeof b === "string" ? <p key={j}>{b}</p> : Array.isArray(b) ? <ul key={j} className="space-y-2">{b.map((item) => <li key={item} className="flex gap-3"><span className="mt-2.5 size-1.5 shrink-0 rounded-full bg-primary" aria-hidden="true" /><span>{item}</span></li>)}</ul> : <p key={j} className="flex flex-wrap items-center gap-x-3 gap-y-1"><a href={`mailto:${b.email}`} className="inline-flex items-center gap-2 rounded-lg border-2 border-foreground bg-background px-3 py-2 font-bold shadow-hard-sm transition-colors hover:bg-primary hover:text-primary-foreground"><Mail className="size-4" />{b.label}<ExternalLink className="size-3.5" /></a>{b.description && <span className="text-sm text-muted-foreground">{b.description}</span>}</p>)}</div>
             {insertAfter[s.id]}
           </section>)}
         </article>

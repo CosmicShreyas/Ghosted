@@ -9,8 +9,7 @@ const schema = z.object({
   PII_ENCRYPTION_KEY: z.string().regex(/^[0-9a-f]{64}$/i, "PII_ENCRYPTION_KEY must be 64 hex characters (32 bytes)"),
   AUTH_TOKEN_SECRET: z.string().min(32, "AUTH_TOKEN_SECRET must be at least 32 characters"),
   SESSION_COOKIE_KEY: z.string().regex(/^[0-9a-f]{64}$/i, "SESSION_COOKIE_KEY must be 64 hex characters (32 bytes)"),
-  MAIL_DRIVER: z.enum(["brevo", "smtp", "console"]).default("brevo"),
-  BREVO_API_KEY: z.string().optional(),
+  MAIL_DRIVER: z.enum(["smtp", "console"]).default("smtp"),
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.coerce.number().int().default(587),
   // true = implicit TLS (port 465); false = STARTTLS upgrade (port 587). Defaults from the port.
@@ -19,9 +18,12 @@ const schema = z.object({
   SMTP_PASS: z.string().optional(),
   MAIL_FROM_EMAIL: z.string().email(),
   MAIL_FROM_NAME: z.string().min(1).default("Ghosted"),
+  // Optional monitored address for replies (for Gmail, this may be a plus-address alias).
+  MAIL_REPLY_TO_EMAIL: z.string().email().optional().or(z.literal("").transform(() => undefined)),
+  MAIL_REPLY_TO_NAME: z.string().min(1).optional().or(z.literal("").transform(() => undefined)),
   // The website's address: every link in every email is built from it. Required (no fallback), so
   // an email can never point at the wrong site.
-  FRONTEND_URL: z.string().url("FRONTEND_URL must be the site's full address, e.g. https://ghosted.in").transform((u) => u.replace(/\/+$/, "")),
+  FRONTEND_URL: z.string().url("FRONTEND_URL must be the site's full address, e.g. https://your-frontend-project.vercel.app").transform((u) => u.replace(/\/+$/, "")),
   VERCEL_ENV: z.string().optional(),
   // Vercel Cron sends this as "Authorization: Bearer <CRON_SECRET>" (weekly digest). 16+ chars.
   CRON_SECRET: z.string().min(16).optional(),
@@ -43,7 +45,6 @@ const schema = z.object({
   MODERATOR_EMAILS: z.string().optional().transform((s) => (s ?? "").split(",").map((x) => x.trim()).filter((x) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x))),
 }).superRefine((e, ctx) => {
   const need = (key: keyof typeof e, why: string) => { if (!e[key]) ctx.addIssue({ code: "custom", path: [key], message: why }); };
-  if (e.MAIL_DRIVER === "brevo") need("BREVO_API_KEY", "required when MAIL_DRIVER=brevo");
   if (e.MAIL_DRIVER === "smtp") need("SMTP_HOST", "required when MAIL_DRIVER=smtp");
   // Printing codes to the console in production would leak them into hosting logs.
   if (e.MAIL_DRIVER === "console" && e.VERCEL_ENV === "production") ctx.addIssue({ code: "custom", path: ["MAIL_DRIVER"], message: "console is for local development only" });

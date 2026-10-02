@@ -44,8 +44,8 @@ function open(value: string): Payload | null {
   }
 }
 
-// Secure cookies are fine on http://localhost in modern browsers, and deployments are HTTPS. The one
-// exception is local development opened from a phone over the LAN (http://192.168.x.x), where browsers
+// Secure cookies are fine on loopback development origins in modern browsers, and deployments are HTTPS.
+// The one exception is local development opened from a phone over a plain-HTTP LAN address, where browsers
 // silently drop Secure cookies; only there, off Vercel and over plain http, are they sent without it.
 const secureFor = (c: Context) => Boolean(env().VERCEL_ENV) || new URL(c.req.url).protocol === "https:" || /^(localhost|127\.0\.0\.1)(:|$)/.test(c.req.header("host") ?? "");
 const cookieOptions = (c: Context, maxAge: number) => ({ httpOnly: true, secure: secureFor(c), sameSite: "Lax" as const, path: "/", maxAge });

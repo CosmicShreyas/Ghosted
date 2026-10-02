@@ -89,7 +89,7 @@ export async function donate(o: { amount: number; message?: string; showName: bo
   return new Promise((resolve, reject) => {
     const rzp = new window.Razorpay!({
       key: order.keyId, order_id: order.orderId, amount: order.amount, currency: order.currency,
-      name: "Ghosted", description: "Support honest hiring", image: `${location.origin}/icon-192.png`,
+      name: "Ghosted", description: "Support honest hiring", image: `${location.origin}/favicon-light-512x512.png`,
       ...(o.name && { prefill: { name: o.name } }),
       theme: { color: dark ? "#9b6bff" : "#6a2ee0" },
       handler: async (r: RazorpayResponse) => {

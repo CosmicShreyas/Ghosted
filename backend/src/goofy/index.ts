@@ -41,7 +41,7 @@ export async function goofy(): Promise<string> {
   const { data } = await admin().from("profiles").select("id").eq("public_id", GOOFY_PUBLIC_ID).maybeSingle();
   if (data) return (goofyId = (data as { id: string }).id);
   // First run: a sign-in-proof auth user (unreachable email, banned for 100 years, random password).
-  const email = "goofy@automod.ghosted.invalid";
+  const email = "goofy@automod.invalid";
   let id: string | null = null;
   const created = await admin().auth.admin.createUser({ email, email_confirm: true, password: randomBytes(32).toString("base64url"), ban_duration: "876000h", user_metadata: {} });
   if (created.data.user) id = created.data.user.id;

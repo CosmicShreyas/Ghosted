@@ -48,9 +48,9 @@ off and ends their sessions within a minute. The same flow resets a forgotten pa
 ## Run it locally
 
 1. Run the complete `backend/supabase/init_database.sql` in Supabase. It includes the admin schema.
-2. In `backend/.env`: `ADMIN_ORIGINS=http://localhost:5300` and your `ADMIN_EMAILS`.
+2. In `backend/.env`, set `ADMIN_ORIGINS` to the URL printed by the admin dev server and configure your `ADMIN_EMAILS`.
 3. Start (or restart) the API (`cd backend && npm run dev`) and the panel (`npm run admin:dev`),
-   open http://localhost:5300 and choose **Set your password**.
+   open the URL printed by the admin dev server and choose **Set your password**.
 
 ## Deploy
 

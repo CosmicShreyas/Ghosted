@@ -92,6 +92,8 @@ Set production secrets in the corresponding hosting project. Do not commit `.env
 
 Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. By participating, you agree to the [Code of Conduct](CODE_OF_CONDUCT.md). Use [SECURITY.md](SECURITY.md) for private vulnerability reports and [SUPPORT.md](SUPPORT.md) for usage questions.
 
+Pull requests are checked by CI and Dependency Review. CodeQL analyzes JavaScript and TypeScript changes and also runs weekly. These checks report or block security risks without opening automated dependency-update pull requests.
+
 ## License and branding
 
 Code in this repository is available under the [PolyForm Shield License 1.0.0](LICENSE.md). This is not an OSI-approved open-source license because it restricts competitive use. The Ghosted name, logo, and brand assets are governed separately by [TRADEMARKS.md](TRADEMARKS.md).

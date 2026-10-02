@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
-  ArrowRight, Bug, Check, CircleDot, Code2, Copy, ExternalLink, GitFork, Github, Heart, HeartHandshake, Lightbulb, Loader2, Lock, MessageSquareHeart, Monitor, Send,
+  ArrowRight, Bug, Check, CircleDot, Code2, Copy, ExternalLink, GitFork, Github, Heart, HeartHandshake, Lightbulb, Loader2, Lock, Mail, MessageSquareHeart, Monitor, Send,
   Server, ShieldCheck, Sparkles, Star, Users, type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -176,7 +176,7 @@ export function FeedbackForm({ initialKind = "feedback" }: { initialKind?: FormK
           </label>}
 
           <div className="flex flex-wrap items-center justify-between gap-3 border-t-2 border-foreground/10 pt-4">
-            <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><Lock className="size-3.5" />Only the Ghosted team sees this.</p>
+            <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground"><span className="inline-flex items-center gap-1.5"><Lock className="size-3.5" />Only the Ghosted team sees this.</span><a href={`mailto:${entity.email.support}`} className="inline-flex items-center gap-1 font-bold text-foreground underline-offset-2 hover:text-primary hover:underline"><Mail className="size-3.5" />Email support</a></p>
             <Button onClick={() => void submit()} disabled={busy}>{busy ? <Loader2 className="animate-spin" /> : <Send />}{kind === "bug" ? "Send bug report" : kind === "feature" ? "Send idea" : "Send feedback"}</Button>
           </div>
         </motion.div>}

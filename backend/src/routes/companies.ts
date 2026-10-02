@@ -53,13 +53,13 @@ const newCompany = z.object({
   name: companyName,
   website: z.string().trim().min(3, "Enter the company's website").max(200),
   about,
-  industry: z.enum(INDUSTRIES, { errorMap: () => ({ message: "Pick an industry" }) }),
-  size: z.enum(SIZES, { errorMap: () => ({ message: "Pick a size" }) }),
+  industry: z.enum(INDUSTRIES, { error: "Pick an industry" }),
+  size: z.enum(SIZES, { error: "Pick a size" }),
   hqCity: z.string().transform(clean).pipe(z.string().min(2, "Where is it headquartered?").max(60).refine((s) => /^[\p{L} .'-]+$/u.test(s), "Just the city name")),
   founded: z.number().int().min(1800, "That's a bit early").max(year, "That's in the future").optional(),
   careersUrl: z.string().trim().url("Use a full https:// link").max(300).refine((u) => u.startsWith("https://"), "Use an https:// link").optional(),
   // They must confirm they're describing a real company, accurately and in good faith.
-  confirm: z.literal(true, { errorMap: () => ({ message: "Please confirm the details are accurate" }) }),
+  confirm: z.literal(true, { error: "Please confirm the details are accurate" }),
   captchaToken: z.string().max(12000).optional(),
 }).strict();
 

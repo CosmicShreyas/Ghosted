@@ -9,7 +9,7 @@ import { EMAIL_LOGO_BASE64, EMAIL_LOGO_CID } from "../src/mail/logo.js";
 import { themeEmail } from "../src/mail/theme.js";
 
 const appUrl = (process.env.FRONTEND_URL ?? process.env.APP_URL)?.replace(/\/+$/, "");
-if (!appUrl) { console.error("Set FRONTEND_URL in backend/.env (e.g. FRONTEND_URL=http://localhost:8080), then run again."); process.exit(1); }
+if (!appUrl) { console.error("Set FRONTEND_URL in backend/.env to the public app's full URL, then run again."); process.exit(1); }
 // Browsers can't resolve cid: images, so the preview inlines the logo as a data URI. Every
 // template is also written in the dark ("after hours") version dark-mode readers receive.
 const inline = (html: string) => html.replaceAll(`cid:${EMAIL_LOGO_CID}`, `data:image/png;base64,${EMAIL_LOGO_BASE64}`);

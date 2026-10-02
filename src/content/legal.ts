@@ -1,24 +1,24 @@
-// Company and legal pages. Before launch, fill in `entity` and have Indian counsel review.
+// Company and legal pages. Before launch, appoint a grievance officer, publish their monitored
+// contact address below, and have Indian counsel review the finished documents.
 // Written against: Digital Personal Data Protection Act, 2023 and DPDP Rules, 2025;
 // Information Technology Act, 2000; IT (Intermediary Guidelines and Digital Media Ethics Code) Rules, 2021;
 // Bharatiya Nyaya Sanhita, 2023.
 
 export const entity = {
-  name: "[Legal Entity Name] Private Limited",
   brand: "Ghosted",
-  address: "[Registered office address], India",
-  city: "[City]",
-  site: "ghosted.[domain]",
-  supportEmail: "support@ghosted.[domain]",
-  privacyEmail: "privacy@ghosted.[domain]",
-  grievanceOfficer: "[Grievance Officer name]",
-  grievanceEmail: "grievance@ghosted.[domain]",
-  effective: "29 September 2026",
+  site: "the Ghosted website and related services",
+  effective: "2 October 2026",
   github: "https://github.com/CosmicShreyas/Ghosted",
+  email: {
+    support: "ghosted.help+support@gmail.com",
+    privacy: "ghosted.help+privacy@gmail.com",
+    grievance: "ghosted.help+grievance@gmail.com",
+  },
 };
 
-// A block is a paragraph (string) or a bulleted list (string[]).
-export type Block = string | string[];
+export type EmailBlock = { type: "email"; email: string; label: string; description?: string };
+// Email blocks deliberately show a descriptive label instead of printing the address on the page.
+export type Block = string | string[] | EmailBlock;
 export type Section = { id: string; heading: string; blocks: Block[] };
 export type Doc = { eyebrow: string; title: string; intro: string; updated: string; sections: Section[] };
 
@@ -76,11 +76,14 @@ export const aboutDoc: Doc = {
       "Useful over loud. The best posts are specific: what happened, when, and what the next candidate should know.",
     ]] },
     { id: "companies", heading: "For employers", blocks: [
-      `Companies can respond publicly to stories and report content they believe breaks our Community Rules or the law. Write to ${e.supportEmail} from an official company address. We review every report, but we do not remove honest reviews simply because they are negative.`,
+      "Companies can respond publicly to stories and report content they believe breaks our Community Rules or the law through Feedback & Support in the app. We review every report, but we do not remove honest reviews simply because they are negative.",
     ] },
     { id: "contact", heading: "Contact", blocks: [
-      `${e.brand} is operated by ${e.name}, ${e.address}.`,
-      [`General questions: ${e.supportEmail}`, `Privacy and data requests: ${e.privacyEmail}`, `Grievances and legal notices: ${e.grievanceEmail}`],
+      "Ghosted is currently an independent, pre-launch project and does not claim to be a private limited company or to maintain a registered office.",
+      "For general questions or reports, use Feedback & Support in the app or contact us by email.",
+      { type: "email", email: e.email.support, label: "Email Ghosted Support", description: "General questions, account help, and company enquiries" },
+      { type: "email", email: e.email.privacy, label: "Email the Privacy team", description: "Access, correction, deletion, and other personal-data requests" },
+      { type: "email", email: e.email.grievance, label: "Submit a grievance", description: "Content complaints, appeals, and legal notices" },
     ] },
   ],
 };
@@ -88,7 +91,7 @@ export const aboutDoc: Doc = {
 export const privacyDoc: Doc = {
   eyebrow: "Privacy Policy",
   title: "Your identity is the whole point. We protect it.",
-  intro: `This policy explains what personal data ${e.brand} collects, why, and the rights you have over it under the Digital Personal Data Protection Act, 2023 ("DPDP Act") and the rules made under it. ${e.name} ("we", "us") is the Data Fiduciary for your personal data.`,
+  intro: `This policy explains what personal data ${e.brand} collects, why, and the rights you have over it under the Digital Personal Data Protection Act, 2023 ("DPDP Act") and the rules made under it. Ghosted ("we", "us") is the Data Fiduciary for your personal data.`,
   updated: e.effective,
   sections: [
     { id: "summary", heading: "The short version", blocks: [[
@@ -125,7 +128,8 @@ export const privacyDoc: Doc = {
     { id: "rights", heading: "6. Your rights", blocks: [
       "As a Data Principal under the DPDP Act, you have the right to:",
       ["Access a summary of the personal data we hold about you and how we process it.", "Correct, complete or update inaccurate or incomplete data.", "Erase your personal data, subject to legal retention requirements.", "Withdraw your consent at any time. This will not affect processing already carried out, but we may no longer be able to provide the service.", "Nominate another person to exercise your rights in the event of your death or incapacity.", "Seek grievance redressal from us, and then complain to the Data Protection Board of India."],
-      `Most of this can be done from your account settings. You can also email ${e.privacyEmail}. We may ask you to verify your identity before acting on a request.`,
+      "Most of this can be done from your account settings. You can also use Feedback & Support in the app or contact the Privacy team. We may ask you to verify your identity before acting on a request.",
+      { type: "email", email: e.email.privacy, label: "Contact the Privacy team" },
     ] },
     { id: "children", heading: "7. Children", blocks: [
       "Ghosted is only for people aged 18 and over. We do not knowingly process the personal data of children as defined by the DPDP Act. If we learn that an account belongs to someone under 18, we will delete it.",
@@ -141,10 +145,12 @@ export const privacyDoc: Doc = {
     { id: "transfers", heading: "10. Where data is stored", blocks: [
       "Your data may be processed on servers located in or outside India. Any transfer outside India is made only in accordance with Section 16 of the DPDP Act and any restrictions notified by the Central Government.",
     ] },
-    { id: "grievance", heading: "11. Grievance Officer", blocks: [
-      "In accordance with the DPDP Act and Rule 3(2) of the Information Technology (Intermediary Guidelines and Digital Media Ethics Code) Rules, 2021, you can contact our Grievance Officer:",
-      [`Name: ${e.grievanceOfficer}`, `Email: ${e.grievanceEmail}`, `Address: ${e.name}, ${e.address}`],
-      "We will acknowledge your grievance within 24 hours and resolve it within 15 days of receipt. If you are not satisfied with our response, you may approach the Data Protection Board of India.",
+    { id: "grievance", heading: "11. Grievances and privacy requests", blocks: [
+      "Ghosted is currently in pre-launch testing. Before public launch, we will appoint a Grievance Officer and publish that person's name, monitored contact details, and the complaint mechanism here, as required by Rule 3(2) of the Information Technology (Intermediary Guidelines and Digital Media Ethics Code) Rules, 2021.",
+      "During testing, use Feedback & Support in the app or the monitored contacts below for privacy requests, content complaints, or account concerns. These temporary routes do not replace the statutory grievance mechanism required for a public launch.",
+      { type: "email", email: e.email.privacy, label: "Send a privacy request" },
+      { type: "email", email: e.email.grievance, label: "Submit a grievance" },
+      "Once launched, complaints will be acknowledged within 24 hours and resolved within the period required by applicable law. Eligible decisions may be appealed to the Grievance Appellate Committee. Rights under the DPDP Act may be pursued through the statutory process when that framework applies.",
     ] },
     { id: "changes", heading: "12. Changes to this policy", blocks: [
       "We may update this policy from time to time. If the changes are significant, we will notify you by email or on the site before they take effect. The date at the top shows when it was last updated.",
@@ -155,7 +161,7 @@ export const privacyDoc: Doc = {
 export const termsDoc: Doc = {
   eyebrow: "Terms & Conditions",
   title: "The ground rules for using Ghosted.",
-  intro: `These Terms govern your use of ${e.site} and related services ("Ghosted"), operated by ${e.name}. By creating an account or using Ghosted, you agree to these Terms, our Privacy Policy and our Community Rules. If you do not agree, please do not use the service.`,
+  intro: `These Terms govern your use of ${e.site} ("Ghosted"). By creating an account or using Ghosted, you agree to these Terms, our Privacy Policy and our Community Rules. If you do not agree, please do not use the service.`,
   updated: e.effective,
   sections: [
     { id: "eligibility", heading: "1. Who can use Ghosted", blocks: [[
@@ -192,7 +198,8 @@ export const termsDoc: Doc = {
       "If we remove your content or restrict your account, we will tell you why where the law allows, and you may ask us to reconsider through the grievance process below.",
     ] },
     { id: "employers", heading: "7. Employers and reported content", blocks: [
-      `Companies may report content they believe is false, defamatory or unlawful by writing to ${e.grievanceEmail} with the link to the content and the reasons. We will review it against these Terms and applicable law, including the Bharatiya Nyaya Sanhita, 2023. We do not remove honest opinions simply because they are critical.`,
+      "Companies may report content they believe is false, defamatory or unlawful through Feedback & Support in the app, including a link to the content and their reasons. We will review it against these Terms and applicable law, including the Bharatiya Nyaya Sanhita, 2023. We do not remove honest opinions simply because they are critical.",
+      { type: "email", email: e.email.grievance, label: "Report content by email", description: "Include the content link and the reason for your complaint" },
       "We will not disclose a user's identity to an employer except under a valid order of a competent court or authority.",
     ] },
     { id: "open-source", heading: "8. Open source and trademarks", blocks: [
@@ -212,12 +219,13 @@ export const termsDoc: Doc = {
       "You can delete your account at any time from your settings. We may suspend or terminate your access if you breach these Terms or if required by law. The sections on content licence (to the extent content is retained), disclaimers, liability, indemnity and governing law continue after termination.",
     ] },
     { id: "grievance", heading: "13. Grievances and appeals", blocks: [
-      "Under the Information Technology Act, 2000 and the Intermediary Rules, 2021, our Grievance Officer handles complaints about content and these Terms:",
-      [`Name: ${e.grievanceOfficer}`, `Email: ${e.grievanceEmail}`, `Address: ${e.name}, ${e.address}`],
-      "We will acknowledge your complaint within 24 hours and resolve it within 15 days. If you are dissatisfied with the decision, you may appeal to the Grievance Appellate Committee constituted by the Government of India within 30 days of receiving it.",
+      "Ghosted is currently in pre-launch testing. Before public launch, we will appoint a Grievance Officer and publish that person's name, monitored contact details, and the complaint mechanism here, as required by the Information Technology Act, 2000 and the Intermediary Rules, 2021.",
+      "During testing, submit content complaints and requests for reconsideration through Feedback & Support in the app or the monitored grievance contact below. This temporary route does not replace the statutory grievance mechanism required for a public launch.",
+      { type: "email", email: e.email.grievance, label: "Submit a grievance or appeal" },
+      "Once launched, complaints will be acknowledged within 24 hours and resolved within the period required by applicable law. Eligible decisions may be appealed to the Grievance Appellate Committee within the applicable deadline.",
     ] },
     { id: "law", heading: "14. Governing law and disputes", blocks: [
-      `These Terms are governed by the laws of India. Subject to the grievance process above, the courts at ${e.city} have exclusive jurisdiction over any dispute arising from them.`,
+      "These Terms are governed by the laws of India. Subject to the grievance process above, disputes are subject to the jurisdiction of the competent courts in India determined under applicable law.",
     ] },
     { id: "changes", heading: "15. Changes to these Terms", blocks: [
       "We may update these Terms. We will give notice of significant changes by email or on the site before they take effect. Continuing to use Ghosted after that means you accept the updated Terms.",
@@ -264,10 +272,12 @@ export const communityDoc: Doc = {
     { id: "enforcement", heading: "8. How we enforce these rules", blocks: [
       "Our moderators review reported posts and use automated checks to spot spam and abuse. Depending on how serious a violation is, we may:",
       ["Ask you to edit a post.", "Hide or remove the post.", "Temporarily suspend your account.", "Permanently ban accounts for serious or repeated violations."],
-      "If you think we got it wrong, reply to the notice we send you or write to the Grievance Officer. See our Terms & Conditions for the full process.",
+      "If you think we got it wrong, reply to the notice we send you or use Feedback & Support during pre-launch testing. See our Terms & Conditions for the full process and the statutory contact that will be published before public launch.",
+      { type: "email", email: e.email.grievance, label: "Ask us to reconsider a decision" },
     ] },
     { id: "report", heading: "9. Report a post", blocks: [
-      `Use the report option on any post, or email ${e.grievanceEmail} with a link and a short explanation. Reports are confidential; we don't tell the author who reported them.`,
+      "Use the report option on any post, or use Feedback & Support with a link and a short explanation. Reports are confidential; we don't tell the author who reported them.",
+      { type: "email", email: e.email.grievance, label: "Report content by email" },
     ] },
   ],
 };

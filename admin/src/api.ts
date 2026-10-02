@@ -78,6 +78,9 @@ export function deviceId() {
   } catch { return undefined; }
 }
 
-// The public site, for "open on Ghosted" links.
-export const SITE_URL = ((import.meta.env["VITE_SITE_URL"] as string | undefined) ?? "http://localhost:8080").replace(/\/$/, "");
+// The public site, for "open on Ghosted" links. There is intentionally no local fallback: a
+// deployed admin panel must never generate links to the operator's own computer.
+const configuredSiteUrl = (import.meta.env["VITE_SITE_URL"] as string | undefined)?.trim();
+if (!configuredSiteUrl) throw new Error("VITE_SITE_URL must be set to the deployed public-app URL.");
+export const SITE_URL = configuredSiteUrl.replace(/\/$/, "");
 export const peep = (seed: string) => `https://api.dicebear.com/9.x/open-peeps/svg?seed=${encodeURIComponent(seed)}`;

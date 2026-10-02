@@ -7,13 +7,13 @@ It is part of the source-available Ghosted repository and is covered by the root
 
 1. **Create a Supabase project** (free tier). Then:
    - Open **SQL Editor** and run the complete `supabase/init_database.sql` once. See `supabase/README.md` for the schema reference and security notes.
-   - Sign-up emails (6-digit codes) are sent by this API through **Brevo**, not by Supabase. Users are created already confirmed once their code checks out.
-   - Set up Brevo (free, 300 emails/day). Follow the 4 steps in `env.example`, and verify your domain so codes land in the inbox. Run `npx tsx scripts/preview-email.ts` to see the email in a browser.
+   - Sign-up emails (6-digit codes) are sent by this API through Gmail SMTP, not by Supabase. Users are created already confirmed once their code checks out.
+   - Enable 2-Step Verification on the dedicated Gmail account, create one Google App Password, and follow the email settings in `env.example`. The same credential sends OTPs, security notices, notifications, and digests. Run `npx tsx scripts/preview-email.ts` to see the email in a browser.
    - **Authentication → URL Configuration**: set *Site URL* to your frontend URL.
 2. **Configure secrets**: `cp env.example .env`, then fill in the values from *Project Settings → API*.
    Generate `IP_HASH_SECRET` with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`.
-3. **Run locally**: `npm install`, then `npm run dev`. The API runs at `http://localhost:8787`.
-4. **Point the frontend at it**: in the repo root `.env`, set `VITE_API_URL=http://localhost:8787`.
+3. **Run locally**: `npm install`, then `npm run dev`. The API prints its development address when ready.
+4. **Point the frontend at it**: in the repo root `.env`, set `VITE_API_URL` to the address printed by the API.
 
 Before opening a pull request that changes the API, run `npm run typecheck` in this directory.
 
@@ -42,7 +42,7 @@ Before opening a pull request that changes the API, run `npm run typecheck` in t
   - If the access token has expired, the next request **refreshes on the server** and sets new cookies, so users never see a log-in bounce.
   - CSRF: requests that change data need the `X-Ghosted-Client: web` header, and CORS only allows listed origins, with credentials.
   - For long access tokens, set Supabase → **Authentication → Sessions / JWT expiry** to `259200` (3 days). Otherwise Supabase's default 1-hour tokens are just refreshed quietly.
-  - **Hosting:** cookies only flow when the frontend and API are the *same site*, e.g. `ghosted.in` + `api.ghosted.in`, or `localhost` on any port. Two separate `*.vercel.app` domains count as different sites, so use a custom domain, or a Vercel rewrite that serves the API under the frontend's domain.
+  - **Hosting:** cookies only flow when the frontend and API are the *same site*, such as `localhost` on different ports. Two separate `*.vercel.app` project domains count as different sites, so the frontend deployment must proxy API requests through its own Vercel URL. Do not point the browser directly at a separate backend `*.vercel.app` URL when using these cookies.
 - **Rate limiting** uses fixed windows stored in Postgres, so it works across all serverless instances. It's keyed by an HMAC of the IP address (raw IPs are never stored), or by user ID for logged-in actions. Responses include `RateLimit-*` headers and `Retry-After`.
 
   | Action | Limit |

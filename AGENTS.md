@@ -1,15 +1,74 @@
-> [!IMPORTANT]
-> Avoid rewriting published Git history. Do not force push, rebase, amend, or squash commits that
-> have already been pushed unless a maintainer explicitly coordinates it.
+# Ghosted repository guidance
 
-- The API lives in `backend/` (Hono + Supabase, deployed to Vercel as its own project). See `backend/README.md`. Secrets go only in `backend/.env`; never commit them or reference the service-role key from the frontend.
-- The frontend talks to the API only through `src/lib/api.ts`. When `VITE_API_URL` is unset, it falls back to mock content from `src/mock/data.ts` so local UI development works without external services. Company and legal page copy lives in `src/content/legal.ts`.
-- Never expose internal UUIDs; URLs use the 15-digit `publicId`. Handles are display names only and aren't unique.
-- Routes (TanStack Router, file-based in `src/routes/`): `/` landing, `/auth`, `/dashboard` (`?view=` opens a view), `/u/$id` (a person's page, by 15-digit publicId), `/c/$slug` (a company's page), `/s/$id` (one story, where shared links go), `/feedback` (signed-in: feedback, bug reports, contributing, donations via Razorpay), plus the company/legal pages `/about`, `/privacy`, `/terms`, `/community`. Don't add other routes without being asked.
-- The admin panel is a separate app in `admin/` (`npm run admin:dev`, built with `vite.admin.config.ts` to `dist-admin/`, deployed as its own Vercel project). It reuses `src/` components and styles through `@`, but nothing in `src/` may import from `admin/`, and the public site must never link to it. Its API is `/v1/admin/*` (see `admin/README.md`).
-- Shared header/footer live in `src/components/site-chrome.tsx`; the legal pages share `src/components/legal-page.tsx`.
-- Live updates go through `src/lib/live.ts` (`useLive(topic, onChange)`); the backend bumps topics with `bump()` in `backend/src/live.ts` after every change. It polls today and is built to switch to WebSockets without changing callers.
-- No direct messages between users, ever (product decision: this isn't a social or dating app). People interact only in public: stories, chitchats (comments), reactions, follows and story alerts.
-- Animations use Motion (`motion/react`). No emojis in the UI; use lucide-react icons.
-- Anonymous handles come from `src/lib/handles.ts` (`handleFromSeed` for stable mock users, `randomHandle` for re-rolls). Avatars are DiceBear Open Peeps via plain `<img>` URLs.
-- Legal copy targets Indian law (DPDP Act 2023 and Rules 2025, IT Act 2000, Intermediary Rules 2021). Placeholders in the `entity` object must be filled before launch.
+This file defines the working rules for coding agents and automated contributors. Read the relevant README before changing a subsystem.
+
+## Safety and Git
+
+- Never commit credentials, tokens, private user data, production logs, or real workplace stories.
+- Secrets belong only in `.env` files, which are ignored. Document variables in `env.example` or `backend/env.example` with safe placeholders.
+- Never expose the Supabase service-role key to frontend code or any `VITE_*` variable.
+- Do not force-push, rebase, amend, or squash commits that have already been published unless a maintainer explicitly coordinates it.
+- Preserve unrelated local changes. Do not use destructive Git recovery commands to clean the working tree.
+- Dependency upgrades are deliberate maintenance work. Do not add automated dependency-update bots or accept breaking majors without building and testing every affected app.
+- Ghosted is source-available under PolyForm Shield, not OSI open source. See `LICENSE.md` and `TRADEMARKS.md`.
+
+## Repository layout
+
+- `src/`: main TanStack Start application.
+- `admin/`: separately deployed Vite administration application.
+- `backend/`: Hono API, scheduled jobs, email delivery, and Supabase access.
+- `backend/supabase/init_database.sql`: complete, authoritative database initialization.
+- `public/`: public-site static assets. `public/robots.txt` applies to the main app.
+- `admin/robots.txt`: admin-only crawler policy; `vite.admin.config.ts` installs it into admin development, preview, and build output.
+
+The main app, admin panel, and API are separate deployment projects. Nothing in `src/` may import from `admin/`, and the public application must never link to or reveal the admin panel.
+
+## Architecture and data boundaries
+
+- Frontend API access goes through `src/lib/api.ts`. When `VITE_API_URL` is unset, it falls back to `src/mock/data.ts` for local interface development.
+- Admin requests use `/v1/admin/*`; read `admin/README.md` before changing authentication, permissions, sessions, bans, or audit behavior.
+- Backend code lives in `backend/`; read `backend/README.md` and `backend/supabase/README.md` before changing API or schema behavior.
+- Never expose internal UUIDs. Public URLs and responses use random 15-digit `publicId` values. Handles are display names and are not unique identifiers.
+- Database changes must be reflected in `backend/supabase/init_database.sql` and documented in `backend/supabase/README.md`. Do not add separate migration files for initial setup.
+- Live updates go through `src/lib/live.ts` and backend `bump()` calls in `backend/src/live.ts`. Every mutation that affects live data must bump the relevant topic.
+
+## Product invariants
+
+- Ghosted is not a social or dating app. Never add direct or private user-to-user messaging.
+- User interaction remains public through stories, chitchats, reactions, follows, and story alerts.
+- Privacy and anonymity rules are server-enforced, not merely hidden in the interface.
+- Public routes use TanStack Router files in `src/routes/`. Current routes are documented in `src/routes/README.md`; do not add routes without an approved product requirement.
+- Company and legal copy lives in `src/content/legal.ts`. Legal text targets Indian law, including the DPDP Act 2023 and Rules 2025, IT Act 2000, and Intermediary Rules 2021.
+- Fill every `entity` placeholder before production launch.
+
+## Interface conventions
+
+- Shared public header and footer components live in `src/components/site-chrome.tsx`; legal pages share `src/components/legal-page.tsx`.
+- Animations use `motion/react`. Respect reduced-motion preferences.
+- Use Lucide React icons instead of emoji in product interfaces.
+- Anonymous handles come from `src/lib/handles.ts`: `handleFromSeed` for stable mock identities and `randomHandle` for rerolls.
+- Avatars use DiceBear Open Peeps through plain image URLs.
+- Every interface change must remain usable with keyboard navigation and at desktop, tablet, and mobile widths in both light and dark themes.
+- Destructive or security-sensitive actions require a clear confirmation interaction.
+
+## Search indexing
+
+- The public `robots.txt` allows public landing, company, profile, story, and legal pages while excluding `/auth`, `/dashboard`, and `/feedback`.
+- The admin panel must always return `User-agent: *` and `Disallow: /` and retain its `noindex, nofollow, noarchive` HTML metadata.
+- Do not add a sitemap URL until a production domain and generated sitemap are actually configured.
+- Remember that crawler directives are not access control. Authentication and authorization must protect private data independently.
+
+## Verification
+
+Run the checks relevant to the change:
+
+```bash
+npm run build
+npm run admin:build
+cd backend
+npm run typecheck
+```
+
+Also run `npm audit --audit-level=high` in the root and `backend/` after dependency changes. The repository has historical formatting findings; keep new code formatted and avoid unrelated whole-repository formatting rewrites in focused changes.
+
+Generated directories such as `.vercel/`, `.output/`, `dist-admin/`, coverage, and test artifacts must remain untracked. After verification, do not commit generated output.
