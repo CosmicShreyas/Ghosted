@@ -82,7 +82,7 @@ Deploy each surface as its own project:
 
 | Project | Build/root settings |
 | --- | --- |
-| Main app | Repository root; `npm run build` |
+| Main app | Repository root; `npm run build`; set `VITE_API_URL=/api` so `vercel.json` proxies member sessions to the API |
 | Admin panel | Repository root; `npm run admin:build`; output `dist-admin` |
 | API | Root directory `backend`; Vercel reads `backend/vercel.json` |
 

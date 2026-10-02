@@ -21,7 +21,9 @@ Before opening a pull request that changes the API, run `npm run typecheck` in t
 
 1. Import the repo in Vercel as a new project and set **Root Directory** to `backend`. Vercel detects Hono automatically (`src/index.ts`).
 2. Add every variable from `env.example` under *Settings → Environment Variables*. Set `ALLOWED_ORIGINS` to your frontend's URL.
-3. Deploy, then set `VITE_API_URL` on the frontend project to the API's URL.
+3. Deploy, then set `VITE_API_URL=/api` on the public frontend project; the root `vercel.json`
+   proxies that same-origin path to this API so member session cookies work. The admin project may
+   continue using the API's full URL because admin authentication uses explicit bearer tokens.
 
 ## Security model
 

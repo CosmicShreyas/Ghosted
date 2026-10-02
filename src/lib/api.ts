@@ -8,6 +8,9 @@
 // dev site works from a phone on the same Wi-Fi (there, "localhost" would be the phone itself).
 const devApiUrl = (url: string) => {
   if (!import.meta.env.DEV || typeof window === "undefined") return url;
+  // Production uses a same-origin `/api` rewrite so secure session cookies belong to the public
+  // app rather than a separate vercel.app site. Relative URLs need no LAN hostname adjustment.
+  if (url.startsWith("/")) return url;
   const u = new URL(url);
   if (/^(localhost|127\.0\.0\.1)$/.test(u.hostname) && window.location.hostname !== u.hostname) u.hostname = window.location.hostname;
   return u.toString().replace(/\/$/, "");

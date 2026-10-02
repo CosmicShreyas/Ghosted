@@ -134,7 +134,21 @@ function AuthPage() {
   const { waiting } = useAuthGuard("public-only");
 
   // Load the profile first so the dashboard opens already knowing who you are, with no flash.
-  const enterDashboard = async () => { if (apiEnabled) await account.refresh(); navigate({ to: "/dashboard" }); };
+  const enterDashboard = async (afterSignup = false) => {
+    if (apiEnabled) {
+      const profile = await account.refresh();
+      if (!profile) {
+        throw new ApiRequestError(
+          401,
+          "session_unavailable",
+          afterSignup
+            ? "Your account was created, but the browser could not keep you signed in. Please log in once more."
+            : "Your details were accepted, but the browser could not keep you signed in. Please try again.",
+        );
+      }
+    }
+    navigate({ to: "/dashboard" });
+  };
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -184,7 +198,7 @@ function AuthPage() {
 
   const createAccount = () => run(async () => {
     if (apiEnabled) await authApi.signup({ fullName, email, password, verificationToken: token, handle, avatarSeed: look.seed, pastel: look.pastel, acceptTerms: true });
-    await enterDashboard();
+    await enterDashboard(true);
   });
 
   const login = () => guarded(async (ct) => {
