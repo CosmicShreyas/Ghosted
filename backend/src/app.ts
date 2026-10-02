@@ -148,3 +148,7 @@ app.onError((err, c) => {
   console.error(`[${c.get("requestId")}]`, err);
   return c.json({ error: { code: "server_error", message: "Something went wrong on our side.", requestId: c.get("requestId") } }, 500);
 });
+
+// Vercel's zero-config Hono builder detects src/app.ts before src/index.ts and
+// requires the detected module itself to provide the Hono app as its default export.
+export default app;
