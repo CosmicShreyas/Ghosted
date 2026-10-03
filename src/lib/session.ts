@@ -138,7 +138,7 @@ export function useAuthGuard(page: "public-only" | "private" | "optional", { ret
 }
 
 // Only a story or company page can be a return address after signing in (no open redirects).
-export const safeReturnTo = (p: string | null | undefined) => (p && /^\/(s|c)\/[A-Za-z0-9-]{1,60}$/.test(p) ? p : null);
+export const safeReturnTo = (p: string | null | undefined) => (p && (/^\/(s|c)\/[A-Za-z0-9-]{1,60}$/.test(p) || p === "/dashboard?share=1") ? p : null);
 
 export function useAccountActions() {
   const qc = useQueryClient();

@@ -33,8 +33,10 @@ export const Route = createFileRoute("/auth")({
   }),
   // /auth?tab=login opens the Log in tab (the header's "Log in" button); anything else opens Sign up.
   // ?returnTo=/s/<id> or /c/<slug>: after signing in or up, go back to that page.
-  validateSearch: (search: Record<string, unknown>): { tab?: "login"; returnTo?: string } => ({
+  // ?intent=share: came from "Share my experience", so after signing in or up the share popup opens.
+  validateSearch: (search: Record<string, unknown>): { tab?: "login"; returnTo?: string; intent?: "share" } => ({
     ...(search["tab"] === "login" && { tab: "login" as const }),
+    ...(search["intent"] === "share" && { intent: "share" as const }),
     ...(typeof search["returnTo"] === "string" && safeReturnTo(search["returnTo"]) && { returnTo: search["returnTo"] }),
   }),
   component: AuthPage,
@@ -135,9 +137,14 @@ function AuthPage() {
   const account = useAccountActions();
 
   // Already logged in (the session cookie is still good)? Straight to the dashboard.
-  const returnTo = Route.useSearch().returnTo ?? null;
-  const { waiting } = useAuthGuard("public-only", { returnTo });
-  const goIn = () => { const back = safeReturnTo(returnTo); if (back) navigate({ href: back }); else navigate({ to: "/dashboard" }); };
+  const { returnTo = null, intent } = Route.useSearch();
+  const { waiting } = useAuthGuard("public-only", { returnTo: intent === "share" ? "/dashboard?share=1" : returnTo });
+  const goIn = () => {
+    const back = safeReturnTo(returnTo);
+    if (intent === "share") void navigate({ to: "/dashboard", search: { share: 1 } });
+    else if (back) void navigate({ href: back });
+    else void navigate({ to: "/dashboard" });
+  };
 
   // Load the profile first so the dashboard opens already knowing who you are, with no flash.
   const enterDashboard = async (afterSignup = false) => {

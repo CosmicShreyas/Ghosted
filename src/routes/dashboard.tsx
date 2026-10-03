@@ -14,6 +14,8 @@ import { LogoutDialog } from "@/components/dashboard/confirm-dialogs";
 import { useAccountActions, useAuthGuard, useMe } from "@/lib/session";
 import type { Company } from "@/mock/data";
 import { useSaved } from "@/lib/saved";
+import { useMyStats } from "@/lib/my-stats";
+import { apiEnabled } from "@/lib/api";
 import { filtersFromSearch, insightSearch, searchFromFilters, type InsightSearch } from "@/lib/insights";
 
 export const Route = createFileRoute("/dashboard")({
@@ -53,6 +55,14 @@ function DashboardPage() {
   useEffect(() => { if (search.view) setView(search.view); }, [search.view]);
   const [query, setQuery] = useState("");
   const [share, setShare] = useState(false);
+  // A brand-new account with no stories gets the share popup once, so signing up leads straight
+  // into a first story instead of an empty dashboard. Remembered in this browser.
+  const myStats = useMyStats();
+  useEffect(() => {
+    if (!apiEnabled || search.share || !myStats.stats || myStats.stats.stories > 0) return;
+    try { if (localStorage.getItem("ghosted.firstStoryPrompted")) return; localStorage.setItem("ghosted.firstStoryPrompted", "1"); } catch { return; }
+    setLinkPreset({});
+  }, [myStats.stats, search.share]);
   // A share deep link opens the popup with what it names filled in, then tidies the URL.
   const [linkPreset, setLinkPreset] = useState<StoryPreset | null>(null);
   useEffect(() => {
