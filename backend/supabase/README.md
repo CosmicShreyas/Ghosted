@@ -10,6 +10,10 @@ This folder contains the complete database setup for a new Ghosted Supabase proj
 4. Wait for a successful result before starting the API.
 5. Configure the API values described in `backend/env.example`; never place the service-role key in the frontend.
 
+The initializer includes the platform's major-company catalogue. To add that catalogue to an
+already initialized database, run [`major_companies.sql`](./major_companies.sql) once in the
+Supabase SQL Editor. It is idempotent, so running it again safely skips existing slugs or domains.
+
 The initializer contains the former migrations `0001` through `0021` in their original order. Its `-- Source:` headings are traceability markers only. It is intended for a fresh database, not as a repeatable reset script. Running it against a populated or partially initialized database is not supported because the earliest schema statements deliberately use plain `create table`.
 
 The API is the only database client. Row Level Security is enabled on application tables; `anon` and `authenticated` are denied direct access, while the backend uses Supabase's `service_role` key. Internal UUIDs stay server-side. Routes and public payloads use the unique 15-digit `public_id` values.

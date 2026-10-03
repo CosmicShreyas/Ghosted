@@ -3,7 +3,7 @@
 // the UI. The author is included directly: identity is account-level, so every story shows its
 // author the way that person currently appears, with the public id their page lives at.
 import { useQuery } from "@tanstack/react-query";
-import { api, apiEnabled } from "@/lib/api";
+import { api, apiEnabled, API_URL } from "@/lib/api";
 import { companies as sampleCompanies, getCompany, getUser, stories as sampleStories, type Company, type Story } from "@/mock/data";
 
 export type Author = { publicId: string; name: string; avatarSeed: string; pastel: string; revealed: Revealed | null };
@@ -84,7 +84,9 @@ export function companyFromApi(c: CompanyDto): Company {
     score: c.flagScore ?? 50,
     scores: c.scores ?? { hiring: 50, communication: 50, culture: 50, pay: 50, growth: 50 },
     salary: c.salary ?? [0, 0],
-    storyCount: c.storyCount, avgDaysWaited: c.avgDaysWaited, logoUrl: c.logoUrl, website: c.website, domain: c.domain,
+    storyCount: c.storyCount, avgDaysWaited: c.avgDaysWaited,
+    logoUrl: c.logoUrl && API_URL ? `${API_URL}/v1/companies/${c.slug}/logo?v=2` : c.logoUrl,
+    website: c.website, domain: c.domain,
     about: c.about, industry: c.industry, size: c.size, hqCity: c.hqCity, founded: c.founded, careersUrl: c.careersUrl,
   };
 }
