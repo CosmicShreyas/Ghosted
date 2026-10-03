@@ -21,6 +21,7 @@ import { admin } from "./supabase.js";
 import { trustOf, triageReports } from "./moderation.js";
 import type { Profile } from "./security.js";
 import { goofyControls } from "./platform.js";
+import { sweepWaiting } from "./interest.js";
 
 const DAY = 86400_000;
 const text = (z: string | null) => { if (!z) return ""; try { return fromBytea(z); } catch { return ""; } };
@@ -244,6 +245,7 @@ export async function kickSweep() {
   const { data } = await admin().from("automation_runs").select("last_run").eq("job", "sweep").maybeSingle();
   if (data && Date.now() - new Date((data as { last_run: string }).last_run).getTime() < 15 * 60_000) return;
   await sweep();
+  await sweepWaiting(); // a story the sweep just released may be a company's first
 }
 
 export async function runAll() {
@@ -252,7 +254,9 @@ export async function runAll() {
   const learned = controls.enabled && controls.learnFromOutcomes ? await learn().catch((e: Error) => ({ error: e.message })) : { disabled: true };
   const swept = await sweep().catch((e: Error) => ({ error: e.message }));
   const goofyRun = await dailyGoofy().catch((e: Error) => ({ error: e.message }));
+  // Stories that went live another way (released by Goofy, approved by an admin): tell anyone waiting.
+  const waiting = await sweepWaiting().catch((e: Error) => ({ error: e.message }));
   if (!("error" in lists) && !("disabled" in lists)) await act("lists_updated", { targetKind: "system", reason: Object.entries(lists).map(([k, v]) => `${k}: ${v}`).join(", ").slice(0, 200) }).catch(() => undefined);
   if (!("error" in learned) && !("disabled" in learned)) await act("learned", { targetKind: "system", reason: `${learned.learned} new watch words, ${learned.variants} new spellings, ${learned.concepts} synonyms` }).catch(() => undefined);
-  return { lists, learned, swept, goofy: goofyRun };
+  return { lists, learned, swept, goofy: goofyRun, waiting };
 }

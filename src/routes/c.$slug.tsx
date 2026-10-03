@@ -1,7 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { motion } from "motion/react";
-import { ArrowLeft, PenLine } from "lucide-react";
+import { ArrowLeft, BellOff, BellRing, Loader2, PenLine, Users } from "lucide-react";
+import { toast } from "sonner";
 import { Sidebar, Topbar, type View } from "@/components/dashboard/shell";
 import { FeedStory } from "@/components/dashboard/widgets";
 import { ShareModal } from "@/components/dashboard/share-story";
@@ -15,7 +16,7 @@ import { CompanyMark } from "@/components/ghosted";
 import { BackButton } from "@/components/back-button";
 import { SlidingPill, usePill } from "@/components/sliding-pill";
 import { Button } from "@/components/ui/button";
-import { useCompanyPage } from "@/lib/companies";
+import { useCompanyPage, type CompanyInterest } from "@/lib/companies";
 import { useReachEnd, useStoryFeed } from "@/lib/feed";
 import { useSaved } from "@/lib/saved";
 import { useAccountActions, useAuthGuard, useMe, useTone, voice } from "@/lib/session";
@@ -58,6 +59,25 @@ const FILTERS = [{ id: "all", label: "All stories" }, { id: "positive", label: "
 type Filter = (typeof FILTERS)[number]["id"];
 // Sample stories have no ratings; approximate sentiment from how they ended.
 const sampleSentiment = (outcome: string) => (outcome === "offer" ? "positive" : outcome === "rejected" ? "mixed" : "critical");
+
+// "I want to know about this company": for pages with no stories. The count is social proof for
+// whoever's thinking of sharing; everyone who taps gets one email when the first story lands.
+function AskCommunity({ name, interest, onToggle }: { name: string; interest: CompanyInterest | undefined; onToggle: (on: boolean) => Promise<void> }) {
+  const [busy, setBusy] = useState(false);
+  const waiting = interest?.waiting ?? 0;
+  const mine = !!interest?.mine;
+  const others = waiting - (mine ? 1 : 0);
+  const run = async () => { setBusy(true); try { await onToggle(!mine); } finally { setBusy(false); } };
+  return <div className="mx-auto mt-6 max-w-md border-t-2 border-dashed border-foreground/25 pt-5">
+    <p className="flex items-center justify-center gap-2 text-sm font-bold"><Users className="size-4" />
+      {waiting === 0 ? `Nobody has asked about ${name} yet.` : mine ? (others > 0 ? `You and ${others} ${others === 1 ? "other person are" : "others are"} waiting for a ${name} story.` : `You're waiting for the first ${name} story.`) : `${waiting} ${waiting === 1 ? "person is" : "people are"} waiting for a ${name} story.`}
+    </p>
+    <Button variant={mine ? "outline" : "default"} className="mt-3 min-h-11" disabled={busy} onClick={() => void run()}>
+      {busy ? <Loader2 className="animate-spin" /> : mine ? <BellOff /> : <BellRing />}{mine ? "Stop waiting" : `I want to know about ${name}`}
+    </Button>
+    <p className="mt-2 text-xs text-muted-foreground">{mine ? "We'll email you once, when the first story is published." : "Tap it and we'll email you once, when someone shares their experience."}</p>
+  </div>;
+}
 
 function CompanyPageRoute() {
   const { slug } = Route.useParams();
@@ -134,6 +154,7 @@ function CompanyPageRoute() {
               <p className="font-display text-xl font-bold">{filter === "all" ? voice(tone, `Be the first voice on ${name}.`, `No stories about ${name} yet.`) : `No ${filter} stories yet.`}</p>
               <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">{voice(tone, `Interviewed at ${name}? Your story could save someone six rounds.`, `Interviewed at ${name}? Share how it went.`)}</p>
               <Button className="mt-5" onClick={startShare}><PenLine />Share a story about {name}</Button>
+              {filter === "all" && page.stats.stories === 0 && <AskCommunity name={name} interest={page.interest} onToggle={async (on) => { if (signedOut) return askToJoin(); try { await hook.setInterest(on); toast.success(on ? `We'll email you when the first ${name} story lands.` : "Okay, we won't email you."); } catch { toast.error("Couldn't save that. Try again."); } }} />}
             </div>
           : <div className="space-y-4">
               {list.map((s) => <FeedStory key={s.id} story={s} saved={saved.has(s.id)} onSave={() => toggleSave(s.id)} onOpenCompany={openCompany} />)}

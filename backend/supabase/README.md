@@ -216,6 +216,10 @@ Separate admin identities; these are not member profiles.
 
 - `company_scores`: listed-company details plus story count, category/overall scores, salary range, outcome counts, average wait and latest story time. Each category averages only the stories that rated it and has a matching `count_*` column ("based on N stories"); `flag_score` is the average over stories of `(rating_avg - 1) * 25`.
 
+### Waiting for a company's first story
+
+`company_interest` records members who tapped "I want to know about this company" on a page with no stories (primary key: company and member). Company pages show how many are waiting. When a story about the company is published, `backend/src/interest.ts` sends each waiting member one in-app notification and one email, then sets `notified_at`. Stories published by other routes (Goofy releasing a held story, an admin approving one) are picked up by the automation sweep. The section is at the end of `init_database.sql` and is safe to run again.
+
 ### Ratings by journey
 
 A story carries only the ratings that fit what happened: hiring and communication always; pay (and salary) for `offer` and `offer_revoked`; culture and growth only for `offer` with `joined = true`. The five `rating_*` columns are nullable, `stories.joined` and `stories.quick` record the journey and the quick path, and `rating_avg` is the mean of the ratings present. The API enforces the same rules (`backend/src/score.ts`, checked by `npx tsx scripts/check-score.ts`). The section is at the end of `init_database.sql` and is safe to run again on an existing database.

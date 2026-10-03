@@ -14,6 +14,7 @@ import { need, type Permission } from "../admin-perms.js";
 import { sealJson, unsealJson } from "../lib/sealed.js";
 import { adminExtraRoutes } from "./admin-extra.js";
 import { platform } from "../platform.js";
+import { sweepWaiting } from "../interest.js";
 import { sendMail } from "../mail/mailer.js";
 import { otpEmail } from "../mail/otp-email.js";
 import { env } from "../env.js";
@@ -235,6 +236,7 @@ export const adminRoutes = new Hono<AdminEnv>()
       const patch: Record<string, unknown> = { status: "published", moderation: { ...mod, ...(action === "redact" && { redactedBy: "goofy" }) } };
       if (action === "redact") { patch["body_z"] = toBytea(redactNames(text(r.body_z))); if (kind === "story") patch["title"] = redactNames(r.title ?? "").slice(0, 90); }
       await db().from(table).update(patch).eq("id", r.id);
+      if (kind === "story") void sweepWaiting(); // it may be a company's first story
       await addNotification(r.author_id, "system", action === "redact" ? `${what} is live. A moderator replaced a person's name with [name] so nobody can be identified.` : `${what} was reviewed by a moderator and is live now.`, storyRef ?? undefined);
     } else {
       await db().from(table).update({ status: kind === "story" ? "hidden" : "removed", moderation: { ...mod, autoRemoved: false, removedBy: "moderator" } }).eq("id", r.id);

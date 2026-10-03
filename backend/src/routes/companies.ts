@@ -15,6 +15,7 @@ import { gatherFacts } from "../lib/company-facts.js";
 import { reviewText } from "../algorithms/index.js";
 import { reportAs } from "../goofy/index.js";
 import { goofyControls } from "../platform.js";
+import { waitingCount } from "../interest.js";
 
 const COLORS = ["bg-logo-violet", "bg-logo-coral", "bg-logo-blue", "bg-logo-green", "bg-logo-pink", "bg-logo-amber", "bg-logo-red"];
 const slugify = (name: string) => name.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60);
@@ -112,12 +113,29 @@ export const companyRoutes = new Hono<AppEnv>()
   .get("/:slug", optionalAuth, rateLimit({ name: "company", max: 180, windowSeconds: 60 }), slugParam, async (c) => {
     const { row, id } = await companyBySlug(c.req.valid("param").slug);
     const viewer = c.get("profile");
-    const [stats, first, rel] = await Promise.all([
+    const [stats, first, rel, waiting, mine] = await Promise.all([
       companyStats(id, viewer),
       companyStories(id, viewer, { limit: 10 }),
       viewer ? companyRelationship(viewer.id, id) : Promise.resolve(null),
+      waitingCount(id),
+      viewer ? admin().from("company_interest").select("user_id").eq("company_id", id).eq("user_id", viewer.id).is("notified_at", null).maybeSingle().then((r) => !!r.data) : Promise.resolve(false),
     ]);
-    return c.json({ company: companyDto(row), stats, relationship: rel, ...first });
+    // "I want to know": how many members are waiting for this company's first story, and whether you are.
+    return c.json({ company: companyDto(row), stats, relationship: rel, interest: { waiting, mine }, ...first });
+  })
+
+  .post("/:slug/interest", requireAuth, rateLimit({ name: "company-interest", max: 60, windowSeconds: 3600, by: "user" }), slugParam, async (c) => {
+    const { id } = await companyBySlug(c.req.valid("param").slug);
+    const { error } = await admin().from("company_interest").upsert({ company_id: id, user_id: me(c).id, notified_at: null }, { onConflict: "company_id,user_id" });
+    if (error) dbFail("company interest (run the company_interest section of init_database.sql)", error);
+    later(bump({ shared: [`company:${c.req.valid("param").slug}`] }));
+    return c.json({ interest: { waiting: await waitingCount(id), mine: true } });
+  })
+  .delete("/:slug/interest", requireAuth, rateLimit({ name: "company-interest", max: 60, windowSeconds: 3600, by: "user" }), slugParam, async (c) => {
+    const { id } = await companyBySlug(c.req.valid("param").slug);
+    await admin().from("company_interest").delete().eq("company_id", id).eq("user_id", me(c).id);
+    later(bump({ shared: [`company:${c.req.valid("param").slug}`] }));
+    return c.json({ interest: { waiting: await waitingCount(id), mine: false } });
   })
 
   // The company's logo, passed through our server: pages can read its colours (for the banner) and

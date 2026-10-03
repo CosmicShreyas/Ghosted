@@ -57,8 +57,10 @@ export type CompanyStats = {
   salaries: { role: string; range: [number, number]; median: number; reports: number }[];
   bestStory: StoryModel | null; worstStory: StoryModel | null;
 };
-export type CompanyPage = { company: Company; stats: CompanyStats; relationship: CompanyRelationship | null; stories: StoryModel[]; nextCursor: string | null };
-type PageDto = { company: CompanyDto; stats: Omit<CompanyStats, "bestStory" | "worstStory"> & { bestStory: StoryDto | null; worstStory: StoryDto | null }; relationship: CompanyRelationship | null; stories: StoryDto[]; nextCursor: string | null };
+// interest: members waiting for this company's first story ("I want to know"), and whether you are.
+export type CompanyInterest = { waiting: number; mine: boolean };
+export type CompanyPage = { company: Company; stats: CompanyStats; relationship: CompanyRelationship | null; stories: StoryModel[]; nextCursor: string | null; interest?: CompanyInterest };
+type PageDto = { interest?: CompanyInterest; company: CompanyDto; stats: Omit<CompanyStats, "bestStory" | "worstStory"> & { bestStory: StoryDto | null; worstStory: StoryDto | null }; relationship: CompanyRelationship | null; stories: StoryDto[]; nextCursor: string | null };
 
 // Average stars behind a sample story, from its company's scores (samples have no ratings of their own).
 const sampleAvg = (s: StoryModel) => (s.outcome === "offer" ? 4.4 : s.outcome === "rejected" ? 3 : 1.8);
@@ -105,6 +107,7 @@ export function useCompanyPage(slug: string) {
         company: companyFromApi(q.data.company),
         stats: { ...q.data.stats, bestStory: q.data.stats.bestStory && fromApi(q.data.stats.bestStory, index), worstStory: q.data.stats.worstStory && fromApi(q.data.stats.worstStory, index) },
         relationship: q.data.relationship, stories: q.data.stories.map((s) => fromApi(s, index)), nextCursor: q.data.nextCursor,
+        ...(q.data.interest && { interest: q.data.interest }),
       }
     : samplePage(slug, demoRel);
 
@@ -123,6 +126,12 @@ export function useCompanyPage(slug: string) {
     follow: () => set("POST", {}, { ...rel, following: true }),
     unfollow: () => set("DELETE", undefined, { following: false, notify: false }),
     setNotify: (notify: boolean) => set("POST", { notify }, { following: true, notify }),
+    // "I want to know about this company": join (or leave) the list waiting for its first story.
+    setInterest: async (on: boolean) => {
+      if (!apiEnabled) return;
+      const r = await api<{ interest: CompanyInterest }>(`/v1/companies/${slug}/interest`, { method: on ? "POST" : "DELETE" });
+      qc.setQueryData<PageDto>(key, (d) => (d ? { ...d, interest: r.interest } : d));
+    },
     report: async (reason: string, details: string) => {
       if (!apiEnabled) return "Thanks. In the live app, moderators check reported listings within 24 hours.";
       return (await api<{ message: string }>(`/v1/companies/${slug}/report`, { method: "POST", body: { reason, ...(details.trim() && { details: details.trim() }) } })).message;

@@ -1271,4 +1271,21 @@ group by c.id;
 revoke all on public.company_scores from anon, authenticated;
 grant select on public.company_scores to service_role;
 
+-- ============================================================================
+-- "I want to know about this company": members waiting for a company's first story. The page shows
+-- how many are waiting; when a story about the company is published, each one gets a notification
+-- and an email once (notified_at). Safe to run again.
+-- ============================================================================
+create table if not exists public.company_interest (
+  company_id  uuid not null references public.companies (id) on delete cascade,
+  user_id     uuid not null references public.profiles (id) on delete cascade,
+  created_at  timestamptz not null default now(),
+  notified_at timestamptz,
+  primary key (company_id, user_id)
+);
+create index if not exists company_interest_waiting on public.company_interest (company_id) where notified_at is null;
+alter table public.company_interest enable row level security;
+revoke all on public.company_interest from anon, authenticated;
+grant select, insert, update, delete on public.company_interest to service_role;
+
 commit;
