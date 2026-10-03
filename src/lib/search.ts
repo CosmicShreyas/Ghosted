@@ -9,7 +9,7 @@ import type { Company } from "@/mock/data";
 
 export type PersonSearchResult = {
   publicId: string; name: string; handle: string; avatarSeed: string; pastel: string;
-  revealed: Revealed | null; isMe: boolean; following: boolean;
+  revealed: Revealed | null; isMe: boolean; following: boolean; bot?: { badge: string };
 };
 export type SearchResult = { stories: StoryModel[]; companies: Company[]; people: PersonSearchResult[]; understood: { terms: string[]; company: string | null; outcome: string | null; stage: string | null; phrases: string[]; exclude: string[] } };
 type SearchDto = { stories: StoryDto[]; companies: CompanyDto[]; people: PersonSearchResult[]; understood: SearchResult["understood"] };

@@ -17,7 +17,7 @@ import { validate } from "../validate.js";
 
 let cache: { at: number; docs: SearchDoc[] } | null = null;
 
-type SearchableProfile = AuthorRow & { id: string };
+type SearchableProfile = AuthorRow & { id: string; kind?: "person" | "bot" };
 
 const fold = (value: string) => value.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 
@@ -69,7 +69,7 @@ export const searchRoutes = new Hono<AppEnv>().get("/", optionalAuth, rateLimit(
     index(),
     loadLive(), // learned synonyms
     admin().from("company_scores").select("*").limit(3000),
-    admin().from("profiles").select(`id, ${AUTHOR_COLUMNS}`).limit(3000),
+    admin().from("profiles").select(`id, ${AUTHOR_COLUMNS}, kind`).limit(3000),
   ]);
   if (cos.error) dbFail("search companies", cos.error);
   if (profiles.error) dbFail("search people", profiles.error);
@@ -97,6 +97,7 @@ export const searchRoutes = new Hono<AppEnv>().get("/", optionalAuth, rateLimit(
       ...author,
       isMe: viewer?.id === row.id,
       following: followed.has(row.id),
+      ...(row.kind === "bot" && { bot: { badge: "AutoMod" } }),
     })),
     // What the search understood, so the page can say "Showing results for …".
     understood: { terms: parsed.terms, company: parsed.company, outcome: parsed.outcome, stage: parsed.stage, phrases: parsed.phrases, exclude: parsed.exclude },

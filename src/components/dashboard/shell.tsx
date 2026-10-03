@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ForwardRefExoticComponent, type React
 import { Link, useNavigate } from "@tanstack/react-router";
 import { samplePublicId } from "@/lib/stories";
 import { AnimatePresence, motion } from "motion/react";
-import { Building2, Eye, Hourglass, Loader2, UserCheck, UserPlus, type LucideIcon } from "lucide-react";
+import { BadgeCheck, Building2, Eye, Hourglass, Loader2, UserCheck, UserPlus, type LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Avatar } from "@/components/ghosted";
 import {
@@ -318,8 +318,10 @@ function SearchBox({ query, onQuery, view }: { query: string; onQuery: (q: strin
       {peopleSearch.loading ? <div className="flex items-center gap-2 px-2 py-4 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" />Finding people…</div>
         : people.length ? people.map((person) => <div key={person.publicId} className="flex items-center gap-2 rounded-lg p-1 hover:bg-muted focus-within:bg-muted">
           <Link to="/u/$id" params={{ id: person.publicId }} onClick={() => { setOpen(false); onQuery(""); }} className="flex min-w-0 flex-1 items-center gap-2 rounded-md p-1.5 outline-none focus-visible:ring-2 focus-visible:ring-ring">
-            <Avatar seed={person.avatarSeed} pastel={person.pastel} size="sm" label={person.name} />
-            <span className="min-w-0"><strong className="block truncate text-sm">{person.name}</strong><span className="block truncate text-xs text-muted-foreground">{person.name !== person.handle ? `aka ${person.handle}` : [person.revealed?.role, person.revealed?.city].filter(Boolean).join(" · ") || "Anonymous member"}</span></span>
+            {person.publicId === GOOFY_ID || person.bot
+              ? <img src={GOOFY_AVATAR} alt="" className="size-8 shrink-0 rounded-full border-2 border-foreground object-cover" />
+              : <Avatar seed={person.avatarSeed} pastel={person.pastel} size="sm" label={person.name} />}
+            <span className="min-w-0"><span className="flex items-center gap-1"><strong className="truncate text-sm">{person.name}</strong>{person.bot && <BadgeCheck className="size-4 shrink-0 text-primary" aria-label="Verified official account" />}</span><span className="block truncate text-xs text-muted-foreground">{person.bot ? `Official ${person.bot.badge} account` : person.name !== person.handle ? `aka ${person.handle}` : [person.revealed?.role, person.revealed?.city].filter(Boolean).join(" · ") || "Anonymous member"}</span></span>
           </Link>
           {!person.isMe && <Button type="button" size="sm" variant={person.following ? "outline" : "default"} disabled={busy === person.publicId} onClick={() => void follow(person)} className="shrink-0 px-2.5 sm:px-3" aria-label={`${person.following ? "Unfollow" : "Follow"} ${person.name}`}>
             {busy === person.publicId ? <Loader2 className="animate-spin" /> : person.following ? <UserCheck /> : <UserPlus />}<span className="hidden sm:inline">{person.following ? "Following" : "Follow"}</span>
