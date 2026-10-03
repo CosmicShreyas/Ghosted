@@ -29,6 +29,8 @@ export const Route = createFileRoute("/auth")({
       { property: "og:description", content: "Log in or create your anonymous Ghosted profile." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      // Sign-in pages aren't search results.
+      { name: "robots", content: "noindex, follow" },
     ],
   }),
   // /auth?tab=login opens the Log in tab (the header's "Log in" button); anything else opens Sign up.

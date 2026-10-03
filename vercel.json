@@ -3,6 +3,10 @@
   "framework": "tanstack-start",
   "rewrites": [
     {
+      "source": "/sitemap.xml",
+      "destination": "https://ghosted-backend.vercel.app/v1/sitemap.xml"
+    },
+    {
       "source": "/api/:path*",
       "destination": "https://ghosted-backend.vercel.app/:path*"
     }

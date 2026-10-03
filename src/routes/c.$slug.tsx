@@ -9,8 +9,8 @@ import { CompanyActions, CompanyHeader, CompanyRail, ReportCompanyDialog, WhatPe
 import { LogoutDialog } from "@/components/dashboard/confirm-dialogs";
 import { Preloader } from "@/components/preloader";
 import { PublicShell } from "@/components/public-shell";
-import { pageMeta } from "@/lib/meta";
-import { askToJoin } from "@/lib/api";
+import { breadcrumbLd, pageHead, SITE_URL } from "@/lib/meta";
+import { api, apiEnabled, askToJoin } from "@/lib/api";
 import { CompanyMark } from "@/components/ghosted";
 import { BackButton } from "@/components/back-button";
 import { SlidingPill, usePill } from "@/components/sliding-pill";
@@ -25,7 +25,32 @@ import type { Company } from "@/mock/data";
 // A company's page, addressed by its slug. Same layout as people pages: header, what people say,
 // stories (filterable), and the stats rail.
 export const Route = createFileRoute("/c/$slug")({
-  head: () => ({ meta: pageMeta({ title: "Company hiring stories | Ghosted", description: "Hiring stories, Flag Score and salaries from candidates who interviewed here, shared anonymously on Ghosted." }) }),
+  // The company's name and story count, so search results and link previews name the company.
+  // Best effort: if the API is slow or down, the page falls back to a generic title.
+  loader: async ({ params }) => {
+    if (!apiEnabled) return null;
+    try { const r = await api<{ company: { name: string; storyCount: number; flagScore: number | null; about?: string | null; hqCity?: string | null } }>(`/v1/companies/${params.slug}`, { timeoutMs: 3000 }); return r.company; }
+    catch { return null; }
+  },
+  head: ({ params, loaderData }) => {
+    const c = loaderData;
+    const path = `/c/${params.slug}`;
+    if (!c) return pageHead({ title: "Company hiring experiences | Ghosted", description: "Interview rounds, waiting time, communication and outcomes from candidates who applied here, shared anonymously on Ghosted.", path });
+    const n = c.storyCount;
+    const title = `${c.name} hiring experiences, interview process and Flag Score | Ghosted`;
+    const description = n
+      ? `${n} anonymous ${n === 1 ? "candidate experience" : "candidate experiences"} of ${c.name}'s hiring: interview rounds, how long replies took, communication, rejections, offers and ghosting.${c.flagScore != null ? ` Flag Score ${c.flagScore}/100.` : ""}`
+      : `Interviewed at ${c.name}? Be the first to share how their hiring went, anonymously, and help the next candidate know what to expect.`;
+    return pageHead({
+      title, description, path,
+      // Empty company pages are thin content: kept out of the index until someone shares a story.
+      noindex: n === 0,
+      jsonLd: [
+        breadcrumbLd([{ name: "Ghosted", path: "/" }, { name: c.name, path }]),
+        { "@context": "https://schema.org", "@type": "WebPage", name: title, description, url: `${SITE_URL}${path}`, isPartOf: { "@id": `${SITE_URL}/#website` }, about: { "@type": "Organization", name: c.name, ...(c.hqCity && { address: { "@type": "PostalAddress", addressLocality: c.hqCity, addressCountry: "IN" } }) } },
+      ],
+    });
+  },
   component: CompanyPageRoute,
 });
 

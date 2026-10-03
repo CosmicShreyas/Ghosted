@@ -10,7 +10,7 @@ import { CompanyRail, StoryCompanyCard } from "@/components/dashboard/company-pa
 import { LogoutDialog } from "@/components/dashboard/confirm-dialogs";
 import { Preloader } from "@/components/preloader";
 import { PublicShell } from "@/components/public-shell";
-import { pageMeta } from "@/lib/meta";
+import { pageHead } from "@/lib/meta";
 import { BackButton } from "@/components/back-button";
 import { Button } from "@/components/ui/button";
 import { api, apiEnabled } from "@/lib/api";
@@ -27,7 +27,7 @@ import type { Company } from "@/mock/data";
 // company card, a swipeable strip of numbers, then chitchats.
 export const Route = createFileRoute("/s/$id")({
   // Shared links get a proper preview, but never the story's text, and story pages stay out of search.
-  head: () => ({ meta: pageMeta({ title: "A hiring story on Ghosted", description: "Read a real candidate's hiring experience, shared anonymously on Ghosted.", type: "article", noindex: true }) }),
+  head: ({ params }) => pageHead({ title: "A hiring story on Ghosted", description: "Read a real candidate's hiring experience, shared anonymously on Ghosted.", type: "article", noindex: true, path: `/s/${params.id}` }),
   component: StoryPage,
 });
 

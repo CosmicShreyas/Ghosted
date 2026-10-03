@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { ExternalLink, FileText, Mail } from "lucide-react";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import type { Doc } from "@/content/legal";
+import { breadcrumbLd, pageHead } from "@/lib/meta";
 
 const docs = [
   { to: "/about", label: "About" },
@@ -11,14 +12,9 @@ const docs = [
   { to: "/community", label: "Community Rules" },
 ] as const;
 
-export const docHead = (doc: Doc, description: string) => ({
-  meta: [
-    { title: `${doc.eyebrow} | Ghosted` },
-    { name: "description", content: description },
-    { property: "og:title", content: `${doc.eyebrow} | Ghosted` },
-    { property: "og:description", content: description },
-    { property: "og:type", content: "website" },
-  ],
+export const docHead = (doc: Doc, description: string, path: string) => pageHead({
+  title: `${doc.eyebrow} | Ghosted`, description, path,
+  jsonLd: [breadcrumbLd([{ name: "Ghosted", path: "/" }, { name: doc.eyebrow, path }])],
 });
 
 // `insertAfter` places extra content (e.g. the founders card) after the section with that id.

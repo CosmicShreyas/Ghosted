@@ -5,6 +5,7 @@ import { HTTPException } from "hono/http-exception";
 import { requestId } from "hono/request-id";
 import { secureHeaders } from "hono/secure-headers";
 import { env } from "./env.js";
+import { admin } from "./supabase.js";
 import { ApiError } from "./errors.js";
 import { authRoutes } from "./routes/auth.js";
 import { applicationRoutes } from "./routes/applications.js";
@@ -125,6 +126,24 @@ app.get("/v1/cron/automation", async (c) => {
   const secret = env().CRON_SECRET;
   if (!secret || c.req.header("authorization") !== `Bearer ${secret}`) return c.json({ error: { code: "forbidden", message: "Nope." } }, 403);
   return c.json(await runAll());
+});
+
+// Sitemap for search engines: the public pages plus every listed company with at least one published
+// story (empty company pages are thin content). Served on the site's own domain through the
+// rewrite in the root vercel.json (/sitemap.xml). Story and person pages are never listed.
+app.get("/v1/sitemap.xml", rateLimit({ name: "sitemap", max: 30, windowSeconds: 60 }), async (c) => {
+  const site = env().FRONTEND_URL;
+  const { data } = await admin().from("company_scores").select("slug, story_count, last_story_at").gt("story_count", 0).order("story_count", { ascending: false }).limit(5000);
+  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  const urls = [
+    { loc: `${site}/`, freq: "daily", pri: "1.0" },
+    ...["about", "community", "privacy", "terms"].map((p) => ({ loc: `${site}/${p}`, freq: "monthly", pri: "0.3" })),
+    ...((data ?? []) as { slug: string; last_story_at: string | null }[]).map((r) => ({ loc: `${site}/c/${r.slug}`, freq: "weekly", pri: "0.8", mod: r.last_story_at?.slice(0, 10) })),
+  ];
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map((u) => `  <url><loc>${esc(u.loc)}</loc>${"mod" in u && u.mod ? `<lastmod>${u.mod}</lastmod>` : ""}<changefreq>${u.freq}</changefreq><priority>${u.pri}</priority></url>`).join("\n")}\n</urlset>\n`;
+  c.header("Content-Type", "application/xml; charset=utf-8");
+  c.header("Cache-Control", "public, max-age=3600, s-maxage=3600");
+  return c.body(xml);
 });
 
 app.route("/v1/me/2fa", mfaRoutes);

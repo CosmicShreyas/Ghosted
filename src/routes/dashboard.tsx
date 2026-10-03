@@ -27,6 +27,7 @@ export const Route = createFileRoute("/dashboard")({
       { property: "og:description", content: "Your anonymous hiring story feed and company Flag Scores." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "robots", content: "noindex, nofollow" },
     ],
   }),
   // ?view= opens a view; Insights also keeps its period and filters here, so a view can be shared.

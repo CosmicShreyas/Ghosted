@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useLandingStats } from "@/lib/stats";
 import { useAuthGuard } from "@/lib/session";
 import { FoundingProgress } from "@/lib/founding";
-import { pageMeta } from "@/lib/meta";
+import { organizationLd, pageHead, websiteLd } from "@/lib/meta";
 import { api, apiEnabled } from "@/lib/api";
 import { fromApi, isRated, useCompanyIndex, type StoryDto } from "@/lib/stories";
 import { Preloader } from "@/components/preloader";
@@ -26,7 +26,11 @@ import { companies, stories, type Stat } from "@/mock/data";
 //   3. real stories from real people (nothing seeded or made up), so there's proof before the ask
 //   4. how it works, then the bigger picture for those who want it
 export const Route = createFileRoute("/")({
-  head: () => ({ meta: pageMeta({ title: "Ghosted | Know what happened before you apply", description: "Real candidate hiring experiences, searchable by company. Interview rounds, waiting time, communication, rejections, offers and ghosting. Anonymous by default." }) }),
+  head: () => pageHead({
+    title: "Ghosted | Interview experiences and company hiring reviews in India",
+    description: "Know what happened before you apply. Real, anonymous candidate experiences searchable by company: interview rounds, waiting time, communication, rejections, offers and ghosting.",
+    path: "/", jsonLd: [organizationLd, websiteLd],
+  }),
   component: LandingPage,
 });
 

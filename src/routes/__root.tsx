@@ -89,9 +89,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "apple-mobile-web-app-status-bar-style", content: "default" },
       { name: "apple-mobile-web-app-title", content: "Ghosted" },
       { name: "format-detection", content: "telephone=no" },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Ghosted" },
+      { property: "og:site_name", content: "Ghosted" },
+      { property: "og:locale", content: "en_IN" },
+      { name: "application-name", content: "Ghosted" },
     ],
     links: [
       {
@@ -116,7 +116,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 function RootShell({ children }: { children: ReactNode }) {
   return (
     // suppressHydrationWarning: the theme script below sets class/colour-scheme before React loads.
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en-IN" suppressHydrationWarning>
       <head>
         {/* Theme first, before any paint: dark mode never flashes white. */}
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOT }} />

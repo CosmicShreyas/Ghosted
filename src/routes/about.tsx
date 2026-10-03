@@ -5,7 +5,7 @@ import { LegalPage, docHead } from "@/components/legal-page";
 import { aboutDoc, founders } from "@/content/legal";
 
 export const Route = createFileRoute("/about")({
-  head: () => docHead(aboutDoc, "Why Ghosted exists, who built it, and why it beats posting your hiring story on LinkedIn."),
+  head: () => docHead(aboutDoc, "Why Ghosted exists: an anonymous, searchable place for real hiring experiences in India, built for candidates, not employers.", "/about"),
   component: AboutPage,
 });
 
