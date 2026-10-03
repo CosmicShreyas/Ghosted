@@ -1,5 +1,6 @@
 ﻿// Anonymous handle generator: "<Prefix> <Suffix>", e.g. "Unbothered Falcon" (25,600 display names).
-// Handles aren't unique on purpose. Every account also gets a hidden 15-digit public ID
+// The pool below has since expanded beyond that original count. Handles aren't unique on purpose.
+// Every account also gets a hidden 15-digit public ID
 // (~900 trillion values, assigned by the database) that is only used in URLs such as /u/<id>.
 // Copy of src/lib/handles.ts (frontend). Keep the word lists in sync.
 
@@ -20,6 +21,8 @@ export const handlePrefixes = [
   "Midnight", "Monday", "Friday", "Weekend", "Overtime", "Deadline", "Coffee", "Chai", "Masala", "Filter",
   "Neon", "Retro", "Turbo", "Mega", "Ultra", "Hyper", "Micro", "Nano", "Pocket", "Paper",
   "Cotton", "Marble", "Granite", "Copper", "Crimson", "Indigo", "Saffron", "Emerald", "Amber", "Cobalt",
+  "Jugaadu", "Overthinking", "Traffic-Stuck", "Metro-Missed", "Auto-Waiting", "Salary-Waiting", "Notice-Serving", "Bench-Warming", "Deadline-Dodging", "Chai-Fuelled",
+  "Filter-Coffee", "Power-Cut", "Monday-Struck", "Rent-Paying", "Mildly-Spicy", "Fully-Booked", "Interview-Tired", "Mummy-Approved", "Hostel-Hungry", "Shaadi-Dodging",
 ] as const;
 
 export const handleSuffixes = [
@@ -39,6 +42,22 @@ export const handleSuffixes = [
   "Pebble", "Boulder", "Glacier", "Volcano", "Canyon", "Lagoon", "Monsoon", "Cyclone", "Thunder", "Breeze",
   "Knight", "Ranger", "Pilot", "Sailor", "Nomad", "Pirate", "Wizard", "Ninja", "Samurai", "Bard",
   "Candidate", "Applicant", "Intern", "Fresher", "Veteran", "Freelancer", "Recruit", "Rookie", "Mentor", "Maverick",
+  "Biryani", "Vada", "Chutney", "Chai", "Paratha", "Momos", "Jalebi", "Kachori", "Poha", "Upma",
+  "Rasam", "Sambar", "Golgappa", "PaniPuri", "Chole", "Kulcha", "Rajma", "Khichdi", "Thepla", "Dhokla",
+  "Misal", "PavBhaji", "Appam", "Puttu", "Pongal", "Payasam", "NimbuPani", "FilterCoffee", "CuttingChai", "Murukku",
+] as const;
+
+const desiPrefixes = [
+  "Sleepless", "Hungry", "Salty", "Sassy", "Spicy", "Tired", "Monday", "Chai", "Masala", "Filter",
+  "Jugaadu", "Overthinking", "Traffic-Stuck", "Metro-Missed", "Auto-Waiting", "Salary-Waiting", "Notice-Serving", "Bench-Warming", "Deadline-Dodging", "Chai-Fuelled",
+  "Filter-Coffee", "Power-Cut", "Monday-Struck", "Rent-Paying", "Mildly-Spicy", "Fully-Booked", "Interview-Tired", "Mummy-Approved", "Hostel-Hungry", "Shaadi-Dodging",
+] as const;
+
+const desiSuffixes = [
+  "Mango", "Coconut", "Jackfruit", "Samosa", "Dosa", "Idli", "Pakora", "Laddoo", "Biryani", "Vada",
+  "Chutney", "Chai", "Paratha", "Momos", "Jalebi", "Kachori", "Poha", "Upma", "Rasam", "Sambar",
+  "Golgappa", "PaniPuri", "Chole", "Kulcha", "Rajma", "Khichdi", "Thepla", "Dhokla", "Misal", "PavBhaji",
+  "Appam", "Puttu", "Pongal", "Payasam", "NimbuPani", "FilterCoffee", "CuttingChai", "Murukku",
 ] as const;
 
 const pick = <T,>(list: readonly T[], n: number): T => list[Math.abs(n) % list.length] as T;
@@ -57,7 +76,10 @@ export function handleFromSeed(seed: string) {
 
 export function randomHandle() {
   const r = () => Math.floor(Math.random() * 1e9);
-  return `${pick(handlePrefixes, r())} ${pick(handleSuffixes, r())}`;
+  // Rerolls lean desi and silly, while the complete original pool remains available.
+  const prefixPool = Math.random() < 0.7 ? desiPrefixes : handlePrefixes;
+  const suffixPool = Math.random() < 0.8 ? desiSuffixes : handleSuffixes;
+  return `${pick(prefixPool, r())} ${pick(suffixPool, r())}`;
 }
 
 export const isGeneratedHandle = (handle: string) => {

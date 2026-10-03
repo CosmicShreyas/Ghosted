@@ -2,7 +2,8 @@ import { useEffect, useRef, useState, type ForwardRefExoticComponent, type React
 import { Link, useNavigate } from "@tanstack/react-router";
 import { samplePublicId } from "@/lib/stories";
 import { AnimatePresence, motion } from "motion/react";
-import { Building2, Eye, Hourglass, type LucideIcon } from "lucide-react";
+import { Building2, Eye, Hourglass, Loader2, UserCheck, UserPlus, type LucideIcon } from "lucide-react";
+import { toast } from "sonner";
 import { Avatar } from "@/components/ghosted";
 import {
   BellIcon, BookmarkIcon, ChartLineIcon, HomeIcon, LogoutIcon, SearchIcon, SettingsIcon, ShieldCheckIcon, SparklesIcon,
@@ -19,6 +20,8 @@ import { timeAgo, useNotifications, type Notification } from "@/lib/notification
 import { GOOFY_AVATAR, GOOFY_ID } from "@/lib/goofy";
 import { YourTurn } from "./your-turn";
 import { useSmoothScrollIn } from "@/components/smooth-scroll";
+import { ApiRequestError } from "@/lib/api";
+import { useSearch, type PersonSearchResult } from "@/lib/search";
 
 export type View = "home" | "mine" | "waiting" | "companies" | "saved" | "insights" | "settings";
 type AnimatedIcon = ForwardRefExoticComponent<{ size?: number; className?: string } & RefAttributes<IconHandle>>;
@@ -282,6 +285,17 @@ function SearchBox({ query, onQuery, view }: { query: string; onQuery: (q: strin
   const search = useIconAnimation();
   const clear = useIconAnimation();
   const input = useRef<HTMLInputElement>(null);
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
+  const peopleSearch = useSearch(view === "insights" ? "" : query);
+  const people = peopleSearch.debouncing ? [] : peopleSearch.data?.people ?? [];
+  const showPeople = open && query.trim().length >= 2 && view !== "insights";
+  const follow = async (person: PersonSearchResult) => {
+    setBusy(person.publicId);
+    try { await peopleSearch.setFollowing(person, !person.following); }
+    catch (error) { toast.error(error instanceof ApiRequestError && error.status === 401 ? "Log in to follow people." : "Couldn't update that follow. Try again."); }
+    finally { setBusy(null); }
+  };
   // Press "/" anywhere (when not already typing) to jump to search.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -292,14 +306,27 @@ function SearchBox({ query, onQuery, view }: { query: string; onQuery: (q: strin
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
-  return <label className="relative block" onMouseEnter={search.start} onMouseLeave={search.stop}>
-    <span className="sr-only">Search</span>
-    <SearchIcon ref={search.ref} size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-    {!query && !compact && <kbd className="pointer-events-none absolute right-2.5 top-1/2 hidden -translate-y-1/2 rounded border border-foreground/30 px-1.5 font-mono text-[10px] font-bold text-muted-foreground lg:block" aria-hidden="true">/</kbd>}
+  return <div className="relative block" onMouseEnter={search.start} onMouseLeave={search.stop} onFocusCapture={() => setOpen(true)} onBlurCapture={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) { setOpen(false); search.stop(); } }}>
+    <label htmlFor="global-search" className="sr-only">Search people, companies, stories and warning signs</label>
+    <SearchIcon ref={search.ref} size={16} className="pointer-events-none absolute left-3 top-5 -translate-y-1/2 text-muted-foreground" />
+    {!query && !compact && <kbd className="pointer-events-none absolute right-2.5 top-5 hidden -translate-y-1/2 rounded border border-foreground/30 px-1.5 font-mono text-[10px] font-bold text-muted-foreground lg:block" aria-hidden="true">/</kbd>}
     {/* type="text" (not "search") so the browser doesn't add its own second clear button. */}
-    <input ref={input} type="text" inputMode="search" enterKeyHint="search" role="searchbox" value={query} onChange={(e) => onQuery(e.target.value)} onFocus={search.start} onBlur={search.stop} onKeyDown={(e) => { if (e.key === "Escape") onQuery(""); }} placeholder={view === "insights" ? (compact ? "Filter by role…" : "Filter insights by role, like Backend Engineer…") : compact ? "Search…" : "Search companies, stories, warning signs…"} aria-label="Search companies, stories and warning signs" className="h-10 w-full rounded-lg border-2 border-foreground bg-card pl-9 pr-9 text-sm outline-none transition-shadow focus:shadow-hard-sm" />
-    {query && <button type="button" onClick={() => onQuery("")} {...clear.trigger} className="absolute right-2 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded hover:bg-muted" aria-label="Clear search"><XIcon ref={clear.ref} size={14} /></button>}
-  </label>;
+    <input id="global-search" ref={input} type="text" inputMode="search" enterKeyHint="search" role="searchbox" autoComplete="off" value={query} onChange={(e) => onQuery(e.target.value)} onFocus={search.start} onKeyDown={(e) => { if (e.key === "Escape") { setOpen(false); onQuery(""); } }} placeholder={view === "insights" ? (compact ? "Filter by role…" : "Filter insights by role, like Backend Engineer…") : compact ? "Search people…" : "Search people, companies, stories…"} aria-label="Search people, companies, stories and warning signs" aria-expanded={showPeople} aria-controls="people-search-results" className="h-10 w-full rounded-lg border-2 border-foreground bg-card pl-9 pr-9 text-sm outline-none transition-shadow focus:shadow-hard-sm" />
+    {query && <button type="button" onClick={() => { onQuery(""); input.current?.focus(); }} {...clear.trigger} className="absolute right-2 top-5 grid size-6 -translate-y-1/2 place-items-center rounded hover:bg-muted" aria-label="Clear search"><XIcon ref={clear.ref} size={14} /></button>}
+    {showPeople && <div id="people-search-results" role="region" aria-label="People search results" className="fixed left-3 right-3 top-[calc(4rem+env(safe-area-inset-top)+.5rem)] z-50 max-h-[min(24rem,60vh)] overflow-y-auto rounded-xl border-2 border-foreground bg-popover p-2 shadow-hard sm:absolute sm:left-0 sm:right-0 sm:top-[calc(100%+.5rem)]">
+      <p className="px-2 pb-1 pt-0.5 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">People</p>
+      {peopleSearch.loading ? <div className="flex items-center gap-2 px-2 py-4 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" />Finding people…</div>
+        : people.length ? people.map((person) => <div key={person.publicId} className="flex items-center gap-2 rounded-lg p-1 hover:bg-muted focus-within:bg-muted">
+          <Link to="/u/$id" params={{ id: person.publicId }} onClick={() => { setOpen(false); onQuery(""); }} className="flex min-w-0 flex-1 items-center gap-2 rounded-md p-1.5 outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <Avatar seed={person.avatarSeed} pastel={person.pastel} size="sm" label={person.name} />
+            <span className="min-w-0"><strong className="block truncate text-sm">{person.name}</strong><span className="block truncate text-xs text-muted-foreground">{person.name !== person.handle ? `aka ${person.handle}` : [person.revealed?.role, person.revealed?.city].filter(Boolean).join(" · ") || "Anonymous member"}</span></span>
+          </Link>
+          {!person.isMe && <Button type="button" size="sm" variant={person.following ? "outline" : "default"} disabled={busy === person.publicId} onClick={() => void follow(person)} className="shrink-0 px-2.5 sm:px-3" aria-label={`${person.following ? "Unfollow" : "Follow"} ${person.name}`}>
+            {busy === person.publicId ? <Loader2 className="animate-spin" /> : person.following ? <UserCheck /> : <UserPlus />}<span className="hidden sm:inline">{person.following ? "Following" : "Follow"}</span>
+          </Button>}
+        </div>) : <p className="px-2 py-4 text-sm text-muted-foreground">No people found. Stories and companies will still appear below.</p>}
+    </div>}
+  </div>;
 }
 
 // `view: null` = a page outside the dashboard views (e.g. someone's profile): nothing is highlighted.

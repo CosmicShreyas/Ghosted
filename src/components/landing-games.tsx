@@ -136,7 +136,12 @@ export function HiringMinefield() {
 
     if (cell.mine) {
       cell.open = true;
-      const slap = recruiterSlaps[slaps.length % recruiterSlaps.length] ?? recruiterSlaps[0];
+      // Every game starts with a genuinely random HR move and avoids repeats until the deck runs out.
+      const used = new Set(slaps.map((slap) => slap.title));
+      const fresh = recruiterSlaps.filter((slap) => !used.has(slap.title));
+      const pool = fresh.length ? fresh : recruiterSlaps;
+      const random = crypto.getRandomValues(new Uint32Array(1))[0] ?? 0;
+      const slap = pool[random % pool.length] ?? recruiterSlaps[0];
       const left = lives - 1;
       setLives(left);
       setSlaps([slap, ...slaps]);

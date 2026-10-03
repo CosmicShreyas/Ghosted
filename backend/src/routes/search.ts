@@ -6,7 +6,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { parseQuery, search, searchCompanies, type SearchDoc } from "../algorithms/index.js";
-import { companyDto, type CompanyScoreRow, type StoryRow } from "../dto.js";
+import { AUTHOR_COLUMNS, companyDto, storyAuthor, type AuthorRow, type CompanyScoreRow, type StoryRow } from "../dto.js";
 import { dbFail } from "../errors.js";
 import { fromBytea } from "../lib/compression.js";
 import { hydrate, publishedStories } from "../stories.js";
@@ -16,6 +16,29 @@ import { loadLive } from "../automation.js";
 import { validate } from "../validate.js";
 
 let cache: { at: number; docs: SearchDoc[] } | null = null;
+
+type SearchableProfile = AuthorRow & { id: string };
+
+const fold = (value: string) => value.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+
+// Real names only enter this index through storyAuthor(), which exposes them solely when the
+// account is public and the owner has explicitly shared the name field.
+function searchPeople(rows: SearchableProfile[], query: string, limit = 6) {
+  const needle = fold(query);
+  const terms = needle.split(/\s+/).filter(Boolean);
+  return rows.flatMap((row) => {
+    const author = storyAuthor(row);
+    const handle = fold(author.handle);
+    const publicName = author.revealed?.name ? fold(author.revealed.name) : "";
+    const haystack = `${handle} ${publicName}`;
+    if (!terms.every((term) => haystack.includes(term))) return [];
+    const score = publicName === needle || handle === needle ? 0
+      : publicName.startsWith(needle) || handle.startsWith(needle) ? 1
+        : handle.includes(needle) ? 2 : 3;
+    return [{ row, author, score }];
+  }).sort((a, b) => a.score - b.score || a.author.name.localeCompare(b.author.name)).slice(0, limit);
+}
+
 async function index(): Promise<SearchDoc[]> {
   if (cache && Date.now() - cache.at < 60_000) return cache.docs;
   const { data, error } = await admin().from("stories")
@@ -42,12 +65,14 @@ export const searchRoutes = new Hono<AppEnv>().get("/", optionalAuth, rateLimit(
 })), async (c) => {
   const { q, limit } = c.req.valid("query");
   const parsed = parseQuery(q);
-  const [docs, , cos] = await Promise.all([
+  const [docs, , cos, profiles] = await Promise.all([
     index(),
     loadLive(), // learned synonyms
     admin().from("company_scores").select("*").limit(3000),
+    admin().from("profiles").select(`id, ${AUTHOR_COLUMNS}`).limit(3000),
   ]);
   if (cos.error) dbFail("search companies", cos.error);
+  if (profiles.error) dbFail("search people", profiles.error);
   const hits = search(docs, parsed, Date.now(), limit);
   const ids = hits.map((h) => h.id);
   const { data, error } = ids.length ? await publishedStories().in("id", ids) : { data: [], error: null };
@@ -55,9 +80,24 @@ export const searchRoutes = new Hono<AppEnv>().get("/", optionalAuth, rateLimit(
   const order = new Map(ids.map((id, i) => [id, i]));
   const rows = ((data ?? []) as unknown as StoryRow[]).sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
   const companies = parsed.terms.length || parsed.company ? searchCompanies((cos.data ?? []) as CompanyScoreRow[], parsed.company ?? q, 5) : [];
+  const peopleWithRows = searchPeople((profiles.data ?? []) as unknown as SearchableProfile[], q);
+  const viewer = c.get("profile");
+  const peopleIds = peopleWithRows.map(({ row }) => row.id);
+  const followed = new Set<string>();
+  if (viewer && peopleIds.length) {
+    const { data: follows, error: followError } = await admin().from("follows").select("followee_id")
+      .eq("follower_id", viewer.id).in("followee_id", peopleIds);
+    if (followError) dbFail("search relationships", followError);
+    for (const follow of (follows ?? []) as { followee_id: string }[]) followed.add(follow.followee_id);
+  }
   return c.json({
     stories: await hydrate(rows, c.get("profile")),
     companies: companies.map(companyDto),
+    people: peopleWithRows.map(({ row, author }) => ({
+      ...author,
+      isMe: viewer?.id === row.id,
+      following: followed.has(row.id),
+    })),
     // What the search understood, so the page can say "Showing results for …".
     understood: { terms: parsed.terms, company: parsed.company, outcome: parsed.outcome, stage: parsed.stage, phrases: parsed.phrases, exclude: parsed.exclude },
   });

@@ -378,6 +378,21 @@ export const recruiterSlaps = [
   { title: "Left on read", line: "Seen at 10:02. Replied never." },
   { title: "Offer revoked", line: "The role got ‘recalibrated’. Your rent didn't." },
   { title: "The family speech", line: "“We're a family here.” Unpaid weekends are tradition." },
+  { title: "Urgent hiring", line: "Urgent enough to repost daily. Not urgent enough to reply." },
+  { title: "Budget alignment", line: "They loved your profile. Finance loved saving money more." },
+  { title: "Culture fit", line: "You passed every round but didn't laugh hard enough at the founder's joke." },
+  { title: "Calendar Tetris", line: "Rescheduled four times. Somehow you're the one who must be flexible." },
+  { title: "The vanishing panel", line: "You joined on time. The interviewers joined another dimension." },
+  { title: "Shape-shifting JD", line: "You applied for frontend. Surprise, they need DevOps, sales and a little magic." },
+  { title: "Exposure package", line: "The salary is confidential. The workload will be very public." },
+  { title: "Internal candidate", line: "The role was filled before your first round. Thanks for the free rehearsal." },
+  { title: "Instant rejection", line: "Rejected at 2:03 a.m. Even the bot keeps better hours than HR." },
+  { title: "Reference marathon", line: "Three references, two managers and your class teacher. Still pending approval." },
+  { title: "Notice-period maths", line: "They need you tomorrow, after making you wait six weeks." },
+  { title: "Competitive pay", line: "Competitive with your electricity bill, perhaps." },
+  { title: "Tiny assignment", line: "Just build the product. Branding and deployment are optional." },
+  { title: "Position on hold", line: "The job is meditating. Please wait without asking questions." },
+  { title: "Feedback soon", line: "Soon is a flexible unit of time measured in financial quarters." },
 ] as const;
 
 // Auth page showcase: recruiter messages and what they actually mean.
