@@ -181,10 +181,11 @@ function LandingPage() {
     </div></section>
 
     {/* Invites: a small strip; the details live on /invite. */}
-    <section className="border-b-2 border-foreground bg-accent"><div className="mx-auto flex max-w-7xl flex-wrap items-center gap-6 px-4 py-10 sm:px-6">
+    {/* Phones and tablets: avatars, text and a full-width button stacked; a single row from lg up. */}
+    <section className="border-b-2 border-foreground bg-accent"><div className="mx-auto grid max-w-7xl gap-5 px-4 py-10 sm:px-6 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center lg:gap-8">
       <div className="flex -space-x-3">{(["violet", "sunrise", "gold"] as const).map((f, i) => <FlairRing key={f} flair={f} className="bg-card"><Avatar {...getUser(["u2", "u5", "u8"][i]!)} size="md" /></FlairRing>)}</div>
-      <div className="min-w-0 flex-1"><h2 className="font-display text-2xl font-bold sm:text-3xl">Bring a voice, level up together.</h2><p className="mt-1 max-w-2xl text-muted-foreground">Invite someone who's been through a hiring process. When they share their experience, you both reach Invite Level 1 and get a ring on your avatar. Levels 2 and 3 come at 3 and 10 friends. No money, no spam, nobody learns who you are.</p></div>
-      <Button size="lg" variant="outline" className="min-h-12 bg-card" asChild><Link to="/invite">How invites work <ArrowRight /></Link></Button>
+      <div className="min-w-0"><h2 className="font-display text-2xl font-bold leading-tight sm:text-3xl">Bring a voice, level up together.</h2><p className="mt-2 max-w-2xl text-muted-foreground">Invite someone who's been through a hiring process. When they share their experience, you both reach Invite Level 1 and get a ring on your avatar. Levels 2 and 3 come at 3 and 10 friends. No money, no spam, nobody learns who you are.</p></div>
+      <Button size="lg" variant="outline" className="min-h-12 w-full bg-card sm:w-fit" asChild><Link to="/invite">How invites work <ArrowRight /></Link></Button>
     </div></section>
     <LandingPitch />
     <HiringMinefield />
