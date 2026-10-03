@@ -6,6 +6,7 @@ import { Bookmark, HandHeart, Heart, HeartHandshake, Lightbulb, MessageCircle, M
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Avatar, QuickBadge } from "@/components/ghosted";
+import { FlairRing } from "@/lib/invite";
 import { StoryBody } from "@/components/markdown";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -133,7 +134,7 @@ export function FeedStory({ story, saved, onSave, onOpenCompany, full = false }:
     className={cn(card, "p-5", !full && "cursor-pointer transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-hard")}>
     <div className="flex items-start gap-3">
       {/* The avatar and name open this person's page (addressed by id, whatever name they show). */}
-      <PersonLink author={author} className="shrink-0 rounded-full"><Avatar seed={author.avatarSeed} pastel={author.pastel} size="sm" label={author.name} /></PersonLink>
+      <PersonLink author={author} className="shrink-0 rounded-full"><FlairRing flair={author.flair}><Avatar seed={author.avatarSeed} pastel={author.pastel} size="sm" label={author.name} /></FlairRing></PersonLink>
       <div className="min-w-0 flex-1">
         <PersonLink author={author} className="block truncate text-sm font-bold underline-offset-2 hover:underline">{author.name}</PersonLink>
         <p className="flex min-w-0 flex-wrap items-center gap-x-1 text-xs text-muted-foreground">

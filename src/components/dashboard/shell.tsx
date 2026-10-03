@@ -6,7 +6,7 @@ import { BadgeCheck, Building2, Eye, Hourglass, Loader2, UserCheck, UserPlus, ty
 import { toast } from "sonner";
 import { Avatar } from "@/components/ghosted";
 import {
-  BellIcon, BookmarkIcon, ChartLineIcon, HomeIcon, LogoutIcon, SearchIcon, SettingsIcon, ShieldCheckIcon, SparklesIcon,
+  BellIcon, BookmarkIcon, HeartIcon, ChartLineIcon, HomeIcon, LogoutIcon, SearchIcon, SettingsIcon, ShieldCheckIcon, SparklesIcon,
   SquarePenIcon, UserIcon, XIcon, useIconAnimation, type IconHandle,
 } from "@/components/icons";
 import { Button } from "@/components/ui/button";
@@ -257,6 +257,7 @@ function ProfileMenu({ me, onChange, onLogout }: { me: Me; onChange: (v: View) =
         {/* The dock keeps five tabs; the rest of the app lives here on phones and tablets. */}
         <SheetRow icon={ChartLineIcon} label="Insights" onSelect={() => onChange("insights")} />
         <SheetRow icon={SettingsIcon} label="Settings" onSelect={() => onChange("settings")} />
+        <SheetRow icon={HeartIcon} label="Invite friends" onSelect={() => void navigate({ to: "/invite" })} />
         <SheetRow icon={SparklesIcon} label="Feedback and support" onSelect={() => void navigate({ to: "/feedback" })} />
         <div className="my-1 border-t border-foreground/15" />
         <SheetRow icon={LogoutIcon} label="Log out" onSelect={onLogout} danger />
@@ -272,6 +273,7 @@ function ProfileMenu({ me, onChange, onLogout }: { me: Me; onChange: (v: View) =
       <MenuRow icon={UserIcon} label="View profile" onSelect={viewProfile} />
       <MenuRow icon={SquarePenIcon} label="My stories" onSelect={() => onChange("mine")} />
       <MenuRow icon={SettingsIcon} label="Settings" onSelect={() => onChange("settings")} />
+      <MenuRow icon={HeartIcon} label="Invite friends" onSelect={() => void navigate({ to: "/invite" })} />
       <MenuRow icon={SparklesIcon} label="Feedback and support" onSelect={() => void navigate({ to: "/feedback" })} />
       <DropdownMenuSeparator />
       <MenuRow icon={LogoutIcon} label="Log out" onSelect={onLogout} danger />

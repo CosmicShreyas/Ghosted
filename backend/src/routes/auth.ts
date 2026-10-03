@@ -13,6 +13,7 @@ import { emailOf, makeTicket, openTicket, profileById, verifySecondFactor } from
 import { admin, auth } from "../supabase.js";
 import { fullName, validate } from "../validate.js";
 import { sealToBytea } from "../lib/sealed.js";
+import { ipKey } from "../security.js";
 import { banOf, bannedError, ensureOpen } from "../platform.js";
 import { consumeCode, isVerified, OTP_MINUTES, sendCode, verifySignupCode } from "../otp.js";
 
@@ -69,12 +70,15 @@ export const authRoutes = new Hono<AppEnv>()
     // Must be exactly true: the Terms and Privacy Policy have to be accepted to sign up.
     acceptTerms: z.literal(true, { error: "Please accept the Terms and Privacy Policy" }),
     captchaToken,
+    // An invite code from /invite?ref=…; applied when the profile is created (security.ts).
+    ref: z.string().regex(/^[A-Z2-9]{8}$/).optional(),
   }).strict()), async (c) => {
     await ensureOpen("signupsOpen");
     const body = c.req.valid("json");
     if (!isVerified(body.email, body.verificationToken)) throw new ApiError(403, "email_not_verified", "Please verify your email again. The code step has expired.");
-    // The full name is sealed (compressed + encrypted) before it ever reaches Supabase.
-    const meta = { handle: body.handle, avatar_seed: body.avatarSeed, pastel: body.pastel, details_z: sealToBytea({ name: body.fullName }), terms_accepted_at: new Date().toISOString() };
+    // The full name is sealed (compressed + encrypted) before it ever reaches Supabase. The invite
+    // code rides along with this connection's hashed IP, so an invite from your own network isn't credited.
+    const meta = { handle: body.handle, avatar_seed: body.avatarSeed, pastel: body.pastel, details_z: sealToBytea({ name: body.fullName }), terms_accepted_at: new Date().toISOString(), ...(body.ref && { ref_code: body.ref, ref_ip: ipKey(c) }) };
     // Email ownership is already proven by our code, so the user is created as confirmed.
     const { error } = await admin().auth.admin.createUser({ email: body.email, password: body.password, email_confirm: true, user_metadata: meta });
     // Safe to say it exists: only the verified owner of this inbox can reach this point.

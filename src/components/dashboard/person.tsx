@@ -18,6 +18,7 @@ import type { PersonPage, PersonStats, usePerson } from "@/lib/people";
 import { cn, formatCount } from "@/lib/utils";
 import { activeDot, axis, barCursor, ChartTooltip, grid, INK, lineCursor, SERIES } from "./chart-kit";
 import { card, popup, popupBody } from "./ui-kit";
+import { FlairRing } from "@/lib/invite";
 
 const nf = formatCount;
 const joined = (iso: string | null) => (iso ? new Intl.DateTimeFormat("en-IN", { month: "long", year: "numeric" }).format(new Date(iso)) : null);
@@ -44,7 +45,7 @@ export function PersonHeader({ page, actions }: { page: PersonPage; actions: Rea
     <Banner seed={p.avatarSeed} className="h-24 border-b-2 border-foreground sm:h-32" />
     <div className="px-4 pb-5 sm:px-6">
       <div className="-mt-10 flex flex-wrap items-end justify-between gap-3 sm:-mt-12">
-        <div className="rounded-full bg-card p-1"><div className="[&_img]:size-20 sm:[&_img]:size-24"><Avatar seed={p.avatarSeed} pastel={p.pastel} size="lg" label={p.name} /></div></div>
+        <div className="rounded-full bg-card p-1"><FlairRing flair={p.flair}><div className="[&_img]:size-20 sm:[&_img]:size-24"><Avatar seed={p.avatarSeed} pastel={p.pastel} size="lg" label={p.name} /></div></FlairRing></div>
         <div className="flex flex-wrap items-center gap-2 pb-1">{actions}</div>
       </div>
       <div className="mt-3 min-w-0">

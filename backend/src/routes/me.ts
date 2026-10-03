@@ -12,6 +12,7 @@ import { verifyChallenge } from "../captcha.js";
 import { detailText, fullName, validate } from "../validate.js";
 import { sealToBytea, unsealBytea, unsealJson, type Details } from "../lib/sealed.js";
 import type { StoryRow } from "../dto.js";
+import { codeFor, FLAIRS, isFlair, missionsFor, referralStats, unlockedFlairs, type Flair } from "../referral.js";
 
 // Your own profile, including private fields. Only ever returned to you.
 export const privateProfile = (p: Profile) => ({
@@ -25,6 +26,7 @@ export const privateProfile = (p: Profile) => ({
   // Only the method and how many recovery codes are left. Secrets never leave the server.
   mfa: { method: p.mfa_method ?? "none", recoveryLeft: p.recovery_z ? (unsealJson<string[]>(p.recovery_z) ?? []).length : 0 },
   createdAt: p.created_at,
+  flair: (p as Profile & { flair?: string | null }).flair ?? null,
 });
 
 const field = z.enum(["name", "role", "experience", "city", "linkedin"]);
@@ -33,6 +35,36 @@ export const meRoutes = new Hono<AppEnv>()
   .use(requireAuth)
 
   .get("/", rateLimit({ name: "me", max: 180, windowSeconds: 60, by: "user" }), (c) => c.json({ profile: privateProfile(me(c)) }))
+
+  // Your invite code and what it's done, your missions, and the flair you've unlocked.
+  .get("/invite", rateLimit({ name: "me-invite", max: 120, windowSeconds: 60, by: "user" }), async (c) => {
+    const p = me(c) as Profile & { ref_code?: string | null; referred_by?: string | null; flair?: string | null };
+    let code: string | null = null;
+    try { code = await codeFor(p.id, p.ref_code); } catch { code = null; } // before the invites SQL runs
+    const stats = await referralStats(p.id).catch(() => ({ joined: 0, voices: 0, stories: 0, relatable: 0 }));
+    const missions = await missionsFor(p.id, stats.voices);
+    const unlocked = unlockedFlairs({ voices: stats.voices, completed: missions.completed, joinedViaInviteWithStory: !!p.referred_by && missions.hasStory });
+    return c.json({
+      code, ...stats, invitedBy: !!p.referred_by,
+      missions: missions.list, completed: missions.completed,
+      flair: isFlair(p.flair) && unlocked.includes(p.flair) ? p.flair : null,
+      flairs: (Object.keys(FLAIRS) as Flair[]).map((id) => ({ id, ...FLAIRS[id], unlocked: unlocked.includes(id) })),
+    });
+  })
+  .patch("/flair", rateLimit({ name: "me-flair", max: 30, windowSeconds: 3600, by: "user" }), validate("json", z.object({ flair: z.string().nullable() }).strict()), async (c) => {
+    const p = me(c) as Profile & { referred_by?: string | null };
+    const { flair } = c.req.valid("json");
+    if (flair !== null && !isFlair(flair)) throw new ApiError(400, "bad_flair", "That flair doesn't exist.");
+    if (flair) {
+      const stats = await referralStats(p.id);
+      const missions = await missionsFor(p.id, stats.voices);
+      if (!unlockedFlairs({ voices: stats.voices, completed: missions.completed, joinedViaInviteWithStory: !!p.referred_by && missions.hasStory }).includes(flair)) throw new ApiError(403, "locked", "You haven't unlocked that one yet.");
+    }
+    const { error } = await admin().from("profiles").update({ flair }).eq("id", p.id);
+    if (error) dbFail("set flair (run the invites section of init_database.sql)", error);
+    later(bump({ user: p.id, topics: ["me"] }));
+    return c.json({ flair });
+  })
 
   .patch("/", rateLimit({ name: "me-update", max: 45, windowSeconds: 3600, by: "user" }), validate("json", z.object({
     handle: z.string().refine(isGeneratedHandle, "Pick a generated handle").optional(),

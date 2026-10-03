@@ -9,6 +9,7 @@ import { touchSession } from "./devices.js";
 import { later } from "./live.js";
 import { welcome } from "./goofy/index.js";
 import { banOf, bannedError } from "./platform.js";
+import { inviterByCode } from "./referral.js";
 
 export type Profile = {
   id: string;
@@ -90,6 +91,18 @@ const PASTELS = ["bg-avatar-mint", "bg-avatar-sky", "bg-avatar-pink", "bg-avatar
 export const isPastel = (v: string) => PASTELS.includes(v);
 export const isAvatarSeed = (v: string) => AVATAR_SEED.test(v);
 
+async function linkInviter(userId: string, code: string, ipHash: string | null) {
+  try {
+    const inviter = await inviterByCode(code);
+    if (!inviter || inviter.id === userId) return;
+    if (ipHash) {
+      const { count } = await admin().from("session_devices").select("session_id", { count: "exact", head: true }).eq("user_id", inviter.id).eq("ip_hash", ipHash);
+      if ((count ?? 0) > 0) return; // same connection as the inviter: not credited
+    }
+    await admin().from("profiles").update({ referred_by: inviter.id, referred_at: new Date().toISOString() }).eq("id", userId).is("referred_by", null);
+  } catch (e) { console.error("[invite] link", (e as Error).message); }
+}
+
 // Verifies the JWT with Supabase, then loads the profile. The profile is created on first use from
 // the handle/avatar chosen at sign-up (stored in user metadata), falling back to random ones.
 async function loadProfile(token: string): Promise<Profile | null> {
@@ -112,8 +125,10 @@ async function loadProfile(token: string): Promise<Profile | null> {
   const details_z = typeof meta.details_z === "string" && /^\\x[0-9a-f]{58,4096}$/.test(meta.details_z) ? meta.details_z : null;
   const { data: created, error: cErr } = await admin().from("profiles").upsert({ id: user.id, handle, avatar_seed, pastel, details_z }, { onConflict: "id", ignoreDuplicates: false }).select("*").single();
   if (cErr) dbFail("create profile", cErr);
-  const { error: mErr } = await admin().auth.admin.updateUserById(user.id, { user_metadata: { handle: null, avatar_seed: null, pastel: null, details_z: null } });
+  const { error: mErr } = await admin().auth.admin.updateUserById(user.id, { user_metadata: { handle: null, avatar_seed: null, pastel: null, details_z: null, ref_code: null, ref_ip: null } });
   if (mErr) console.error("[auth] clear metadata", mErr.code);
+  // Joined through an invite: link the inviter (never yourself, never from the inviter's own network).
+  if (typeof meta.ref_code === "string") later(linkInviter(user.id, meta.ref_code, typeof meta.ref_ip === "string" ? meta.ref_ip : null));
   void welcome(created as Profile).catch(() => undefined); // Goofy says hi
   return created as Profile;
 }

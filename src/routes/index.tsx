@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useLandingStats } from "@/lib/stats";
 import { useAuthGuard } from "@/lib/session";
 import { FoundingProgress } from "@/lib/founding";
+import { FlairRing } from "@/lib/invite";
 import { organizationLd, pageHead, websiteLd } from "@/lib/meta";
 import { api, apiEnabled } from "@/lib/api";
 import { fromApi, isRated, useCompanyIndex, type StoryDto } from "@/lib/stories";
@@ -179,6 +180,12 @@ function LandingPage() {
           </div></div>)}</div>}
     </div></section>
 
+    {/* Invites: a small strip; the details live on /invite. */}
+    <section className="border-b-2 border-foreground bg-accent"><div className="mx-auto flex max-w-7xl flex-wrap items-center gap-6 px-4 py-10 sm:px-6">
+      <div className="flex -space-x-3">{(["violet", "sunrise", "gold"] as const).map((f, i) => <FlairRing key={f} flair={f} className="bg-card"><Avatar {...getUser(["u2", "u5", "u8"][i]!)} size="md" /></FlairRing>)}</div>
+      <div className="min-w-0 flex-1"><h2 className="font-display text-2xl font-bold sm:text-3xl">Bring a voice, unlock flair together.</h2><p className="mt-1 max-w-2xl text-muted-foreground">Invite someone who's been through a hiring process. When they share their experience, you both get a flair ring on your avatar. No money, no spam, nobody learns who you are.</p></div>
+      <Button size="lg" variant="outline" className="min-h-12 bg-card" asChild><Link to="/invite">How invites work <ArrowRight /></Link></Button>
+    </div></section>
     <LandingPitch />
     <HiringMinefield />
 

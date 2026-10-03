@@ -5,6 +5,7 @@ import { Hono, type Context } from "hono";
 import { z } from "zod";
 import { ApiError, dbFail, notFound } from "../errors.js";
 import { AUTHOR_COLUMNS, storyAuthor, type AuthorRow, type StoryRow } from "../dto.js";
+import { flairsFor } from "../referral.js";
 import { hydrate, publishedStories } from "../stories.js";
 import { me, optionalAuth, rateLimit, requireAuth, type AppEnv } from "../security.js";
 import { admin } from "../supabase.js";
@@ -184,7 +185,8 @@ export const peopleRoutes = new Hono<AppEnv>()
       viewer && viewer.id !== person.id ? relationship(viewer.id, person.id) : Promise.resolve(null),
       storiesPage(c, person, undefined, 10),
     ]);
-    return c.json({ profile: { ...storyAuthor(person), joinedAt: person.created_at, isMe: viewer?.id === person.id }, stats, relationship: rel, ...first });
+    const flair = (await flairsFor([person.public_id])).get(String(person.public_id)) ?? null;
+    return c.json({ profile: { ...storyAuthor(person), flair, joinedAt: person.created_at, isMe: viewer?.id === person.id }, stats, relationship: rel, ...first });
   })
 
   // More of their stories, newest first (`before` = the last story's createdAt).

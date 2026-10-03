@@ -216,6 +216,10 @@ Separate admin identities; these are not member profiles.
 
 - `company_scores`: listed-company details plus story count, category/overall scores, salary range, outcome counts, average wait and latest story time. Each category averages only the stories that rated it and has a matching `count_*` column ("based on N stories"); `flag_score` is the average over stories of `(rating_avg - 1) * 25`.
 
+### Invites, missions and flair
+
+`profiles.ref_code` is a member's private invite code (unique, created on first use); `referred_by` and `referred_at` record who invited a member, set when the profile is created from sign-up metadata (never self, never from the inviter's own network). A "voice" is an invited member with a published story; rewards count voices only. Missions are computed live from existing activity. `profiles.flair` is the cosmetic a member picked from what they've unlocked (`backend/src/referral.ts`). The section is at the end of `init_database.sql` and is safe to run again.
+
 ### Waiting for a company's first story
 
 `company_interest` records members who tapped "I want to know about this company" on a page with no stories (primary key: company and member). Company pages show how many are waiting. When a story about the company is published, `backend/src/interest.ts` sends each waiting member one in-app notification and one email, then sets `notified_at`. Stories published by other routes (Goofy releasing a held story, an admin approving one) are picked up by the automation sweep. The section is at the end of `init_database.sql` and is safe to run again.

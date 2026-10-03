@@ -1288,4 +1288,18 @@ alter table public.company_interest enable row level security;
 revoke all on public.company_interest from anon, authenticated;
 grant select, insert, update, delete on public.company_interest to service_role;
 
+-- ============================================================================
+-- Invites and flair. Each member gets a private invite code; someone who joins with it is linked
+-- through referred_by. Rewards unlock when the invited person publishes a story (never for a bare
+-- sign-up), so invites can't be farmed with empty accounts. Flair is the cosmetic a member picked
+-- from what they've unlocked (invites and missions); it colours their avatar ring and page banner.
+-- Safe to run again.
+-- ============================================================================
+alter table public.profiles add column if not exists ref_code text;
+create unique index if not exists profiles_ref_code on public.profiles (ref_code) where ref_code is not null;
+alter table public.profiles add column if not exists referred_by uuid references public.profiles (id) on delete set null;
+alter table public.profiles add column if not exists referred_at timestamptz;
+alter table public.profiles add column if not exists flair text check (flair is null or flair in ('violet','sunrise','mint','gold','cosmic'));
+create index if not exists profiles_referred_by on public.profiles (referred_by) where referred_by is not null;
+
 commit;

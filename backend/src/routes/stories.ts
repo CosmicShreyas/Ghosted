@@ -18,6 +18,7 @@ import { act, ensureCanPost, reportAs, say, strike } from "../goofy/index.js";
 import type { Review } from "../algorithms/index.js";
 import { checkJourney } from "../score.js";
 import { notifyWaiting } from "../interest.js";
+import { notifyInviter } from "../referral.js";
 
 const rating = z.number().int().min(1).max(5);
 
@@ -137,6 +138,7 @@ export const storyRoutes = new Hono<AppEnv>()
     }
     // Anyone who tapped "I want to know about this company" hears about it now.
     later(notifyWaiting(company.id as string));
+    later(notifyInviter(me(c) as { id: string; referred_by?: string | null }));
     const [story] = await hydrate([await storyByPublicId(String(data.public_id))], me(c));
     later(bump({ user: me(c).id, topics: ["stories"], shared: ["feed", `person:${me(c).public_id}`] })); // every open feed, your other devices, your page
     later(notifyFollowers(me(c), story!.publicId, body.title)); // followers who rang your bell

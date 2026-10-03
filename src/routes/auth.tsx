@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { ApiRequestError, apiEnabled, authApi, type MfaMethod } from "@/lib/api";
 import { handleFromSeed, randomHandle } from "@/lib/handles";
 import { safeReturnTo, useAccountActions, useAuthGuard } from "@/lib/session";
+import { clearRef, pendingRef } from "@/lib/invite";
 import { Preloader } from "@/components/preloader";
 import { HumanCheck, useHumanCheck } from "@/components/human-check";
 import { ThemeToggle } from "@/components/theme-picker";
@@ -212,7 +213,9 @@ function AuthPage() {
   });
 
   const createAccount = () => run(async () => {
-    if (apiEnabled) await authApi.signup({ fullName, email, password, verificationToken: token, handle, avatarSeed: look.seed, pastel: look.pastel, acceptTerms: true });
+    // An invite code remembered from /invite?ref=… gives the inviter credit once you share a story.
+    const ref = pendingRef();
+    if (apiEnabled) { await authApi.signup({ fullName, email, password, verificationToken: token, handle, avatarSeed: look.seed, pastel: look.pastel, acceptTerms: true, ...(ref && { ref }) }); clearRef(); }
     await enterDashboard(true);
   });
 

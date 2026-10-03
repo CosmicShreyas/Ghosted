@@ -61,7 +61,7 @@ export const authApi = {
   // `emailTheme`: the theme the page is showing, so the code email arrives in the same palette.
   sendCode: (email: string, name: string | undefined, captchaToken: string | undefined, emailTheme?: "light" | "dark") => api<Ok & { expiresInMinutes: number }>("/v1/auth/otp/send", { method: "POST", body: { email, ...(name ? { name } : {}), captchaToken, ...(emailTheme && { emailTheme }) } }),
   verifyCode: (email: string, code: string) => api<{ verificationToken: string }>("/v1/auth/otp/verify", { method: "POST", body: { email, code } }),
-  signup: (input: { fullName: string; email: string; password: string; verificationToken: string; handle: string; avatarSeed: string; pastel: string; acceptTerms: true }) => api<Ok>("/v1/auth/signup", { method: "POST", body: input }),
+  signup: (input: { fullName: string; email: string; password: string; verificationToken: string; handle: string; avatarSeed: string; pastel: string; acceptTerms: true; ref?: string }) => api<Ok>("/v1/auth/signup", { method: "POST", body: input }),
   // With two-step sign-in on, this returns a ticket instead of logging in; finish with loginMfa.
   login: (email: string, password: string, captchaToken: string | undefined) => api<(Ok & { profile?: Record<string, unknown> }) | { mfaRequired: true; method: MfaMethod; ticket: string }>("/v1/auth/login", { method: "POST", body: { email, password, captchaToken } }),
   loginMfa: (ticket: string, code: string) => api<Ok & { usedRecoveryCode: boolean }>("/v1/auth/login/mfa", { method: "POST", body: { ticket, code } }),

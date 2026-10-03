@@ -7,6 +7,7 @@ import { secureHeaders } from "hono/secure-headers";
 import { env } from "./env.js";
 import { admin } from "./supabase.js";
 import { storyScore } from "./score.js";
+import { inviterByCode } from "./referral.js";
 // The preview-image renderer (satori + resvg, which has a native binary) is loaded only when an
 // image is requested. If it can't load on the server, only /v1/og fails; the rest of the API is
 // unaffected (importing it here at start-up once took every endpoint down).
@@ -149,6 +150,12 @@ app.get("/v1/sitemap.xml", rateLimit({ name: "sitemap", max: 30, windowSeconds: 
   c.header("Content-Type", "application/xml; charset=utf-8");
   c.header("Cache-Control", "public, max-age=3600, s-maxage=3600");
   return c.body(xml);
+});
+
+// An invite link's code → who invited you (their public handle and avatar only, never more).
+app.get("/v1/invite/:code", rateLimit({ name: "invite-lookup", max: 60, windowSeconds: 60 }), async (c) => {
+  const p = await inviterByCode(c.req.param("code").toUpperCase()).catch(() => null);
+  return c.json(p ? { valid: true, inviter: { handle: p.handle, avatarSeed: p.avatar_seed, pastel: p.pastel } } : { valid: false });
 });
 
 // Link-preview images (see og.ts), served on the site's domain through the /og rewrite. Anything

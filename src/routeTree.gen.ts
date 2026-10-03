@@ -15,6 +15,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as CommunityRouteImport } from './routes/community'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as FeedbackRouteImport } from './routes/feedback'
+import { Route as InviteRouteImport } from './routes/invite'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as CSlugRouteImport } from './routes/c.$slug'
@@ -51,6 +52,11 @@ const FeedbackRoute = FeedbackRouteImport.update({
   path: '/feedback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InviteRoute = InviteRouteImport.update({
+  id: '/invite',
+  path: '/invite',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PrivacyRoute = PrivacyRouteImport.update({
   id: '/privacy',
   path: '/privacy',
@@ -84,6 +90,7 @@ export interface FileRoutesByFullPath {
   '/community': typeof CommunityRoute
   '/dashboard': typeof DashboardRoute
   '/feedback': typeof FeedbackRoute
+  '/invite': typeof InviteRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
   '/c/$slug': typeof CSlugRoute
@@ -97,6 +104,7 @@ export interface FileRoutesByTo {
   '/community': typeof CommunityRoute
   '/dashboard': typeof DashboardRoute
   '/feedback': typeof FeedbackRoute
+  '/invite': typeof InviteRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
   '/c/$slug': typeof CSlugRoute
@@ -111,6 +119,7 @@ export interface FileRoutesById {
   '/community': typeof CommunityRoute
   '/dashboard': typeof DashboardRoute
   '/feedback': typeof FeedbackRoute
+  '/invite': typeof InviteRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
   '/c/$slug': typeof CSlugRoute
@@ -126,6 +135,7 @@ export interface FileRouteTypes {
     | '/community'
     | '/dashboard'
     | '/feedback'
+    | '/invite'
     | '/privacy'
     | '/terms'
     | '/c/$slug'
@@ -139,6 +149,7 @@ export interface FileRouteTypes {
     | '/community'
     | '/dashboard'
     | '/feedback'
+    | '/invite'
     | '/privacy'
     | '/terms'
     | '/c/$slug'
@@ -152,6 +163,7 @@ export interface FileRouteTypes {
     | '/community'
     | '/dashboard'
     | '/feedback'
+    | '/invite'
     | '/privacy'
     | '/terms'
     | '/c/$slug'
@@ -166,6 +178,7 @@ export interface RootRouteChildren {
   CommunityRoute: typeof CommunityRoute
   DashboardRoute: typeof DashboardRoute
   FeedbackRoute: typeof FeedbackRoute
+  InviteRoute: typeof InviteRoute
   PrivacyRoute: typeof PrivacyRoute
   TermsRoute: typeof TermsRoute
   CSlugRoute: typeof CSlugRoute
@@ -217,6 +230,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FeedbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/invite': {
+      id: '/invite'
+      path: '/invite'
+      fullPath: '/invite'
+      preLoaderRoute: typeof InviteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/privacy': {
       id: '/privacy'
       path: '/privacy'
@@ -262,6 +282,7 @@ const rootRouteChildren: RootRouteChildren = {
   CommunityRoute: CommunityRoute,
   DashboardRoute: DashboardRoute,
   FeedbackRoute: FeedbackRoute,
+  InviteRoute: InviteRoute,
   PrivacyRoute: PrivacyRoute,
   TermsRoute: TermsRoute,
   CSlugRoute: CSlugRoute,
