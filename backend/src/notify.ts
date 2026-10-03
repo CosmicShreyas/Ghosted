@@ -1,7 +1,7 @@
 // Notification emails, honouring each user's Settings → Notifications choices and tone.
 // Sending is best-effort: a failed email never breaks the reaction or chitchat that triggered it.
 import { env } from "./env.js";
-import { digestEmail, relatableEmail, replyEmail, type DigestItem } from "./mail/notify-email.js";
+import { digestEmail, followerEmail, relatableEmail, replyEmail, type DigestItem } from "./mail/notify-email.js";
 import { fromBytea } from "./lib/compression.js";
 import { sendMail } from "./mail/mailer.js";
 import { emailOf } from "./mfa.js";
@@ -73,6 +73,25 @@ export async function notifyReply(storyId: string, actorId: string, reply: strin
     await addNotification(s.author_id, "reply", `New chitchat on “${short(s.title)}”: “${short(reply, 80)}”`, s.public_id);
     if (s.author.notify?.chitchatReplies) await sendMail(await emailOf(s.author_id), replyEmail({ appUrl: env().FRONTEND_URL, tone: s.author.tone, handle: s.author.handle, title: s.title, reply }), { theme: s.author.email_theme ?? null });
   } catch (err) { console.error("[notify] reply", (err as Error).message); }
+}
+
+// A follow always appears in the in-app inbox. Email is separately switchable and is capped to
+// one message per follower pair per day, so unfollow/refollow cannot be used to spam someone.
+export async function notifyNewFollower(recipientId: string, follower: Profile) {
+  try {
+    const who = storyAuthor(follower).name;
+    await addNotification(recipientId, "follower", `${who} started following you.`, undefined, follower.public_id);
+    const { data, error } = await admin().from("profiles").select("handle, tone, notify, email_theme").eq("id", recipientId).maybeSingle();
+    if (error || !data || (data.notify as Profile["notify"] | null)?.newFollowers === false) return;
+    if (!(await firstInWindow(`notify-follower:${recipientId}:${follower.id}`, 86400))) return;
+    await sendMail(await emailOf(recipientId), followerEmail({
+      appUrl: env().FRONTEND_URL,
+      tone: (data.tone ?? "sassy") as Profile["tone"],
+      handle: String(data.handle),
+      follower: who,
+      followerPublicId: String(follower.public_id),
+    }), { theme: data.email_theme === "dark" ? "dark" : "light" });
+  } catch (err) { console.error("[notify] new follower", (err as Error).message); }
 }
 
 // Weekly digest (run by Vercel Cron every Monday at 05:30 UTC / 11:00 IST). Sends to up to 200 opted-in users per run who

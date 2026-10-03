@@ -238,8 +238,8 @@ notify pgrst, 'reload schema';
 alter table public.profiles
   -- "sassy" (default) or "calm": used for the site's copy AND every email we send you.
   add column if not exists tone text not null default 'sassy' check (tone in ('sassy','calm')),
-  -- Which emails you want. Keys: relatable, chitchatReplies, flaggedCompanies, weeklyDigest.
-  add column if not exists notify jsonb not null default '{"relatable":true,"chitchatReplies":true,"flaggedCompanies":false,"weeklyDigest":true}',
+  -- Which emails you want. Keys: relatable, chitchatReplies, newFollowers, flaggedCompanies, weeklyDigest.
+  add column if not exists notify jsonb not null default '{"relatable":true,"chitchatReplies":true,"newFollowers":true,"flaggedCompanies":false,"weeklyDigest":true}',
   -- Two-factor: 'none' | 'totp' (authenticator app) | 'email' (6-digit email code).
   add column if not exists mfa_method text not null default 'none' check (mfa_method in ('none','totp','email')),
   -- Authenticator secret, AES-256-GCM encrypted by the API (never stored in the clear).

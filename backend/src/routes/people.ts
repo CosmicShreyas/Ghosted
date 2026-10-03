@@ -8,7 +8,7 @@ import { AUTHOR_COLUMNS, storyAuthor, type AuthorRow, type StoryRow } from "../d
 import { hydrate, publishedStories } from "../stories.js";
 import { me, optionalAuth, rateLimit, requireAuth, type AppEnv } from "../security.js";
 import { admin } from "../supabase.js";
-import { addNotification } from "../notify.js";
+import { notifyNewFollower } from "../notify.js";
 import { bump, later } from "../live.js";
 import { optionalText, publicId, validate } from "../validate.js";
 import { goofy, GOOFY, isGoofyPublicId } from "../goofy/index.js";
@@ -207,7 +207,7 @@ export const peopleRoutes = new Hono<AppEnv>()
     const { error } = await admin().from("follows").upsert({ follower_id: me(c).id, followee_id: person.id, notify: notify ?? existing?.notify ?? false }, { onConflict: "follower_id,followee_id" });
     if (error) dbFail("follow", error);
     // Tell them once, as the follower currently appears (their handle, or name if public).
-    if (!existing && person.kind !== "bot") later(addNotification(person.id, "follower", `${storyAuthor(me(c)).name} started following you.`, undefined, me(c).public_id));
+    if (!existing && person.kind !== "bot") later(notifyNewFollower(person.id, me(c)));
     changed(me(c).id, person);
     return c.json({ relationship: await relationship(me(c).id, person.id) });
   })

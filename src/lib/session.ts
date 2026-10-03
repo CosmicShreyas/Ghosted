@@ -28,7 +28,7 @@ export type Me = {
   notify: Notify;
   mfa: { method: "none" | "totp" | "email"; recoveryLeft: number };};
 export type Tone = "sassy" | "calm";
-export type Notify = { relatable: boolean; chitchatReplies: boolean; flaggedCompanies: boolean; weeklyDigest: boolean };
+export type Notify = { relatable: boolean; chitchatReplies: boolean; newFollowers: boolean; flaggedCompanies: boolean; weeklyDigest: boolean };
 
 // The one rule for which name to show: your real name only if you've gone public AND chosen to
 // show your name; otherwise your anonymous handle. Use these everywhere a name is displayed.
@@ -45,7 +45,7 @@ export const demoMe: Me = {
   details: { name: "Demo User", role: null, experience: null, city: null, linkedin: null },
   tone: "sassy",
   emailTheme: "light",
-  notify: { relatable: true, chitchatReplies: true, flaggedCompanies: false, weeklyDigest: true },
+  notify: { relatable: true, chitchatReplies: true, newFollowers: true, flaggedCompanies: false, weeklyDigest: true },
   mfa: { method: "none", recoveryLeft: 0 },};
 
 // Fills in defaults for any field an older API (or a database without the latest migration)

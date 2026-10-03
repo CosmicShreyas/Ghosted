@@ -40,7 +40,7 @@ export type Profile = {
   ban_reason?: string | null;
 };
 
-export type Notify = { relatable: boolean; chitchatReplies: boolean; flaggedCompanies: boolean; weeklyDigest: boolean };
+export type Notify = { relatable: boolean; chitchatReplies: boolean; newFollowers: boolean; flaggedCompanies: boolean; weeklyDigest: boolean };
 
 export type AppEnv = { Variables: { profile: Profile | null; requestId: string; accessToken: string | undefined } };
 

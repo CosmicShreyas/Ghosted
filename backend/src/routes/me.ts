@@ -44,7 +44,7 @@ export const meRoutes = new Hono<AppEnv>()
     tone: z.enum(["sassy", "calm"]).optional(),
     // The theme this person sees the site in; their emails use the same palette.
     emailTheme: z.enum(["light", "dark"]).optional(),
-    notify: z.object({ relatable: z.boolean(), chitchatReplies: z.boolean(), flaggedCompanies: z.boolean(), weeklyDigest: z.boolean() }).partial().strict().optional(),
+    notify: z.object({ relatable: z.boolean(), chitchatReplies: z.boolean(), newFollowers: z.boolean(), flaggedCompanies: z.boolean(), weeklyDigest: z.boolean() }).partial().strict().optional(),
     // Omitted keys stay unchanged; null or "" clears a field. The full name can be changed but not cleared.
     details: z.object({
       name: fullName.optional(),

@@ -35,6 +35,22 @@ export function replyEmail({ appUrl, tone, handle, title, reply }: { appUrl: str
   return { subject, html, text: `${subject}\n\n"${reply}"\n\n${appUrl}/dashboard\n\n${settingsNote(tone)}` };
 }
 
+export function followerEmail({ appUrl, tone, handle, follower, followerPublicId }: { appUrl: string; tone: Tone; handle: string; follower: string; followerPublicId: string }) {
+  const sassy = tone === "sassy";
+  const subject = sassy ? `${follower} just joined your fan club` : `${follower} started following you on Ghosted`;
+  const profileUrl = `${appUrl}/u/${followerPublicId}`;
+  const html = layout({
+    appUrl, subject, banner: "New follower",
+    heading: sassy ? `${escape(handle)}, your receipts have a new regular.` : `Hi ${escape(handle)}, someone new is following you.`,
+    intro: sassy
+      ? `<strong style="color:#141110;">${escape(follower)}</strong> followed your profile. Apparently honesty has an audience.`
+      : `<strong style="color:#141110;">${escape(follower)}</strong> started following your Ghosted profile.`,
+    body: button(profileUrl, sassy ? "Meet your new regular" : "View their profile"),
+    footnote: settingsNote(tone), preheader: subject,
+  });
+  return { subject, html, text: `${subject}\n\n${follower} started following your Ghosted profile.\n\n${profileUrl}\n\n${settingsNote(tone)}` };
+}
+
 export type DigestItem = { publicId: string; company: string; title: string; outcome: string; relatable: number; comments: number };
 export type StoryUpdate = { publicId: string; company: string; title: string; relatable: number; comments: number; newRelatable: number; newComments: number };
 

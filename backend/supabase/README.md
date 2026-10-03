@@ -32,7 +32,7 @@ One application profile for each `auth.users` account.
 - `details_z`: compressed, AES-256-GCM-encrypted private details such as name, role, experience, city and LinkedIn.
 - `shared_fields`: allow-list of encrypted detail keys that may be shown when `show_real` is true.
 - `tone`: `sassy` or `calm`, used by interface and email copy.
-- `notify`: member email choices: `relatable`, `chitchatReplies`, `flaggedCompanies`, and `weeklyDigest`.
+- `notify`: member email choices: `relatable`, `chitchatReplies`, `newFollowers`, `flaggedCompanies`, and `weeklyDigest`.
 - `email_theme`: `light` or `dark` email palette.
 - `mfa_method`: `none`, `totp`, or `email`.
 - `totp_secret_z`, `totp_pending_z`: encrypted active and pending authenticator secrets.

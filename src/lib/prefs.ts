@@ -8,11 +8,11 @@ export type Prefs = {
   // Light, dark ("after hours"), or follow the device. Applied to <html> by lib/theme.ts.
   theme: Theme;
   tone: "sassy" | "calm";
-  notify: { relatable: boolean; chitchatReplies: boolean; flaggedCompanies: boolean; weeklyDigest: boolean };
+  notify: { relatable: boolean; chitchatReplies: boolean; newFollowers: boolean; flaggedCompanies: boolean; weeklyDigest: boolean };
 };
 
 const KEY = "ghosted.prefs";
-const DEFAULTS: Prefs = { reduceMotion: false, theme: "system", tone: "sassy", notify: { relatable: true, chitchatReplies: true, flaggedCompanies: false, weeklyDigest: true } };
+const DEFAULTS: Prefs = { reduceMotion: false, theme: "system", tone: "sassy", notify: { relatable: true, chitchatReplies: true, newFollowers: true, flaggedCompanies: false, weeklyDigest: true } };
 const listeners = new Set<() => void>();
 let cache: Prefs | null = null;
 
