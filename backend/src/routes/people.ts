@@ -5,7 +5,7 @@ import { Hono, type Context } from "hono";
 import { z } from "zod";
 import { ApiError, dbFail, notFound } from "../errors.js";
 import { AUTHOR_COLUMNS, storyAuthor, type AuthorRow, type StoryRow } from "../dto.js";
-import { flairsFor } from "../referral.js";
+import { flairsFor, referralStats } from "../referral.js";
 import { hydrate, publishedStories } from "../stories.js";
 import { me, optionalAuth, rateLimit, requireAuth, type AppEnv } from "../security.js";
 import { admin } from "../supabase.js";
@@ -186,7 +186,9 @@ export const peopleRoutes = new Hono<AppEnv>()
       storiesPage(c, person, undefined, 10),
     ]);
     const flair = (await flairsFor([person.public_id])).get(String(person.public_id)) ?? null;
-    return c.json({ profile: { ...storyAuthor(person), flair, joinedAt: person.created_at, isMe: viewer?.id === person.id }, stats, relationship: rel, ...first });
+    // Invite Level 2 perk: "Brought N voices" on their page (a count only, never who).
+    const { voices } = await referralStats(person.id).catch(() => ({ voices: 0 }));
+    return c.json({ profile: { ...storyAuthor(person), flair, voices: voices >= 3 ? voices : null, joinedAt: person.created_at, isMe: viewer?.id === person.id }, stats, relationship: rel, ...first });
   })
 
   // More of their stories, newest first (`before` = the last story's createdAt).

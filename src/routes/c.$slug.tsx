@@ -58,6 +58,8 @@ export const Route = createFileRoute("/c/$slug")({
 
 const FILTERS = [{ id: "all", label: "All stories" }, { id: "positive", label: "Positive" }, { id: "critical", label: "Critical" }] as const;
 type Filter = (typeof FILTERS)[number]["id"];
+const STAGE_FILTERS = [["application", "Application"], ["screening", "Recruiter call"], ["technical", "Technical"], ["final", "Final round"], ["offer", "Offer"]] as const;
+const selectCls = "h-9 rounded-full border-2 border-foreground bg-card px-3 text-xs font-bold outline-none focus-visible:ring-2 focus-visible:ring-ring";
 // Sample stories have no ratings; approximate sentiment from how they ended.
 const sampleSentiment = (outcome: string) => (outcome === "offer" ? "positive" : outcome === "rejected" ? "mixed" : "critical");
 
@@ -91,6 +93,8 @@ function CompanyPageRoute() {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const filterPill = usePill(filter);
+  const [stage, setStage] = useState<"" | (typeof STAGE_FILTERS)[number][0]>("");
+  const [since, setSince] = useState<"" | "90d" | "1y">("");
   const [share, setShare] = useState(false);
   const [reporting, setReporting] = useState(false);
   const [saved, toggleSave] = useSaved();
@@ -100,9 +104,9 @@ function CompanyPageRoute() {
   const matches = (text: string) => !query || text.toLowerCase().includes(query.toLowerCase());
   const feed = useStoryFeed({
     sample: (page?.stories ?? []).filter((s) => filter === "all" || sampleSentiment(s.outcome) === filter),
-    signature: `${slug}|${filter}|${query}`,
+    signature: `${slug}|${filter}|${query}|${stage}|${since}`,
     filter: (s) => matches(`${s.title ?? ""} ${s.body} ${s.role ?? ""}`),
-    path: `/v1/companies/${slug}/stories`, params: `&sentiment=${filter}`, topic: `company:${slug}`,
+    path: `/v1/companies/${slug}/stories`, params: `&sentiment=${filter}${stage ? `&stage=${stage}` : ""}${since ? `&since=${since}` : ""}`, topic: `company:${slug}`,
   });
   const sentinel = useReachEnd(feed.loadMore, feed.hasMore);
   const goView = (v: View) => navigate({ to: "/dashboard", search: { view: v } });
@@ -148,6 +152,16 @@ function CompanyPageRoute() {
               <span className="relative">{f.label}</span>
             </button>)}
           </div>
+        </div>
+        <div className="-mt-1 mb-4 flex flex-wrap gap-2">
+          <select aria-label="Round" value={stage} onChange={(e) => setStage(e.target.value as typeof stage)} className={selectCls}>
+            <option value="">Every round</option>
+            {STAGE_FILTERS.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+          </select>
+          <select aria-label="When" value={since} onChange={(e) => setSince(e.target.value as typeof since)} className={selectCls}>
+            <option value="">Any time</option><option value="90d">Last 3 months</option><option value="1y">Last year</option>
+          </select>
+          {(stage || since) && <button type="button" onClick={() => { setStage(""); setSince(""); }} className="h-9 rounded-full px-3 text-xs font-bold text-primary hover:underline">Clear</button>}
         </div>
         {list.length === 0 && !feed.loadingFirst
           ? <div className={cn("rounded-xl border-2 p-8 text-center", filter === "all" ? "border-foreground bg-accent shadow-hard-sm" : "border-dashed border-foreground/40")}>

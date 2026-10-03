@@ -3,12 +3,12 @@
 // written from real published stories; nothing is posted automatically.
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Check, Copy, ExternalLink, Linkedin, Megaphone, MessageCircleReply, Search, Twitter } from "lucide-react";
+import { Check, Copy, ExternalLink, Linkedin, Megaphone, MessageCircleReply, Search, TrendingUp, Twitter } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { adminApi } from "../api";
-import { card, Empty, PageHead, Panel, Skeleton } from "../ui";
+import { card, Empty, PageHead, Panel, Segmented, Skeleton } from "../ui";
 
 type Finding = { id: string; headline: string; detail: string; link: string; linkedin: string; x: string };
 type Report = { ready: boolean; stories: number; needed: number; findings: Finding[] };
@@ -20,12 +20,45 @@ function CopyButton({ text, label, icon: Icon = Copy }: { text: string; label: s
   return <Button size="sm" variant="outline" className="min-h-10" onClick={() => void copy()}>{done ? <Check /> : <Icon />}{label}</Button>;
 }
 
+// ---------- the funnel: where people come in, and where they drop off ----------
+type FunnelData = { installed: boolean; days: number; now: Record<string, number>; before: Record<string, number> };
+const STEPS: { id: string; label: string; ids: string[] }[] = [
+  { id: "visit", label: "Landing visits", ids: ["visit"] },
+  { id: "tools", label: "Free tool uses", ids: ["ghostometer", "timeline_check", "followup"] },
+  { id: "search", label: "Company searches", ids: ["company_search"] },
+  { id: "signup", label: "Sign-ups", ids: ["signup"] },
+  { id: "story", label: "First stories", ids: ["first_story"] },
+];
+function Funnel() {
+  const [days, setDays] = useState<"7" | "30" | "90">("7");
+  const q = useQuery({ queryKey: ["admin", "funnel", days], queryFn: () => adminApi<FunnelData>(`/growth/funnel?days=${days}`), refetchInterval: 60_000 });
+  const d = q.data;
+  const sum = (src: Record<string, number> | undefined, ids: string[]) => ids.reduce((s, k) => s + (src?.[k] ?? 0), 0);
+  const top = d ? Math.max(1, sum(d.now, ["visit"])) : 1;
+  return <Panel title="Funnel" icon={TrendingUp} action={<Segmented label="Period" value={days} onChange={setDays} options={[{ id: "7", label: "7 days" }, { id: "30", label: "30 days" }, { id: "90", label: "90 days" }]} />}>
+    {!d ? <Skeleton rows={1} h="h-32" /> : !d.installed ? <p className="text-sm text-muted-foreground">Run the “Funnel counters” section of init_database.sql in Supabase to start counting.</p> : <>
+      <ol className="grid gap-3 sm:grid-cols-5">{STEPS.map((s, i) => {
+        const n = sum(d.now, s.ids), prev = sum(d.before, s.ids), stepBefore = i ? sum(d.now, STEPS[i - 1]!.ids) : null;
+        const change = prev ? Math.round(((n - prev) / prev) * 100) : null;
+        return <li key={s.id} className="rounded-xl border-2 border-foreground/15 p-3">
+          <p className="text-xs font-semibold text-muted-foreground">{s.label}</p>
+          <p className="font-display text-3xl font-bold tabular-nums">{n.toLocaleString("en-IN")}</p>
+          <div className="mt-2 h-2 rounded-full bg-muted"><div className="h-full rounded-full bg-primary" style={{ width: `${Math.min(100, (n / top) * 100)}%` }} /></div>
+          <p className="mt-1.5 text-[11px] text-muted-foreground">{stepBefore ? `${Math.round((n / Math.max(1, stepBefore)) * 100)}% of the step before` : "Where it starts"}{change != null && <> · <b className={change >= 0 ? "text-flag-green" : "text-flag-red"}>{change >= 0 ? "+" : ""}{change}%</b></>}</p>
+        </li>;
+      })}</ol>
+      <p className="mt-3 text-xs text-muted-foreground">Daily totals only; nothing about who. The change compares with the {d.days} days before.</p>
+    </>}
+  </Panel>;
+}
+
 export function GrowthPage() {
   const report = useQuery({ queryKey: ["admin", "growth-report"], queryFn: () => adminApi<Report>("/growth/report") });
   const r = report.data;
   return <>
     <PageHead eyebrow="Control" title="Growth" copy="Post one real finding a week, and answer “anyone interviewed at X?” threads with the company page. Data posts get shared; sign-up asks don't." />
-    <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
+    <Funnel />
+    <div className="mt-6 grid gap-6 xl:grid-cols-[1.4fr_1fr]">
       <Panel title="This week's Ghosting Report" icon={Megaphone}>
         {!r ? <Skeleton rows={3} h="h-28" /> : !r.ready
           ? <div className="rounded-lg border-2 border-dashed border-foreground/30 p-6 text-center">

@@ -224,6 +224,12 @@ Separate admin identities; these are not member profiles.
 
 `company_interest` records members who tapped "I want to know about this company" on a page with no stories (primary key: company and member). Company pages show how many are waiting. When a story about the company is published, `backend/src/interest.ts` sends each waiting member one in-app notification and one email, then sets `notified_at`. Stories published by other routes (Goofy releasing a held story, an admin approving one) are picked up by the automation sweep. The section is at the end of `init_database.sql` and is safe to run again.
 
+### Funnel counters and Waiting Room nudges
+
+`funnel_daily` holds one counter per event per day (landing visits, free tool uses, company searches, invite link opens, sign-ups, first stories). It stores counts only: no user ids, no IPs. The browser reports its events through `POST /v1/track`; sign-ups and first stories are counted on the server. `funnel_hit(event)` increments a counter and is callable only by the service role. The admin Growth page reads it through `GET /v1/admin/growth/funnel`.
+
+`applications.nudged_at` records when a tracked application that went quiet (twice the usual wait, at least 30 days) got its one "share what happened" notification and email (`backend/src/nudges.ts`, run by the daily automation). The section is at the end of `init_database.sql` and is safe to run again.
+
 ### Ratings by journey
 
 A story carries only the ratings that fit what happened: hiring and communication always; pay (and salary) for `offer` and `offer_revoked`; culture and growth only for `offer` with `joined = true`. The five `rating_*` columns are nullable, `stories.joined` and `stories.quick` record the journey and the quick path, and `rating_avg` is the mean of the ratings present. The API enforces the same rules (`backend/src/score.ts`, checked by `npx tsx scripts/check-score.ts`). The section is at the end of `init_database.sql` and is safe to run again on an existing database.

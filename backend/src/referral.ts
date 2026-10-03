@@ -10,6 +10,8 @@
 import { randomInt } from "node:crypto";
 import { admin } from "./supabase.js";
 import { addNotification } from "./notify.js";
+import { hit } from "./funnel.js";
+import { GOOFY_PUBLIC_ID } from "./goofy/index.js";
 
 export const FLAIRS = {
   // Invite levels (the ids stay as stored in profiles.flair; only the names people see changed).
@@ -94,13 +96,18 @@ export function unlockedFlairs({ voices, completed, joinedViaInviteWithStory }: 
 // Someone you invited just published their first story: that's a voice. Best effort.
 export async function notifyInviter(author: { id: string; referred_by?: string | null }) {
   try {
-    if (!author.referred_by) return;
     const { count } = await admin().from("stories").select("id", { count: "exact", head: true }).eq("author_id", author.id).eq("status", "published");
     if (count !== 1) return;
+    await hit("first_story"); // the funnel's last step, for everyone (invited or not)
+    if (!author.referred_by) return;
     const { voices } = await referralStats(author.referred_by);
     const level = voices >= 10 ? 3 : voices >= 3 ? 2 : 1;
     const next = voices < 3 ? 3 : voices < 10 ? 10 : null;
     await addNotification(author.referred_by, "system", `Someone you invited just shared their first story. That's ${voices} ${voices === 1 ? "voice" : "voices"}: you're at Invite Level ${level}${next ? `, ${next - voices} to go for Level ${level + 1}` : ", the top level"}.`);
+    // Level perks, the moment they're reached: Level 2 shows "Brought N voices" on your page;
+    // Level 3 gets a personal thank-you from Goofy.
+    if (voices === 3) await addNotification(author.referred_by, "system", "Invite Level 2 unlocked: the gold ring, and “Brought 3 voices” now shows on your page. Pick the ring on the Invite page.");
+    if (voices === 10) await addNotification(author.referred_by, "goofy", "Ten voices. TEN. You've done more for the next candidate than most HR teams do in a year. Invite Level 3 is yours, and so is my eternal, slightly ghostly gratitude.", undefined, GOOFY_PUBLIC_ID);
   } catch (e) { console.error("[invite] notify", (e as Error).message); }
 }
 

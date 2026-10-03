@@ -32,7 +32,7 @@ const SELECT = "id, public_id, company_id, company_name, role, stage, status, ou
 const median = (a: number[]) => { const s = [...a].sort((x, y) => x - y); return s.length ? s[Math.floor(s.length / 2)]! : null; };
 
 // Usual waits for the companies in this list, plus the platform's per round.
-async function benchmarks(companyIds: string[]) {
+export async function benchmarks(companyIds: string[]) {
   const since = new Date(Date.now() - 365 * 86400_000).toISOString();
   const [co, all] = await Promise.all([
     companyIds.length

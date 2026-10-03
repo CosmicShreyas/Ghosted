@@ -5,7 +5,7 @@ import { useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { motion } from "motion/react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Bell, BellOff, BellRing, BriefcaseBusiness, CalendarDays, Clock, HeartHandshake, Linkedin, Loader2, MapPin, MessageCircle, MoreHorizontal, PenLine, ShieldAlert, Sparkles, UserCheck, UserPlus, Users, Volume2, VolumeX } from "lucide-react";
+import { Bell, BellOff, BellRing, BriefcaseBusiness, Gift, CalendarDays, Clock, HeartHandshake, Linkedin, Loader2, MapPin, MessageCircle, MoreHorizontal, PenLine, ShieldAlert, Sparkles, UserCheck, UserPlus, Users, Volume2, VolumeX } from "lucide-react";
 import { toast } from "sonner";
 import { Avatar, Banner } from "@/components/ghosted";
 import { Button } from "@/components/ui/button";
@@ -51,6 +51,7 @@ export function PersonHeader({ page, actions }: { page: PersonPage; actions: Rea
       <div className="mt-3 min-w-0">
         <h1 className="break-words font-display text-2xl font-bold sm:text-3xl">{p.name}</h1>        <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
           <span className={cn("inline-flex items-center gap-1 rounded-full border-2 border-foreground px-2 py-0.5 text-[11px] font-bold uppercase", r ? "bg-flag-amber text-foreground" : "bg-flag-green text-primary-foreground")}>{r ? "Public profile" : "Anonymous"}</span>
+          {p.voices != null && <span title="People who joined with their invite and shared a story" className="inline-flex items-center gap-1 rounded-full border-2 border-foreground bg-accent px-2 py-0.5 text-[11px] font-bold uppercase text-foreground"><Gift className="size-3" />Brought {formatCount(p.voices)} voices</span>}
           {joined(p.joinedAt) && <span className="inline-flex items-center gap-1"><CalendarDays className="size-3.5" />Joined {joined(p.joinedAt)}</span>}
           <span>{nf(s.following)} following</span>
         </p>

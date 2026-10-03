@@ -8,6 +8,7 @@ import { env } from "./env.js";
 import { admin } from "./supabase.js";
 import { storyScore } from "./score.js";
 import { inviterByCode } from "./referral.js";
+import { hit, type FunnelEvent } from "./funnel.js";
 // The preview-image renderer (satori + resvg, which has a native binary) is loaded only when an
 // image is requested. If it can't load on the server, only /v1/og fails; the rest of the API is
 // unaffected (importing it here at start-up once took every endpoint down).
@@ -27,7 +28,7 @@ import { adminRoutes } from "./routes/admin.js";
 import { peopleRoutes } from "./routes/people.js";
 import { ipKey, limitBy, optionalAuth, rateLimit, type AppEnv } from "./security.js";
 import { createChallenge } from "./captcha.js";
-import { versions } from "./live.js";
+import { later, versions } from "./live.js";
 import { runDigest } from "./notify.js";
 import { runAll } from "./automation.js";
 import { platform, platformGate } from "./platform.js";
@@ -150,6 +151,15 @@ app.get("/v1/sitemap.xml", rateLimit({ name: "sitemap", max: 30, windowSeconds: 
   c.header("Content-Type", "application/xml; charset=utf-8");
   c.header("Cache-Control", "public, max-age=3600, s-maxage=3600");
   return c.body(xml);
+});
+
+// Funnel counters from the browser (only these events; sign-ups and first stories are counted on
+// the server). Anonymous daily totals, nothing about the visitor is stored.
+const CLIENT_EVENTS = ["visit", "ghostometer", "timeline_check", "followup", "company_search", "invite_open"] as const;
+app.post("/v1/track", rateLimit({ name: "track", max: 120, windowSeconds: 600 }), async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as { event?: string };
+  if ((CLIENT_EVENTS as readonly string[]).includes(body.event ?? "")) later(hit(body.event as FunnelEvent));
+  return c.body(null, 204);
 });
 
 // An invite link's code → who invited you (their public handle and avatar only, never more).

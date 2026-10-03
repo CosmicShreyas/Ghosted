@@ -158,6 +158,8 @@ export const companyRoutes = new Hono<AppEnv>()
     before: z.string().datetime().optional(),
     limit: z.coerce.number().int().min(1).max(30).default(10),
     sentiment: z.enum(["all", "positive", "critical"]).default("all"),
+    stage: z.enum(["application", "screening", "technical", "final", "offer"]).optional(),
+    since: z.enum(["90d", "1y"]).optional(),
   })), async (c) => {
     const { id } = await companyBySlug(c.req.valid("param").slug);
     return c.json(await companyStories(id, c.get("profile"), c.req.valid("query")));
@@ -256,9 +258,11 @@ async function companyRelationship(userId: string, companyId: string) {
   return { following: !!data, notify: !!data?.notify };
 }
 
-async function companyStories(companyId: string, viewer: Profile | null, { before, limit = 10, sentiment = "all" }: { before?: string | undefined; limit?: number; sentiment?: "all" | "positive" | "critical" }) {
+async function companyStories(companyId: string, viewer: Profile | null, { before, limit = 10, sentiment = "all", stage, since }: { before?: string | undefined; limit?: number; sentiment?: "all" | "positive" | "critical"; stage?: string | undefined; since?: "90d" | "1y" | undefined }) {
   let q = publishedStories().eq("company_id", companyId).order("created_at", { ascending: false }).limit(limit + 1);
   if (before) q = q.lt("created_at", before);
+  if (stage) q = q.eq("stage", stage);
+  if (since) q = q.gte("created_at", new Date(Date.now() - (since === "90d" ? 90 : 365) * 86400_000).toISOString());
   if (sentiment === "positive") q = q.gte("rating_avg", POSITIVE);
   if (sentiment === "critical") q = q.lte("rating_avg", CRITICAL);
   const { data, error } = await q;

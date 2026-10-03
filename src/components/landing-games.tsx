@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { Check, Copy, Hand, Heart, HeartCrack, Mail, PenLine, RotateCcw, Search, Trophy } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
+import { track } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { ghostStages, recruiterSlaps } from "@/mock/data";
 
@@ -32,6 +33,7 @@ export function GhostOMeter() {
   const copy = () => {
     void navigator.clipboard?.writeText(stage.followUp);
     setCopied(true);
+    track("ghostometer");
   };
 
   return <section className="mx-auto max-w-7xl px-4 py-24 sm:px-6">
@@ -47,7 +49,7 @@ export function GhostOMeter() {
             <button type="button" onClick={() => setDays((d) => Math.min(MAX_DAYS, d + 1))} aria-label="One day more" className="grid size-11 place-items-center rounded-full border-2 border-foreground bg-card font-display text-xl font-bold active:bg-muted">+</button>
           </span>
         </div>
-        <input type="range" min={0} max={MAX_DAYS} value={days} onChange={(e) => setDays(Number(e.target.value))} aria-label="Days since their last reply" className="mt-6 h-3 w-full cursor-pointer accent-primary sm:mt-8 lg:h-2" />
+        <input type="range" min={0} max={MAX_DAYS} value={days} onChange={(e) => { setDays(Number(e.target.value)); track("ghostometer"); }} aria-label="Days since their last reply" className="mt-6 h-3 w-full cursor-pointer accent-primary sm:mt-8 lg:h-2" />
         {/* Phones and tablets: the stages as chips that wrap (the proportional bar truncated them). */}
         <div className="mt-4 flex flex-wrap gap-2 lg:hidden">{ghostStages.map((s) => <button key={s.name} type="button" onClick={() => setDays(s.from)} aria-pressed={s === stage}
           className={cn("min-h-10 rounded-full border-2 border-foreground px-3 text-xs font-bold transition-colors", s === stage ? "bg-foreground text-background" : "bg-card text-muted-foreground active:bg-muted")}>{s.name} <span className="font-normal opacity-70">{s.from}+</span></button>)}</div>

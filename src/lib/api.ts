@@ -57,6 +57,14 @@ export async function api<T>(path: string, { method = "GET", body, timeoutMs }: 
 
 type Ok = { ok: true };
 
+// Anonymous funnel counter (a daily total, nothing about the visitor). Once per event per tab session.
+export type TrackEvent = "visit" | "ghostometer" | "timeline_check" | "followup" | "company_search" | "invite_open";
+export function track(event: TrackEvent) {
+  if (!API_URL || typeof window === "undefined") return;
+  try { const k = `ghosted.t.${event}`; if (sessionStorage.getItem(k)) return; sessionStorage.setItem(k, "1"); } catch { /* storage blocked: count anyway */ }
+  void api("/v1/track", { method: "POST", body: { event } }).catch(() => undefined);
+}
+
 export const authApi = {
   // `emailTheme`: the theme the page is showing, so the code email arrives in the same palette.
   sendCode: (email: string, name: string | undefined, captchaToken: string | undefined, emailTheme?: "light" | "dark") => api<Ok & { expiresInMinutes: number }>("/v1/auth/otp/send", { method: "POST", body: { email, ...(name ? { name } : {}), captchaToken, ...(emailTheme && { emailTheme }) } }),

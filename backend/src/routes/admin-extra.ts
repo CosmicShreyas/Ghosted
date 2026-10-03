@@ -23,6 +23,7 @@ import { validate } from "../validate.js";
 import { inspectWebsite, SiteCheckError } from "../lib/site-check.js";
 import { gatherFacts } from "../lib/company-facts.js";
 import { offsetQ, PAGE, paged } from "../admin-paging.js";
+import { funnel } from "../funnel.js";
 
 const DAY = 86400_000;
 const pid = z.string().regex(/^\d{15}$/);
@@ -124,6 +125,8 @@ async function listCompany(c: CompanyInput, by: string): Promise<{ name: string;
 const ROW_BYTES: Record<string, number> = { stories: 2200, comments: 700, reactions: 120, notifications: 400, profiles: 900, companies: 1500, story_counts: 100, session_devices: 350, rate_limits: 120, feedback: 900, applications: 400, admin_audit: 400, company_follows: 90, follows: 90 };
 
 export const adminExtraRoutes = new Hono<AdminEnv>()
+  // The growth funnel: visits → free tools → company searches → sign-ups → first stories.
+  .get("/growth/funnel", validate("query", z.object({ days: z.coerce.number().int().refine((d) => [7, 30, 90].includes(d)).default(7) })), async (c) => c.json(await funnel(c.req.valid("query").days)))
   .get("/storage", async (c) => {
     const p = await platform(true);
     const limit = p.storageLimitMb * 1024 * 1024;

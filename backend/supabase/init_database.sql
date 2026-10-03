@@ -1318,4 +1318,32 @@ $$;
 revoke all on function public.admin_storage_stats() from public, anon, authenticated;
 grant execute on function public.admin_storage_stats() to service_role;
 
+-- ============================================================================
+-- Funnel counters and Waiting Room nudges.
+--   funnel_daily   one counter per event per day (visits, tool uses, searches, sign-ups, first
+--                  stories). Counts only: no user ids, no IPs, nothing that identifies anyone.
+--   applications.nudged_at   when we last suggested sharing what happened with a tracked
+--                  application that went quiet (one nudge per application).
+-- Safe to run again.
+-- ============================================================================
+create table if not exists public.funnel_daily (
+  day   date not null default current_date,
+  event text not null check (event in ('visit','ghostometer','timeline_check','followup','company_search','signup','first_story','invite_open')),
+  count integer not null default 0,
+  primary key (day, event)
+);
+alter table public.funnel_daily enable row level security;
+revoke all on public.funnel_daily from anon, authenticated;
+grant select, insert, update, delete on public.funnel_daily to service_role;
+
+create or replace function public.funnel_hit(p_event text)
+returns void language sql security definer set search_path = '' as $$
+  insert into public.funnel_daily as f (day, event, count) values (current_date, p_event, 1)
+  on conflict (day, event) do update set count = f.count + 1;
+$$;
+revoke all on function public.funnel_hit(text) from public, anon, authenticated;
+grant execute on function public.funnel_hit(text) to service_role;
+
+alter table public.applications add column if not exists nudged_at timestamptz;
+
 commit;

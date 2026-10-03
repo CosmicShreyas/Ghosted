@@ -14,6 +14,7 @@ import { admin, auth } from "../supabase.js";
 import { fullName, validate } from "../validate.js";
 import { sealToBytea } from "../lib/sealed.js";
 import { ipKey } from "../security.js";
+import { hit } from "../funnel.js";
 import { banOf, bannedError, ensureOpen } from "../platform.js";
 import { consumeCode, isVerified, OTP_MINUTES, sendCode, verifySignupCode } from "../otp.js";
 
@@ -90,6 +91,7 @@ export const authRoutes = new Hono<AppEnv>()
     startSession(c, data.session);
     signedIn(c, data.user.id, data.session.access_token, { profile: null, email: null });
     later(addNotification(data.user.id, "system", "Welcome to Ghosted. You're anonymous by default: share your first story whenever you're ready."));
+    later(hit("signup"));
     return c.json({ ok: true }, 201);
   })
 

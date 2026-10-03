@@ -19,7 +19,8 @@ export type PersonStats = {
   topCompanies: { slug: string; name: string; color: string; stories: number }[];
   ratings: { hiring: number | null; communication: number | null; culture: number | null; pay: number | null; growth: number | null } | null;
 };
-export type Person = Author & { handle?: string; joinedAt: string | null; isMe: boolean; bot?: { badge: string; avatarUrl: string; bio: string } };
+// voices: "Brought N voices", shown from Invite Level 2 (3+); null below that.
+export type Person = Author & { handle?: string; joinedAt: string | null; isMe: boolean; voices?: number | null; bot?: { badge: string; avatarUrl: string; bio: string } };
 export type PersonPage = {
   profile: Person; stats: PersonStats; relationship: Relationship | null; stories: StoryModel[]; nextCursor: string | null;
   // Goofy's page only: his numbers and the first page of his activity.

@@ -7,11 +7,12 @@ import { useLandingStats } from "@/lib/stats";
 import { useAuthGuard } from "@/lib/session";
 import { FlairRing } from "@/lib/invite";
 import { organizationLd, pageHead, websiteLd } from "@/lib/meta";
-import { api, apiEnabled } from "@/lib/api";
+import { api, apiEnabled, track } from "@/lib/api";
 import { fromApi, isRated, useCompanyIndex, type StoryDto } from "@/lib/stories";
 import { Preloader } from "@/components/preloader";
 import { GhostOMeter, HiringMinefield } from "@/components/landing-games";
 import { CompanySearch } from "@/components/landing-hero";
+import { LandingTools } from "@/components/landing-tools";
 import { PrivacyDemo } from "@/components/privacy-demo";
 import { WhyGhosted } from "@/components/why-ghosted";
 import { LandingPitch } from "@/components/landing-pitch";
@@ -112,6 +113,7 @@ function LandingPage() {
   const warned = apiEnabled ? [...rated].reverse().filter((c) => c.score < 50).slice(0, 4) : companies.slice(-4).reverse();
   const wall = useQuery({ queryKey: ["landing-stories"], queryFn: async () => (await api<{ stories: StoryDto[] }>("/v1/stories?limit=6")).stories, enabled: apiEnabled && ready, staleTime: 60_000 });
   const wallStories = (wall.data ?? []).map((s) => fromApi(s, new Map(list.map((c) => [c.id, c]))));
+  useEffect(() => { if (!waiting) track("visit"); }, [waiting]);
   if (waiting) return <Preloader />;
 
   return <div className="min-h-screen overflow-hidden"><SiteHeader /><main>
@@ -157,6 +159,7 @@ function LandingPage() {
           <CompanySearch size="md" className="mt-4 max-w-xl" />
         </div>
       </div>
+      <LandingTools />
     </div>
 
     <WhyGhosted />

@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Avatar } from "@/components/ghosted";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { Button } from "@/components/ui/button";
-import { api, apiEnabled } from "@/lib/api";
+import { api, apiEnabled, track } from "@/lib/api";
 import { FLAIR_GRADIENT, FlairRing, inviteLink, rememberRef, useInvite, VOICE_TIERS, type FlairId } from "@/lib/invite";
 import { pageHead } from "@/lib/meta";
 import { useMe, useTone, voice } from "@/lib/session";
@@ -24,8 +24,8 @@ export const Route = createFileRoute("/invite")({
 // Invite levels: a bigger, brighter avatar ring at 1, 3 and 10 voices.
 const LEVELS: { level: number; id: FlairId; voices: number; perk: string }[] = [
   { level: 1, id: "sunrise", voices: 1, perk: "Your first avatar ring, shown on every story and your page" },
-  { level: 2, id: "gold", voices: 3, perk: "A gold ring, and your “I want to know” requests go to the top" },
-  { level: 3, id: "cosmic", voices: 10, perk: "The rarest ring on Ghosted, and a thank-you from Goofy in the weekly digest" },
+  { level: 2, id: "gold", voices: 3, perk: "A gold ring, and “Brought 3 voices” on your page (just the count, never who)" },
+  { level: 3, id: "cosmic", voices: 10, perk: "The rarest ring on Ghosted, and a personal thank-you from Goofy" },
 ];
 const FLAIR_INFO: { id: FlairId; label: string; how: string }[] = [
   ...LEVELS.map((l) => ({ id: l.id, label: `Invite Level ${l.level}`, how: l.voices === 1 ? "Bring your first voice, or join through an invite and share" : `Bring ${l.voices} voices` })),
@@ -62,7 +62,7 @@ function WhatYouGet() {
 
 function InvitedHero({ code }: { code: string }) {
   const q = useQuery({ queryKey: ["invite-lookup", code], queryFn: () => api<{ valid: boolean; inviter?: { handle: string; avatarSeed: string; pastel: string } }>(`/v1/invite/${code}`), enabled: apiEnabled, retry: false });
-  useEffect(() => { rememberRef(code); }, [code]);
+  useEffect(() => { rememberRef(code); track("invite_open"); }, [code]);
   const inv = q.data?.valid ? q.data.inviter : null;
   return <section className="border-b-2 border-foreground bg-accent">
     <div className="mx-auto grid max-w-6xl items-center gap-8 px-4 py-14 sm:px-6 md:grid-cols-[auto_1fr]">

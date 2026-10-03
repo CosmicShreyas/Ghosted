@@ -7,7 +7,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { ArrowRight, Building2, Hourglass, Loader2, PenLine, Search, ShieldCheck } from "lucide-react";
 import { CompanyMark, FlagScore } from "@/components/ghosted";
 import { Button } from "@/components/ui/button";
-import { apiEnabled } from "@/lib/api";
+import { apiEnabled, track } from "@/lib/api";
 import { useSearch } from "@/lib/search";
 import { isRated, useCompanyIndex } from "@/lib/stories";
 import { cn, formatCount } from "@/lib/utils";
@@ -32,7 +32,7 @@ export function CompanySearch({ size = "lg", autoFocus = false, className }: { s
     const close = (e: MouseEvent) => { if (!box.current?.contains(e.target as Node)) setOpen(false); };
     document.addEventListener("mousedown", close); return () => document.removeEventListener("mousedown", close);
   }, []);
-  const go = (c: Company) => void navigate({ to: "/c/$slug", params: { slug: c.id } });
+  const go = (c: Company) => { track("company_search"); void navigate({ to: "/c/$slug", params: { slug: c.id } }); };
   const show = open && q.trim().length >= 2;
 
   return <div ref={box} className={cn("relative", className)}>
