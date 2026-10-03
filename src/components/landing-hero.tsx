@@ -37,7 +37,7 @@ export function CompanySearch({ size = "lg", autoFocus = false, className }: { s
 
   return <div ref={box} className={cn("relative", className)}>
     <form role="search" onSubmit={(e) => { e.preventDefault(); if (results[0]) go(results[0]); }}>
-      <label className={cn("flex items-center gap-2 rounded-xl border-2 border-foreground bg-card shadow-hard-sm focus-within:shadow-hard", size === "lg" ? "h-14 px-4" : "h-12 px-3")}>
+      <label className={cn("flex items-center gap-2 rounded-xl border-2 border-foreground bg-card shadow-hard-sm focus-within:shadow-hard", size === "lg" ? "h-16 pl-4 pr-3" : "h-14 pl-3.5 pr-2.5")}>
         <Search className="size-5 shrink-0 text-muted-foreground" />
         <span className="sr-only">Search a company</span>
         <input value={q} onChange={(e) => { setQ(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)} autoFocus={autoFocus} type="text" inputMode="search" enterKeyHint="search" autoComplete="off"
