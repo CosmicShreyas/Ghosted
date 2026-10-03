@@ -170,7 +170,7 @@ function LandingPage() {
       <div className="flex flex-wrap items-end justify-between gap-4"><div><p className="mb-3 text-sm font-bold uppercase text-primary">The Hall of Flags</p><h2 className="text-4xl font-bold sm:text-5xl">Receipts, ranked.</h2></div><p className="max-w-md text-muted-foreground">Community scores, not employer-sponsored vibes.</p></div>
       {apiEnabled && !loved.length && !warned.length
         ? <div className="mt-10 grid gap-5 rounded-xl border-2 border-foreground bg-card p-6 shadow-hard-sm sm:p-8 md:grid-cols-[1fr_auto] md:items-center">
-            <div><p className="font-display text-2xl font-bold">Put the first company on the board.</p><p className="mt-2 max-w-md text-muted-foreground">Every company's Flag Score comes from candidates' experiences. Yours takes about 30 seconds, and the first 50 voices get a founding badge.</p></div>
+            <div><p className="font-display text-2xl font-bold">Put the first company on the board.</p><p className="mt-2 max-w-md text-muted-foreground">Every company's Flag Score comes from candidates' experiences. Yours takes about 30 seconds, and you could be one of Ghosted's first 50 voices.</p></div>
             <div className="grid gap-3"><FoundingProgress compact /><Button asChild><Link to="/auth" search={{ intent: "share" }}><PenLine />Share my experience</Link></Button></div>
           </div>
         : <div className="mt-10 grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-2 [&>*]:min-w-0">{([["Actually decent", loved, "text-flag-green"], ["Proceed with snacks", warned, "text-flag-red"]] as const).map(([title, group, tone]) => <div key={title}><h3 className={`mb-4 text-xl font-bold ${tone}`}>{title}</h3><div className="space-y-3">
@@ -187,7 +187,7 @@ function LandingPage() {
       {apiEnabled
         ? wallStories.length ? <div className="mt-10 columns-1 gap-5 space-y-5 md:columns-2 lg:columns-3">{wallStories.map((story) => <StoryModelCard key={story.id} story={story} />)}</div>
           : <div className="mt-10 grid gap-5 rounded-xl border-2 border-foreground bg-card p-6 shadow-hard-sm sm:p-8 md:grid-cols-[1fr_auto] md:items-center">
-              <div><p className="font-display text-2xl font-bold">{wall.isPending ? "Loading the latest stories…" : "Be one of the first 50 voices."}</p>{!wall.isPending && <p className="mt-2 max-w-lg text-muted-foreground">The first 50 people to share an experience keep a founding contributor badge for good. Tap a few answers and you're done.</p>}</div>
+              <div><p className="font-display text-2xl font-bold">{wall.isPending ? "Loading the latest stories…" : "Be one of the first 50 voices."}</p>{!wall.isPending && <p className="mt-2 max-w-lg text-muted-foreground">The first 50 people to share an experience are the ones who make Ghosted useful for everyone after them. Tap a few answers and you're done.</p>}</div>
               {!wall.isPending && <Button asChild><Link to="/auth" search={{ intent: "share" }}><PenLine />Share my experience</Link></Button>}
             </div>
         : <div className="mt-10 columns-1 gap-5 space-y-5 md:columns-2 lg:columns-3">{stories.slice(0, 6).map((story) => <StoryCard key={story.id} story={story} />)}</div>}

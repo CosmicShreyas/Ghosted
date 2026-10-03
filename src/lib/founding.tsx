@@ -32,8 +32,8 @@ export function FoundingProgress({ className, compact = false }: { className?: s
   const pct = Math.min(100, ((n - prev) / (next - prev)) * 100);
   const title = founding ? `Founding 50: ${n} of 50 voices` : `${short(n)} voices · next milestone ${short(next)}`;
   const context = founding
-    ? "The first 50 people to share a hiring experience get a founding contributor badge on their profile and stories, for good."
-    : `Founding 50 complete, and the badges stay. Every experience shared makes Ghosted more useful for the next candidate. ${short(next - n)} to go to ${short(next)}.`;
+    ? "The first 50 people to share a hiring experience become Ghosted's founding voices: the ones who made it useful for everyone after them."
+    : `Founding 50 complete. Thank you to the first voices. Every experience shared makes Ghosted more useful for the next candidate. ${short(next - n)} to go to ${short(next)}.`;
   return <div className={cn("rounded-xl border-2 border-foreground bg-card p-3 shadow-hard-sm sm:p-4", className)}>
     <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
       <p className="flex items-center gap-1.5 text-sm font-bold"><Award className="size-4 text-primary" />{title}</p>

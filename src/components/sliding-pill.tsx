@@ -4,15 +4,17 @@
 //
 // Usage: put `ref={pill.ref}` on the row (it must be `relative`), `data-pill={key}` on each option,
 // and render <SlidingPill pill={pill} className="…" /> as the row's first child.
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 
 export function usePill<T extends string>(active: T | null | undefined) {
-  const ref = useRef<HTMLDivElement>(null);
+  // A callback ref kept in state, so measuring re-runs when the row mounts later (pages that show a
+  // loading screen first). With a plain ref the first measure found nothing and never retried, which
+  // left the selected button with white text and no pill behind it.
+  const [row, ref] = useState<HTMLDivElement | null>(null);
   const [box, setBox] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
   useLayoutEffect(() => {
-    const row = ref.current;
     if (!row) return;
     const measure = () => {
       const el = active ? row.querySelector<HTMLElement>(`[data-pill="${CSS.escape(active)}"]`) : null;
@@ -24,7 +26,7 @@ export function usePill<T extends string>(active: T | null | undefined) {
     ro.observe(row);
     row.querySelectorAll("[data-pill]").forEach((el) => ro.observe(el));
     return () => ro.disconnect();
-  }, [active]);
+  }, [active, row]);
   return { ref, box };
 }
 

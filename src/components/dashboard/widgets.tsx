@@ -6,7 +6,6 @@ import { Bookmark, HandHeart, Heart, HeartHandshake, Lightbulb, MessageCircle, M
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Avatar, QuickBadge } from "@/components/ghosted";
-import { FoundingBadge } from "@/lib/founding";
 import { StoryBody } from "@/components/markdown";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -136,7 +135,7 @@ export function FeedStory({ story, saved, onSave, onOpenCompany, full = false }:
       {/* The avatar and name open this person's page (addressed by id, whatever name they show). */}
       <PersonLink author={author} className="shrink-0 rounded-full"><Avatar seed={author.avatarSeed} pastel={author.pastel} size="sm" label={author.name} /></PersonLink>
       <div className="min-w-0 flex-1">
-        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5"><PersonLink author={author} className="block truncate text-sm font-bold underline-offset-2 hover:underline">{author.name}</PersonLink><FoundingBadge rank={author.foundingRank} /></div>
+        <PersonLink author={author} className="block truncate text-sm font-bold underline-offset-2 hover:underline">{author.name}</PersonLink>
         <p className="flex min-w-0 flex-wrap items-center gap-x-1 text-xs text-muted-foreground">
           <span className="truncate">about <Link to="/c/$slug" params={{ slug: company.id }} className="font-semibold text-foreground underline underline-offset-2 decoration-foreground/30 transition-colors hover:text-primary hover:decoration-primary">{company.name}</Link> · {story.timeLabel}</span>
           {story.goofy === "redacted" && <Link to="/u/$id" params={{ id: GOOFY_ID }} title="Goofy, our AutoMod, replaced a person's name with [name] so nobody can be identified" className="inline-flex items-center gap-1 rounded-full border border-foreground/30 py-px pl-0.5 pr-1.5 text-[10px] font-bold uppercase tracking-wide hover:bg-muted"><img src={GOOFY_AVATAR} alt="" className="size-3.5 rounded-full object-cover" />Name hidden by Goofy</Link>}
