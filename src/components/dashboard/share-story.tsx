@@ -65,6 +65,8 @@ const STEPS = [
   { id: "post", label: "Post" },
 ] as const;
 
+const ROLE_MAX = 140;
+
 // ---------- draft ----------
 
 type Draft = {
@@ -338,8 +340,8 @@ export function ShareModal({ open, onOpenChange, editing = null, presetCompany =
         </motion.button>)}</div>
       </div>
       <div>
-        <Label hint="Optional">Your role</Label>
-        <Input value={d.role} onChange={(e) => set("role", e.target.value)} maxLength={80} placeholder="e.g. Backend Engineer" className="h-11 border-2 border-foreground" />
+        <Label hint={<span>Optional · <span className="tabular-nums">{d.role.length}/{ROLE_MAX}</span></span>}>Your role</Label>
+        <Input value={d.role} onChange={(e) => set("role", e.target.value)} maxLength={ROLE_MAX} placeholder="e.g. Senior SAP S/4HANA Sales and Distribution Consultant" className="h-11 border-2 border-foreground" />
       </div>
     </div>,
 
@@ -354,7 +356,7 @@ export function ShareModal({ open, onOpenChange, editing = null, presetCompany =
         </motion.button>)}</div>
       </div>
       <div>
-        <Label hint={`${d.title.trim().length}/90`}>Give it a title</Label>
+        <Label hint={<span className="tabular-nums">{d.title.length}/90</span>}>Give it a title</Label>
         <Input value={d.title} onChange={(e) => set("title", e.target.value)} maxLength={90} placeholder={voice(tone, "e.g. Four rounds, one take-home, zero replies", "e.g. No reply after the final round")} className="h-11 border-2 border-foreground font-semibold" />
       </div>
       <div>

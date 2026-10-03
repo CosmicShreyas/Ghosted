@@ -23,7 +23,7 @@ const newStory = z.object({
   companySlug: z.string().regex(/^[a-z0-9-]{2,60}$/),
   outcome: z.enum(["ghosted", "rejected", "offer", "offer_revoked", "ghost_job"]),
   stage: z.enum(["application", "screening", "technical", "final", "offer"]),
-  role: optionalText(80),
+  role: optionalText(140),
   title: text(5, 90),
   body: text(40, 4000),
   ratings: z.object({ hiring: rating, communication: rating, culture: rating, pay: rating, growth: rating }),
@@ -41,7 +41,7 @@ const idParam = validate("param", z.object({ id: publicId }));
 const storyEdit = z.object({
   outcome: newStory.shape.outcome,
   stage: newStory.shape.stage,
-  role: optionalText(80),
+  role: optionalText(140),
   title: text(5, 90),
   body: text(40, 4000),
   ratings: newStory.shape.ratings,
