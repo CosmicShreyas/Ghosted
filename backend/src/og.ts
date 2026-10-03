@@ -2,12 +2,13 @@
 // is shared on LinkedIn, X, WhatsApp or Slack. Drawn with @vercel/og (satori + resvg in WebAssembly).
 // A story card shows its title, company, outcome, wait and Flag Score, never the story text or who
 // wrote it. Fonts are fetched once per server instance and cached.
-// satori lays the card out as SVG; resvg's WebAssembly build turns it into a PNG. No native binary
-// (the native resvg build failed to load on Vercel), so it runs anywhere Node runs.
+// satori lays the card out as SVG; resvg's WebAssembly build turns it into a PNG.
+// Nothing is read from disk, because Vercel doesn't ship .wasm files with the function:
+//   - satori is pinned to 0.32 (0.33+ loads harfbuzzjs/hb.wasm from disk, and when that fails it
+//     crashes the whole function); its layout engine, yoga-layout 3, embeds its WebAssembly in code
+//   - resvg's WebAssembly is fetched once per server instance from a pinned CDN copy
 import satori from "satori";
 import { initWasm, Resvg } from "@resvg/resvg-wasm";
-import { readFile } from "node:fs/promises";
-import { createRequire } from "node:module";
 import { EMAIL_LOGO_BASE64 } from "./mail/logo.js";
 
 type Node = { type: string; props: Record<string, unknown> & { children?: unknown } };
@@ -48,10 +49,14 @@ const frame = (site: string, ...children: unknown[]) => h("div", { width: 1200, 
   h("div", { flexDirection: "column", justifyContent: "space-between", width: "100%", height: "100%", border: `4px solid ${INK}`, borderRadius: 36, background: "#fff", padding: "40px 52px", boxShadow: `12px 12px 0 ${INK}` },
     brand(site), ...children));
 
-// The renderer's WebAssembly, loaded once per server instance. require.resolve lets Vercel's file
-// tracing find and ship the .wasm file with the function.
+// The renderer's WebAssembly (same version as package.json), fetched once per server instance.
+// A failed fetch is retried on the next image instead of being cached.
+const RESVG_WASM = "https://cdn.jsdelivr.net/npm/@resvg/resvg-wasm@2.6.2/index_bg.wasm";
 let wasmReady: Promise<void> | null = null;
-const ensureWasm = () => (wasmReady ??= readFile(createRequire(import.meta.url).resolve("@resvg/resvg-wasm/index_bg.wasm")).then((buf) => initWasm(buf)).catch((e: Error) => { wasmReady = null; throw e; }));
+const ensureWasm = () => (wasmReady ??= fetch(RESVG_WASM, { signal: AbortSignal.timeout(8000) })
+  .then((r) => { if (!r.ok) throw new Error(`resvg wasm ${r.status}`); return r.arrayBuffer(); })
+  .then((buf) => initWasm(buf))
+  .catch((e: Error) => { wasmReady = null; throw e; }));
 
 async function render(node: Node): Promise<Buffer> {
   const [, loaded] = await Promise.all([ensureWasm(), loadFonts()]);
