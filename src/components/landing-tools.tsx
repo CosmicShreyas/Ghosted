@@ -97,9 +97,9 @@ function FollowUpWriter() {
     <p className="mt-4 text-sm font-bold">Last thing that happened</p>
     <div className="mt-2"><Chips label="Round" value={stage} onChange={setStage} /></div>
     <div className="mt-4 flex flex-wrap items-end gap-3">
-      <label className="text-sm font-bold">How long ago (days)<input type="number" inputMode="numeric" min={0} max={365} value={days} onChange={(e) => setDays(Math.max(0, Math.min(365, Number(e.target.value) || 0)))} className={cn(field, "mt-1 w-24 font-normal tabular-nums")} /></label>
-      <div className="text-sm font-bold">Mood
-        <div role="radiogroup" aria-label="Mood" className="mt-1 flex flex-wrap gap-2">{([["warm", "Still hopeful"], ["brief", "Short and sweet"], ["firm", "Done waiting"]] as const).map(([t, label]) => <button key={t} type="button" role="radio" aria-checked={tone === t} onClick={() => setTone(t)}
+      <label className="flex flex-col gap-1 text-sm font-bold">How long ago (days)<input type="number" inputMode="numeric" min={0} max={365} value={days} onChange={(e) => setDays(Math.max(0, Math.min(365, Number(e.target.value) || 0)))} className={cn(field, "w-24 font-normal tabular-nums")} /></label>
+      <div className="flex flex-col gap-1 text-sm font-bold">Mood
+        <div role="radiogroup" aria-label="Mood" className="flex flex-wrap gap-2">{([["warm", "Still hopeful"], ["brief", "Short and sweet"], ["firm", "Done waiting"]] as const).map(([t, label]) => <button key={t} type="button" role="radio" aria-checked={tone === t} onClick={() => setTone(t)}
           className={cn("min-h-11 rounded-full border-2 border-foreground px-4 text-xs font-bold transition-colors", tone === t ? "bg-primary text-primary-foreground" : "bg-card hover:bg-muted")}>{label}</button>)}</div>
       </div>
     </div>
