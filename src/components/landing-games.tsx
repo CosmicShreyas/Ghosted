@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Check, Copy, Hand, Heart, HeartCrack, Mail, RotateCcw, Trophy } from "lucide-react";
+import { Check, Copy, Hand, Heart, HeartCrack, Mail, PenLine, RotateCcw, Search, Trophy } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ghostStages, recruiterSlaps } from "@/mock/data";
@@ -107,6 +108,8 @@ function plant(first: number): Cell[] {
   return board;
 }
 
+const GAUNTLET = ["Applied", "Screening call", "Take-home", "Tech round", "Final round", "Offer"];
+
 // Danger escalates: 1 calm, 2 careful, 3+ run.
 const adjTone = ["", "text-primary", "text-flag-amber", "text-flag-red", "text-flag-red"];
 
@@ -158,12 +161,22 @@ export function HiringMinefield() {
     setStatus(next.filter((c) => c.open && !c.mine).length === SAFE ? "won" : "playing");
   };
 
-  const message = status === "won" ? "Offer received! Pending “final approvals”, obviously." : status === "lost" ? "Out of patience. They've “moved forward with other candidates”." : status === "idle" ? "Click any tile to start your job hunt. The first one is always safe." : "Each number counts the recruiter traps touching that tile. A green tick means all its neighbours are safe.";
+  const message = status === "won" ? "Offer in hand! Pending “final approvals”, obviously." : status === "lost" ? "Three red flags. They've “moved forward with other candidates”." : status === "idle" ? "Tap any tile to send your application. The first step is always safe." : "Each number counts the red flags hiding next door. A green tick means every neighbour is safe.";
+  // How far through the hiring process the cleared tiles have carried you.
+  const reached = Math.min(GAUNTLET.length - 1, Math.floor((cleared / SAFE) * GAUNTLET.length));
 
-  return <section className="border-y-2 border-foreground bg-accent py-24">
+  return <section id="gauntlet" className="border-y-2 border-foreground bg-accent py-24">
     <div className="mx-auto max-w-7xl px-4 sm:px-6">
-      <SectionTitle eyebrow="Interactive trauma" title="The hiring minefield." aside="Clear every safe tile to land the offer. Hit a trap and a recruiter slaps you with their finest move. Three slaps and you're out." />
-      <div className="mt-10 grid gap-5 lg:grid-cols-[1.5fr_1fr]">
+      <SectionTitle eyebrow="The interview gauntlet" title="Can you survive a hiring process?" aside="Every tile is a step in the process. Most are fine. Some are red flags, and a recruiter will hit you with their finest move. Clear the board to reach the offer. Three red flags and you're out, just like real life." />
+      {/* The process you're fighting through, lighting up as you clear tiles. */}
+      <ol className="mt-8 flex flex-wrap items-center gap-x-2 gap-y-2" aria-label="Your progress through the hiring process">{GAUNTLET.map((s, i) => {
+        const done = status === "won" || (status !== "idle" && i < reached), now = status === "playing" && i === reached;
+        return <li key={s} className="flex items-center gap-2">
+          <span className={cn("rounded-full border-2 border-foreground px-3 py-1 text-xs font-bold transition-colors", done ? "bg-flag-green text-primary-foreground" : now ? "bg-primary text-primary-foreground" : status === "lost" && i === reached ? "bg-flag-red text-primary-foreground" : "bg-card")}>{s}</span>
+          {i < GAUNTLET.length - 1 && <span aria-hidden="true" className={cn("h-0.5 w-4 rounded-full sm:w-6", done ? "bg-flag-green" : "bg-foreground/25")} />}
+        </li>;
+      })}</ol>
+      <div className="mt-6 grid gap-5 lg:grid-cols-[1.5fr_1fr]">
         <motion.div animate={hit ? { x: [0, -12, 10, -6, 4, 0] } : { x: 0 }} transition={{ duration: 0.45 }} className="relative rounded-xl border-2 border-foreground bg-foreground p-2 shadow-hard sm:p-3">
           <div className="grid gap-1.5 sm:gap-2" style={{ gridTemplateColumns: `repeat(${COLS}, minmax(0, 1fr))` }}>
             {board.map((c, i) => <motion.button key={i} type="button" whileHover={!c.open && !over ? { y: -3 } : {}} whileTap={!c.open && !over ? { scale: 0.9 } : {}} onClick={() => dig(i)} disabled={c.open || over} aria-label={c.open ? (c.mine ? "Recruiter trap" : `${c.adj} traps nearby`) : "Hidden tile"} className={cn("grid aspect-square place-items-center rounded-md border-2 font-sans text-xl font-bold tabular-nums transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent sm:text-3xl", !c.open && "cursor-pointer border-background/20 bg-primary hover:bg-primary/85", !c.open && over && "cursor-default opacity-60", c.open && !c.mine && "border-transparent", c.open && !c.mine && (c.adj ? "bg-background" : "bg-background text-flag-green"), c.open && c.mine && "border-foreground bg-flag-red text-primary-foreground", c.open && !c.mine && adjTone[Math.min(c.adj, 4)])}>
@@ -190,6 +203,14 @@ export function HiringMinefield() {
         </aside>
         </div>
       </div>
+      {/* The game ends where the product starts: real candidates have mapped real minefields. */}
+      <AnimatePresence>{over && <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mt-5 flex flex-wrap items-center gap-4 rounded-xl border-2 border-foreground bg-card p-5 shadow-hard-sm">
+        <p className="min-w-0 flex-1 font-display text-lg font-bold">{status === "won" ? "Nice run. Real processes don't come with numbers on the tiles, though." : "Real candidates have already stepped on these. Check the map before you apply."}</p>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" asChild><a href="#top-search"><Search />Search a company</a></Button>
+          <Button asChild><Link to="/auth" search={{ intent: "share" }}><PenLine />Share your real run</Link></Button>
+        </div>
+      </motion.div>}</AnimatePresence>
     </div>
   </section>;
 }

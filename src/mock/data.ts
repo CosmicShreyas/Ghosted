@@ -316,17 +316,19 @@ export const landingHero = {
   privacyNote: "No name. No company email. No performative LinkedIn thread required.",
 };
 
+// The hero reads "Know what happened" + one of these. The first is the plain promise (it's what shows
+// before JavaScript loads and what search engines read); the rest are the fun ones.
 export const heroRotatingLines = [
-  "Tell the real story.",
-  "Rate the red flags.",
-  "Your closure is overdue.",
-  "Ghost them back with receipts.",
-  "Silence is still an answer.",
-  "Six rounds is a red flag.",
-  "Your time is not free labor.",
-  "The job post needs receipts.",
-  "Take-homes should pay.",
-  "The plot twist was unpaid work.",
+  "before you apply.",
+  "before round six.",
+  "before the take-home eats your weekend.",
+  "before “we'll get back to you.”",
+  "before you're left on read.",
+  "before “competitive pay” turns out to be vibes.",
+  "before the offer gets un-offered.",
+  "before the recruiter goes to Goa and never comes back.",
+  "before you prep for a role that never existed.",
+  "before the ghosting, not after.",
 ];
 
 export const heroScene = {
