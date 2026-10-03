@@ -2,7 +2,8 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { ApiError, dbFail } from "../errors.js";
 import { stats } from "../algorithms/index.js";
-import { rateLimit, type AppEnv } from "../security.js";
+import { optionalAuth, rateLimit, type AppEnv } from "../security.js";
+import { FOUNDING_LIMIT, foundingRankOf, loadFounders } from "../founding.js";
 import { admin } from "../supabase.js";
 
 // Landing-page numbers. The frontend shows pre-launch copy until `stories` is above zero.
@@ -24,6 +25,14 @@ export const statsRoutes = new Hono<AppEnv>().get("/", rateLimit({ name: "stats"
     replyRate: all.length ? Math.round((replied / all.length) * 100) : null, replyRateN: all.length,
     medianWait: stats.median(waits), medianWaitN: waits.length,
   });
+})
+
+// Founding 50: how many people have published a story, and (signed in) your founding rank, if any.
+.get("/founding", optionalAuth, rateLimit({ name: "founding", max: 90, windowSeconds: 60 }), async (c) => {
+  const f = await loadFounders();
+  const me = c.get("profile");
+  c.header("Cache-Control", "private, no-store");
+  return c.json({ contributors: f.contributors, limit: FOUNDING_LIMIT, complete: f.ranks.size >= FOUNDING_LIMIT, foundingRank: me ? foundingRankOf(me.public_id) : null });
 })
 
 // Everything the dashboard's right-hand widgets and Insights charts show, from real stories only.

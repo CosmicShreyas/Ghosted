@@ -1,6 +1,7 @@
 // Shapes that leave the API. Internal UUIDs (user, story, company) are never included.
 import { fromBytea } from "./lib/compression.js";
 import { dimensionScore, storyScore } from "./score.js";
+import { foundingRankOf } from "./founding.js";
 import { unsealBytea } from "./lib/sealed.js";
 import type { Profile } from "./security.js";
 
@@ -43,7 +44,8 @@ export const nameIsPublic = (p: AuthorRow) => p.show_real && p.shared_fields.inc
 
 export function storyAuthor(p: AuthorRow) {
   const author = publicAuthor(p);
-  return { ...author, name: author.revealed?.name ?? p.handle };
+  // Founding contributor #N (first 50 to publish), when they are one.
+  return { ...author, name: author.revealed?.name ?? p.handle, foundingRank: foundingRankOf(p.public_id) };
 }
 
 // Missing ratings (not every journey has all five) stay null, never a fake score.

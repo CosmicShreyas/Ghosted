@@ -11,10 +11,10 @@ import { useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
 import {
   ArrowLeft, ArrowRight, Bold, Briefcase, Building2, Check, ClipboardCheck, Code, Eye, SquareCode, FileSearch, Ghost, Heading, Italic, List, ListOrdered,
-  Loader2, MessageSquareQuote, PartyPopper, PenLine, Plus, Sparkles, Star, Strikethrough, Undo2, Wand2, XCircle, Zap, IndianRupee, ChevronDown, type LucideIcon,
+  Loader2, MessageSquareQuote, PartyPopper, PenLine, Plus, Sparkles, Star, Strikethrough, Undo2, Wand2, XCircle, Zap, IndianRupee, ChevronDown, Shuffle, type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
-import { Avatar, CompanyMark, FlagScore } from "@/components/ghosted";
+import { Avatar, CompanyMark, FlagScore, QuickBadge } from "@/components/ghosted";
 import { HumanCheck, useHumanCheck } from "@/components/human-check";
 import { Markdown } from "@/components/markdown";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,8 @@ import { journey, storyScore, type Dimension, type Outcome } from "@/lib/score";
 import { cn } from "@/lib/utils";
 import { ListCompanyDialog } from "./list-company";
 import { ShareCard } from "./share-card";
+import { quickStory } from "@/lib/quick-story";
+import { useFounding } from "@/lib/founding";
 import { popup, popupBody, scoreTone } from "./ui-kit";
 
 // ---------- options ----------
@@ -125,22 +127,12 @@ function autoTitle(d: Draft): string {
   }
 }
 
-// The quick story: a plain body from the taps (company, stage, wait, ratings). No names, nothing made up.
-function autoBody(d: Draft, companyName: string): string {
-  const days = daysOf(d);
-  const wait = days != null ? waitPhrase(days) : null;
-  const lines: string[] = [];
-  if (d.outcome === "ghosted") lines.push(`Ghosted after the ${stageWord(d)} at ${companyName}.${wait ? ` I waited ${wait} and never heard back.` : " I never heard back."}`);
-  if (d.outcome === "rejected") lines.push(`Rejected after the ${stageWord(d)} at ${companyName}.${wait ? ` It took ${wait} to hear back.` : ""}`);
-  if (d.outcome === "ghost_job") lines.push(`Applied to a role at ${companyName} that turned out to be a ghost job.${wait ? ` No reply after ${wait}.` : ""}`);
-  if (d.outcome === "offer_revoked") lines.push(`Got an offer from ${companyName}, then it was revoked.`);
-  if (d.outcome === "offer") lines.push(`Got an offer from ${companyName} and ${d.joined === "yes" ? "joined" : "didn't join"}.`);
-  if (d.role.trim()) lines.push(`Role: ${d.role.trim()}.`);
-  const rated = journeyOf(d).ratings.filter((k) => d.ratings[k] > 0).map((k) => `${RATING_INFO[k].label}: ${d.ratings[k]} of 5.`);
-  if (rated.length) lines.push(rated.join(" "));
-  lines.push("Shared as a quick story.");
-  return lines.join("\n\n");
-}
+// The quick story: natural, varied wording built only from the taps (src/lib/quick-story.ts).
+const autoBody = (d: Draft, companyName: string) => quickStory({
+  outcome: (d.outcome || "ghosted") as Outcome, company: companyName, stage: stageOf(d) || null, days: neverHired(d.outcome) ? daysOf(d) : null,
+  joined: d.outcome === "offer" ? d.joined === "yes" : null, role: d.role.trim() || null,
+  ratings: Object.fromEntries(journeyOf(d).ratings.filter((k) => d.ratings[k] > 0).map((k) => [k, d.ratings[k]])),
+});
 
 const PLACEHOLDER: Record<Outcome, [string, string]> = {
   ghosted: ["Where did it go quiet? What was the last thing they said, and how did you follow up? No names of individuals.", "Where did it go quiet, what was the last message, and did you follow up? Please don't name individuals."],
@@ -288,6 +280,7 @@ export function ShareModal({ open, onOpenChange, editing = null, presetCompany =
   const [listing, setListing] = useState(false);
   const [restored, setRestored] = useState(false);
   const [postedId, setPostedId] = useState<string | null>(null);
+  const founding = useFounding();
 
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((s) => ({ ...s, [k]: v }));
   const company = index.get(d.company);
@@ -366,7 +359,7 @@ export function ShareModal({ open, onOpenChange, editing = null, presetCompany =
   };
 
   const refresh = () => {
-    for (const key of [["feed"], ["my-stories"], ["person"], ["insights"], ["story"]]) void qc.invalidateQueries({ queryKey: key });
+    for (const key of [["feed"], ["my-stories"], ["person"], ["insights"], ["story"], ["founding"]]) void qc.invalidateQueries({ queryKey: key });
     liveNudge();
   };
   const showError = (err: unknown, fallback: string) => {
@@ -540,10 +533,12 @@ export function ShareModal({ open, onOpenChange, editing = null, presetCompany =
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-2">
           {outcome && <span className="rounded-full border-2 border-foreground bg-accent px-2.5 py-0.5 text-[11px] font-bold uppercase">{outcomeLine}</span>}
+          {d.quick && <QuickBadge />}
           {[neverHired(d.outcome) ? stage?.label : null, d.role.trim()].filter(Boolean).map((t) => <span key={t} className="text-xs font-semibold text-muted-foreground">{t}</span>)}
         </div>
         <h3 className="mt-3 font-bold leading-snug">{d.title.trim()}</h3>
         <Markdown text={d.body} className="mt-1.5" />
+        {d.quick && <button type="button" onClick={() => set("body", autoBody(d, company?.name ?? "the company"))} className="mt-3 inline-flex min-h-11 items-center gap-1.5 rounded-full border-2 border-foreground/30 px-3 text-xs font-bold hover:border-foreground sm:min-h-9"><Shuffle className="size-3.5" />Try different wording</button>}
         {flagScore !== null && <p className="mt-4 border-t-2 border-dashed border-foreground/15 pt-3 text-xs font-semibold text-muted-foreground">Flag Score from this story: <span className={cn("font-display text-sm font-bold", scoreTone(flagScore))}>{flagScore}</span>{j.salary && d.min && d.max ? ` · ₹${d.min} to ${d.max} LPA` : ""}{neverHired(d.outcome) && days != null ? ` · waited ${waitPhrase(days)}` : ""}</p>}
       </article>
       <div className="flex items-center gap-3 rounded-lg border-2 border-foreground bg-muted/50 p-3">
@@ -573,7 +568,7 @@ export function ShareModal({ open, onOpenChange, editing = null, presetCompany =
         </motion.div>
         <DialogTitle className="mt-4 font-display text-3xl">{voice(tone, "Receipts filed.", "Story shared.")}</DialogTitle>
         <DialogDescription className="mx-auto mt-2 max-w-sm">{apiEnabled ? voice(tone, "Now get it in front of the next candidate. The card never shows who you are.", "Thank you. Share the card below; it never shows who you are.") : "Preview mode: stories aren't saved here."}</DialogDescription>
-        <div className="mt-5 flex w-full justify-center"><ShareCard data={{ storyId: postedId, headline: d.title.trim() || autoTitle(d), wait: neverHired(d.outcome) && days != null ? waitPhrase(days) : null, score: flagScore, company: company?.name ?? "" }} /></div>
+        <div className="mt-5 flex w-full justify-center"><ShareCard data={{ storyId: postedId, headline: d.title.trim() || autoTitle(d), wait: neverHired(d.outcome) && days != null ? waitPhrase(days) : null, score: flagScore, company: company?.name ?? "", foundingRank: founding?.foundingRank ?? null }} /></div>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <Button variant="outline" onClick={() => { setD(EMPTY); setDone(false); setStep(0); setReached(0); }}><PenLine />Share another</Button>
           <Button onClick={() => close(false)}><Sparkles />Back to the feed</Button>

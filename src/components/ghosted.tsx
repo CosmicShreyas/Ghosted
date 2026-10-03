@@ -3,7 +3,7 @@ import type { Company, Story } from "@/mock/data";
 import type { StoryModel } from "@/lib/stories";
 import { plainText } from "@/components/markdown";
 import { getCompany, getUser } from "@/mock/data";
-import { Flag, HeartHandshake, MessageCircle } from "lucide-react";
+import { Flag, HeartHandshake, MessageCircle, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function Avatar({ seed, pastel, size = "md", label = "Anonymous user" }: { seed: string; pastel: string; size?: "sm" | "md" | "lg"; label?: string }) {
@@ -51,6 +51,11 @@ export function ScoreMeters({ company }: { company: Company }) {
       {n != null && <span className="block truncate text-[9px] text-muted-foreground/80">{v == null ? "No data yet" : `${n} ${n === 1 ? "story" : "stories"}`}</span>}
     </div>;
   })}</div>;
+}
+
+// Marks a story posted with the quick path (written from the author's taps, not typed out).
+export function QuickBadge() {
+  return <span title="Posted as a quick story: written from the author's answers" className="inline-flex items-center gap-1 rounded-full border-2 border-foreground/30 bg-card px-2 py-0.5 text-[11px] font-bold uppercase"><Zap className="size-3" />Quick story</span>;
 }
 
 // The company's own icon (fetched from its website when it was listed) on a white tile, or its

@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-export type ShareCardData = { storyId: string | null; headline: string; wait: string | null; score: number | null; company: string };
+export type ShareCardData = { storyId: string | null; headline: string; wait: string | null; score: number | null; company: string; foundingRank?: number | null };
 
 const tone = (s: number) => (s >= 70 ? "#22C55E" : s >= 40 ? "#F59E0B" : "#EF4444");
 const word = (s: number) => (s >= 70 ? "Green flag" : s >= 40 ? "Mixed signals" : "Red flag");
@@ -51,6 +51,7 @@ export function ShareCard({ data }: { data: ShareCardData }) {
         <div className="text-sm">{data.wait ? <><span className="block text-xs opacity-70">Waited</span><b>{data.wait}</b></> : <span className="opacity-70">Shared anonymously</span>}</div>
         {data.score != null && <div className="text-right"><span className="block text-4xl font-bold leading-none" style={{ color: tone(data.score) }}>{data.score}</span><span className="text-xs font-bold" style={{ color: tone(data.score) }}>{word(data.score)}</span></div>}
       </div>
+      {data.foundingRank && <p className="mt-3 inline-block rounded-full border-2 px-2 py-0.5 text-[10px] font-bold uppercase" style={{ borderColor: "#6D28D9", color: "#6D28D9" }}>Founding contributor #{data.foundingRank}</p>}
       <p className="mt-4 border-t-2 border-dashed pt-3 text-xs font-semibold" style={{ borderColor: "#14111033" }}>Read it on {host}</p>
     </div>
     <button type="button" onClick={() => setShowCompany((v) => !v)} aria-pressed={showCompany} className={cn("mt-4 inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-foreground px-3 text-sm font-bold", showCompany ? "bg-primary text-primary-foreground" : "bg-card hover:bg-muted")}>

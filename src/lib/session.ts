@@ -26,7 +26,10 @@ export type Me = {
   // Palette for this person's emails, kept in step with the theme they use on the site.
   emailTheme: "light" | "dark";
   notify: Notify;
-  mfa: { method: "none" | "totp" | "email"; recoveryLeft: number };};
+  mfa: { method: "none" | "totp" | "email"; recoveryLeft: number };
+  // When the account was made (the API sends it; the demo profile doesn't have one).
+  createdAt?: string;
+};
 export type Tone = "sassy" | "calm";
 export type Notify = { relatable: boolean; chitchatReplies: boolean; newFollowers: boolean; flaggedCompanies: boolean; weeklyDigest: boolean };
 

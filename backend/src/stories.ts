@@ -2,14 +2,17 @@ import { dbFail, notFound } from "./errors.js";
 import { STORY_COLUMNS, storyDto, type Counts, type StoryRow } from "./dto.js";
 import type { Profile } from "./security.js";
 import { admin } from "./supabase.js";
+import { loadFounders } from "./founding.js";
 
 // Adds reaction/comment counts and (if logged in) the viewer's own reactions to a batch of stories.
 export async function hydrate(rows: StoryRow[], viewer: Profile | null) {
   if (!rows.length) return [];
   const ids = rows.map((r) => r.id);
+  // The founders list is warmed alongside, so author lines can show "Founding contributor #N".
   const [countsRes, mineRes] = await Promise.all([
     admin().from("story_counts").select("story_id, relatable, insightful, creative, support, love, flags, comments").in("story_id", ids),
     viewer ? admin().from("reactions").select("story_id, kind").eq("user_id", viewer.id).in("story_id", ids) : Promise.resolve({ data: [], error: null }),
+    loadFounders(),
   ]);
   if (countsRes.error) dbFail("story counts", countsRes.error);
   if (mineRes.error) dbFail("my reactions", mineRes.error);

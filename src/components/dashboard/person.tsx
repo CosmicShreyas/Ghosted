@@ -18,6 +18,7 @@ import type { PersonPage, PersonStats, usePerson } from "@/lib/people";
 import { cn } from "@/lib/utils";
 import { activeDot, axis, barCursor, ChartTooltip, grid, INK, lineCursor, SERIES } from "./chart-kit";
 import { card, popup, popupBody } from "./ui-kit";
+import { FoundingBadge } from "@/lib/founding";
 
 const nf = (n: number) => (n >= 10_000 ? `${(n / 1000).toFixed(n >= 100_000 ? 0 : 1)}k` : n.toLocaleString("en-IN"));
 const joined = (iso: string | null) => (iso ? new Intl.DateTimeFormat("en-IN", { month: "long", year: "numeric" }).format(new Date(iso)) : null);
@@ -49,6 +50,7 @@ export function PersonHeader({ page, actions }: { page: PersonPage; actions: Rea
       </div>
       <div className="mt-3 min-w-0">
         <h1 className="break-words font-display text-2xl font-bold sm:text-3xl">{p.name}</h1>
+        {p.foundingRank && <FoundingBadge rank={p.foundingRank} className="mt-1" />}
         <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
           <span className={cn("inline-flex items-center gap-1 rounded-full border-2 border-foreground px-2 py-0.5 text-[11px] font-bold uppercase", r ? "bg-flag-amber text-foreground" : "bg-flag-green text-primary-foreground")}>{r ? "Public profile" : "Anonymous"}</span>
           {joined(p.joinedAt) && <span className="inline-flex items-center gap-1"><CalendarDays className="size-3.5" />Joined {joined(p.joinedAt)}</span>}

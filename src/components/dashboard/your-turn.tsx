@@ -13,6 +13,7 @@ import { useMyStats } from "@/lib/my-stats";
 import { useDailyPrompt } from "@/lib/prompts";
 import { cn } from "@/lib/utils";
 import { ShareModal } from "./share-story";
+import { FoundingProgress } from "@/lib/founding";
 import { ListCompanyDialog } from "./list-company";
 import type { View } from "./shell";
 
@@ -45,6 +46,7 @@ export function YourTurn({ onChange }: { onChange: (v: View) => void }) {
   };
 
   return <div className="mt-6 space-y-4">
+    <FoundingProgress compact />
     {/* The nudge */}
     <div className="rounded-xl border-2 border-foreground bg-accent p-3.5 shadow-hard-sm">
       {ghosted ? <>
@@ -55,7 +57,7 @@ export function YourTurn({ onChange }: { onChange: (v: View) => void }) {
       </> : firstStory ? <>
         <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase text-primary"><Sparkles className="size-3.5" />Your first story</p>
         <p className="mt-1.5 text-sm font-bold leading-snug">One honest story could save someone six rounds and a surprise take-home.</p>
-        <p className="mt-1 text-xs text-muted-foreground">Anonymous, about three minutes.</p>
+        <p className="mt-1 text-xs text-muted-foreground">Anonymous. Tap a few answers and post a quick story in about 30 seconds.</p>
         <button type="button" onClick={() => setShare(true)} className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border-2 border-foreground bg-primary px-3 py-2 text-xs font-bold text-primary-foreground transition-transform hover:-translate-y-0.5"><PenLine className="size-3.5" />Share your story</button>
       </> : <>
         <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase text-primary"><Sparkles className="size-3.5" />Today's prompt</p>

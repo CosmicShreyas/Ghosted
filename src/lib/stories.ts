@@ -6,7 +6,8 @@ import { useQuery } from "@tanstack/react-query";
 import { api, apiEnabled, API_URL } from "@/lib/api";
 import { companies as sampleCompanies, getCompany, getUser, stories as sampleStories, type Company, type Story } from "@/mock/data";
 
-export type Author = { publicId: string; name: string; avatarSeed: string; pastel: string; revealed: Revealed | null };
+// foundingRank: "Founding contributor #N" for the first 50 people to publish (null otherwise).
+export type Author = { publicId: string; name: string; avatarSeed: string; pastel: string; revealed: Revealed | null; foundingRank?: number | null };
 export type Revealed = { name: string | null; role: string | null; experience: string | null; city: string | null; linkedin: string | null };
 
 export const STORY_REACTIONS = ["relatable", "insightful", "creative", "support", "love"] as const;
@@ -108,7 +109,7 @@ export const isRated = (c: Company) => c.storyCount === undefined || c.storyCoun
 export type StoryDto = {
   publicId: string; outcome: string; stage: string; role: string | null; title: string; body: string;
   company: { slug: string; name: string; color: string } | null;
-  author: { publicId: string; name: string; avatarSeed: string; pastel: string; revealed: Revealed | null } | null;
+  author: Author | null;
   counts: StoryReactionCounts & { flags: number; comments: number };
   myReaction: StoryReaction | null;
   myReactions?: { relatable: boolean; flag: boolean } | null;

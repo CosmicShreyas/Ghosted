@@ -23,6 +23,8 @@ import { useSearch } from "@/lib/search";
 import { compact, useMyStats } from "@/lib/my-stats";
 import { useDailyPrompt } from "@/lib/prompts";
 import { SlidingPill, usePill } from "@/components/sliding-pill";
+import { FoundingProgress } from "@/lib/founding";
+import { BlockerCard, Spotlight } from "./momentum";
 
 // Two-series chart colours, validated for colour-blind separation and contrast (dataviz validator).
 const SERIES = { ghosted: "var(--chart-violet)", offers: "var(--chart-cyan)" };
@@ -166,6 +168,10 @@ export function HomeView({ me, ...c }: Common & { me: Me }) {
       </div>
     </section>
 
+    <FoundingProgress />
+    <BlockerCard />
+    <Spotlight />
+
     {/* Desktop only: on phones/tablets the prompt gets cut off, and the top bar's Share button does the same job. */}
     <button type="button" onClick={c.onShare} className={cn(card, "hidden w-full items-center gap-4 p-4 text-left transition-transform hover:-translate-y-0.5 lg:flex")}>
       <Avatar seed={me.avatarSeed} pastel={me.pastel} size="sm" label={displayName(me)} />
@@ -274,7 +280,8 @@ export function CompaniesView(c: Common) {
   // Endless list, paged from the server (sorted and searched there), refreshed live.
   const companies = useCompanyList(sort, c.query.trim());
   const sentinel = useReachEnd(companies.loadMore, companies.hasMore);
-  const list = companies.items;
+  // Companies with stories come first; within each group the server's order is kept.
+  const list = [...companies.items].sort((a, b) => Number((b.storyCount ?? 1) > 0) - Number((a.storyCount ?? 1) > 0));
   const sampleCount = (id: string) => sampleModels().filter((s) => s.company.id === id).length;
 
   return <div className="space-y-6">
@@ -285,6 +292,7 @@ export function CompaniesView(c: Common) {
       </Select>
       <Button onClick={() => setListing(true)}><Plus />List a company</Button>
     </div>} />
+    <Spotlight />
     {companies.loadingFirst ? <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3"><CompanySkeletons count={6} /></div> : list.length ? <><div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">{list.map((co) => {
       const count = co.storyCount ?? sampleCount(co.id);
       const rated = isRated(co);

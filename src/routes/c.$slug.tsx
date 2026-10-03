@@ -11,6 +11,7 @@ import { Preloader } from "@/components/preloader";
 import { PublicShell } from "@/components/public-shell";
 import { pageMeta } from "@/lib/meta";
 import { askToJoin } from "@/lib/api";
+import { CompanyMark } from "@/components/ghosted";
 import { BackButton } from "@/components/back-button";
 import { SlidingPill, usePill } from "@/components/sliding-pill";
 import { Button } from "@/components/ui/button";
@@ -103,8 +104,9 @@ function CompanyPageRoute() {
           </div>
         </div>
         {list.length === 0 && !feed.loadingFirst
-          ? <div className="rounded-xl border-2 border-dashed border-foreground/40 p-10 text-center">
-              <p className="font-display text-xl font-bold">{filter === "all" ? voice(tone, "Suspiciously quiet.", "No stories yet.") : `No ${filter} stories yet.`}</p>
+          ? <div className={cn("rounded-xl border-2 p-8 text-center", filter === "all" ? "border-foreground bg-accent shadow-hard-sm" : "border-dashed border-foreground/40")}>
+              {filter === "all" && <div className="mb-3 flex justify-center"><CompanyMark company={page.company} /></div>}
+              <p className="font-display text-xl font-bold">{filter === "all" ? voice(tone, `Be the first voice on ${name}.`, `No stories about ${name} yet.`) : `No ${filter} stories yet.`}</p>
               <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">{voice(tone, `Interviewed at ${name}? Your story could save someone six rounds.`, `Interviewed at ${name}? Share how it went.`)}</p>
               <Button className="mt-5" onClick={startShare}><PenLine />Share a story about {name}</Button>
             </div>
