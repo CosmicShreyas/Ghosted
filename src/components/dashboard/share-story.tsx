@@ -28,6 +28,7 @@ import { useCompanyIndex, type StoryModel } from "@/lib/stories";
 import { cn } from "@/lib/utils";
 import { ListCompanyDialog } from "./list-company";
 import { popup, popupBody, scoreTone } from "./ui-kit";
+import { journey, type Outcome } from "@/lib/score";
 
 // ---------- options ----------
 
@@ -74,6 +75,11 @@ type Draft = {
   ratings: Record<RatingKey, number>; min: string; max: string; days: string;
 };
 const EMPTY: Draft = { company: "", stage: "", role: "", outcome: "", title: "", body: "", ratings: { hiring: 0, communication: 0, culture: 0, pay: 0, growth: 0 }, min: "", max: "", days: "" };
+// Only the ratings (and salary) this journey allows go to the API (src/lib/score.ts, the same rule
+// the API enforces). Until the adaptive form lands, offers are sent without "joined".
+const fitRatings = (d: Draft) => Object.fromEntries(journey((d.outcome || "ghosted") as Outcome, null).ratings.map((k) => [k, d.ratings[k]]));
+const allowsSalary = (d: Draft) => journey((d.outcome || "ghosted") as Outcome, null).salary;
+
 const DRAFT_KEY = "ghosted.storyDraft";
 const loadDraft = (): Draft | null => { try { const d = JSON.parse(localStorage.getItem(DRAFT_KEY) ?? "null") as Draft | null; return d && typeof d === "object" ? { ...EMPTY, ...d, ratings: { ...EMPTY.ratings, ...d.ratings } } : null; } catch { return null; } };
 const saveDraft = (d: Draft) => { try { localStorage.setItem(DRAFT_KEY, JSON.stringify(d)); } catch { /* storage blocked */ } };
@@ -183,7 +189,7 @@ function Stars({ value, onChange, label }: { value: number; onChange: (n: number
 // A story being edited → the draft it starts from (the company can't change).
 const draftFrom = (s: StoryModel): Draft => ({
   company: s.company.id, stage: s.stage ?? "", role: s.role ?? "", outcome: s.outcome, title: s.title ?? "", body: s.body,
-  ratings: s.ratings ?? EMPTY.ratings,
+  ratings: s.ratings ? { hiring: s.ratings.hiring ?? 0, communication: s.ratings.communication ?? 0, culture: s.ratings.culture ?? 0, pay: s.ratings.pay ?? 0, growth: s.ratings.growth ?? 0 } : EMPTY.ratings,
   min: s.salary ? String(s.salary[0]) : "", max: s.salary ? String(s.salary[1]) : "", days: s.daysWaited != null ? String(s.daysWaited) : "",
 });
 
@@ -265,7 +271,7 @@ export function ShareModal({ open, onOpenChange, editing = null, presetCompany =
       const min = d.min === "" ? null : Number(d.min), max = d.max === "" ? null : Number(d.max);
       const r = await api<{ pending?: boolean; message?: string | null }>(`/v1/stories/${editing.id}`, { method: "PATCH", body: {
         outcome: d.outcome, stage: d.stage, title: d.title.trim(), body: d.body.trim(), ...(d.role.trim() && { role: d.role.trim() }),
-        ratings: d.ratings, salary: min !== null && max !== null ? { min, max } : null, daysWaited: d.days === "" ? null : Number(d.days),
+        ratings: fitRatings(d), salary: min !== null && max !== null && allowsSalary(d) ? { min, max } : null, daysWaited: d.days === "" ? null : Number(d.days),
       } });
       // Held by the automatic review: saved, goes back up after a quick check.
       if (r.pending) speak(r.message ?? "Saved. Your story will be back up after a quick check.");
@@ -288,8 +294,8 @@ export function ShareModal({ open, onOpenChange, editing = null, presetCompany =
       const r = await api<{ story?: { publicId?: string }; pending?: boolean; publicId?: string; message?: string | null }>("/v1/stories", { method: "POST", body: {
         companySlug: d.company, outcome: d.outcome, stage: d.stage, title: d.title.trim(), body: d.body.trim(),
         ...(d.role.trim() && { role: d.role.trim() }),
-        ratings: d.ratings,
-        ...(min !== null && max !== null && { salary: { min, max } }),
+        ratings: fitRatings(d),
+        ...(min !== null && max !== null && allowsSalary(d) && { salary: { min, max } }),
         ...(d.days !== "" && { daysWaited: Number(d.days) }),
         captchaToken: shield.getToken(),
       } });

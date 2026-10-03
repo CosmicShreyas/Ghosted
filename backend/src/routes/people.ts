@@ -37,7 +37,7 @@ async function statsFor(person: Person) {
     admin().from("follows").select("followee_id", { count: "exact", head: true }).eq("follower_id", person.id),
   ]);
   if (error) dbFail("person stats", error);
-  const stories = (rows ?? []) as unknown as { id: string; outcome: string; created_at: string; days_waited: number | null; company: { slug: string; name: string; color: string } | null; rating_hiring: number; rating_communication: number; rating_culture: number; rating_pay: number; rating_growth: number }[];
+  const stories = (rows ?? []) as unknown as { id: string; outcome: string; created_at: string; days_waited: number | null; company: { slug: string; name: string; color: string } | null; rating_hiring: number | null; rating_communication: number | null; rating_culture: number | null; rating_pay: number | null; rating_growth: number | null }[];
   const ids = stories.map((s) => s.id);
 
   const since = new Date(Date.now() - WEEKS * 7 * 86400_000);
@@ -62,7 +62,11 @@ async function statsFor(person: Person) {
   const byCompany = new Map<string, { slug: string; name: string; color: string; stories: number }>();
   for (const s of stories) if (s.company) { const e = byCompany.get(s.company.slug) ?? { ...s.company, stories: 0 }; e.stories++; byCompany.set(s.company.slug, e); }
   const waits = stories.map((s) => s.days_waited).filter((d): d is number => d != null);
-  const avg = (k: keyof (typeof stories)[number]) => (stories.length ? Math.round((stories.reduce((n, s) => n + Number(s[k]), 0) / stories.length - 1) * 25) : null);
+  // Each dimension averages only the stories that rated it (not every journey rates all five).
+  const avg = (k: "rating_hiring" | "rating_communication" | "rating_culture" | "rating_pay" | "rating_growth") => {
+    const vals = stories.map((s) => s[k]).filter((v): v is number => v != null);
+    return vals.length ? Math.round((vals.reduce((n, v) => n + v, 0) / vals.length - 1) * 25) : null;
+  };
 
   return {
     stories: stories.length,

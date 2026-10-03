@@ -145,6 +145,7 @@ export function FeedStory({ story, saved, onSave, onOpenCompany, full = false }:
       <DropdownMenu>
         <DropdownMenuTrigger asChild><button type="button" aria-label="Story options" className="-mr-1 grid size-8 shrink-0 place-items-center rounded-lg border-2 border-transparent hover:border-foreground hover:bg-muted"><MoreHorizontal className="size-4" /></button></DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-44">
+          <DropdownMenuItem onSelect={onSave}><Bookmark className={cn(saved && "fill-primary text-primary")} />{saved ? "Remove from saved" : "Save story"}</DropdownMenuItem>
           {isMine ? <>
             <DropdownMenuItem onSelect={() => setEditing(true)}><PenLine />Edit story</DropdownMenuItem>
             <DropdownMenuItem onSelect={() => setConfirmDelete(true)} className="text-flag-red focus:bg-flag-red focus:text-primary-foreground"><Trash2 />Delete story</DropdownMenuItem>
@@ -197,7 +198,6 @@ export function FeedStory({ story, saved, onSave, onOpenCompany, full = false }:
         : <Link to="/s/$id" params={{ id: story.id }} hash="chitchats" className={pill(false)}><MessageCircle className="size-3.5" />{story.comments} chitchats</Link>}
       <span className="flex-1" />
       <button type="button" onClick={share} aria-label="Copy link to story" className="grid size-8 place-items-center rounded-lg hover:bg-muted"><Share2 className="size-4" /></button>
-      <button type="button" onClick={onSave} aria-pressed={saved} aria-label={saved ? "Remove from saved" : "Save story"} className="grid size-8 place-items-center rounded-lg hover:bg-muted"><Bookmark className={cn("size-4", saved && "fill-primary text-primary")} /></button>
     </div>
   </motion.article>;
 }

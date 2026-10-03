@@ -214,7 +214,11 @@ Separate admin identities; these are not member profiles.
 
 ## Views
 
-- `company_scores`: listed-company details plus story count, category/overall scores, salary range, outcome counts, average wait and latest story time.
+- `company_scores`: listed-company details plus story count, category/overall scores, salary range, outcome counts, average wait and latest story time. Each category averages only the stories that rated it and has a matching `count_*` column ("based on N stories"); `flag_score` is the average over stories of `(rating_avg - 1) * 25`.
+
+### Ratings by journey
+
+A story carries only the ratings that fit what happened: hiring and communication always; pay (and salary) for `offer` and `offer_revoked`; culture and growth only for `offer` with `joined = true`. The five `rating_*` columns are nullable, `stories.joined` and `stories.quick` record the journey and the quick path, and `rating_avg` is the mean of the ratings present. The API enforces the same rules (`backend/src/score.ts`, checked by `npx tsx scripts/check-score.ts`). The section is at the end of `init_database.sql` and is safe to run again on an existing database.
 - `platform_stats`: aggregate counts for profiles, companies, published stories, reactions and comments.
 - `story_counts`: per-story counts for each positive reaction plus published chitchats. Its legacy `flags` column remains zero for older analytics consumers; moderation uses reports instead of public dislike reactions.
 
@@ -248,6 +252,7 @@ left join public.reactions r on r.story_id = s.id
 group by s.id;
 
 revoke all on public.story_counts from anon, authenticated;
+grant select on public.story_counts to service_role;
 commit;
 ```
 

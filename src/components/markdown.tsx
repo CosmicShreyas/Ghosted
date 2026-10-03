@@ -57,7 +57,8 @@ export function StoryBody({ text, className, fold = true }: { text: string; clas
       <Markdown text={text} />
       {fold && !open && long && <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-card to-transparent" />}
     </div>
-    {fold && long && <button type="button" onClick={() => setOpen((v) => !v)} className="mt-1 inline-flex items-center gap-1 text-sm font-bold text-primary hover:underline">
+    {/* Phones and tablets: no toggle, tapping the card opens the story page to read the rest. */}
+    {fold && long && <button type="button" onClick={() => setOpen((v) => !v)} className="mt-1 hidden lg:inline-flex items-center gap-1 text-sm font-bold text-primary hover:underline">
       {open ? "Show less" : "Read more"}<ChevronDown className={cn("size-4 transition-transform", open && "rotate-180")} />
     </button>}
   </div>;

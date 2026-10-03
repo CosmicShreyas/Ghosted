@@ -153,6 +153,7 @@ from public.stories s
 left join public.reactions r on r.story_id = s.id
 group by s.id;
 revoke all on public.story_counts from anon, authenticated;
+grant select on public.story_counts to service_role;
 
 -- ---------- email verification codes ----------
 -- One pending 6-digit code per email and purpose (sign-up or password reset).
@@ -1214,5 +1215,60 @@ update public.companies
 set logo_url = 'https://unavatar.io/' || domain || '?fallback=false'
 where domain is not null
   and (logo_url is null or logo_url like 'https://icons.duckduckgo.com/%');
+
+-- ============================================================================
+-- Ratings by journey. A story only carries the ratings that fit what happened:
+--   every story          hiring, communication
+--   offer / offer_revoked  + pay (and salary)
+--   offer and joined     + culture, growth
+-- So the five rating columns become nullable, rating_avg averages only the ratings a story has,
+-- and company_scores averages each dimension over the stories that rated it.
+-- Flag Score = average over stories of (rating_avg - 1) * 25, identical to the old formula when
+-- all five exist. Mirrored in src/lib/score.ts and backend/src/score.ts. Safe to run again.
+-- ============================================================================
+alter table public.stories alter column rating_culture drop not null;
+alter table public.stories alter column rating_pay drop not null;
+alter table public.stories alter column rating_growth drop not null;
+alter table public.stories alter column rating_hiring drop not null;
+alter table public.stories alter column rating_communication drop not null;
+alter table public.stories add column if not exists joined boolean;
+alter table public.stories add column if not exists quick boolean not null default false;
+
+drop view if exists public.company_scores;
+drop index if exists public.stories_company_rating;
+alter table public.stories drop column if exists rating_avg;
+alter table public.stories add column rating_avg numeric(3,2) generated always as (
+  (coalesce(rating_hiring, 0) + coalesce(rating_communication, 0) + coalesce(rating_culture, 0) + coalesce(rating_pay, 0) + coalesce(rating_growth, 0))::numeric
+  / nullif((rating_hiring is not null)::int + (rating_communication is not null)::int + (rating_culture is not null)::int + (rating_pay is not null)::int + (rating_growth is not null)::int, 0)
+) stored;
+create index if not exists stories_company_rating on public.stories (company_id, rating_avg);
+
+create view public.company_scores as
+select
+  c.id, c.slug, c.name, c.color, c.summary, c.domain, c.website, c.logo_url, c.about, c.industry, c.size, c.hq_city, c.founded, c.careers_url, c.created_at,
+  count(s.id)::int as story_count,
+  round(avg((s.rating_hiring - 1) * 25))::int        as score_hiring,
+  round(avg((s.rating_communication - 1) * 25))::int as score_communication,
+  round(avg((s.rating_culture - 1) * 25))::int       as score_culture,
+  round(avg((s.rating_pay - 1) * 25))::int           as score_pay,
+  round(avg((s.rating_growth - 1) * 25))::int        as score_growth,
+  count(s.rating_hiring)::int        as count_hiring,
+  count(s.rating_communication)::int as count_communication,
+  count(s.rating_culture)::int       as count_culture,
+  count(s.rating_pay)::int           as count_pay,
+  count(s.rating_growth)::int        as count_growth,
+  round(avg((s.rating_avg - 1) * 25))::int as flag_score,
+  min(s.salary_min_lpa) as salary_min_lpa,
+  max(s.salary_max_lpa) as salary_max_lpa,
+  count(*) filter (where s.outcome = 'ghosted')::int       as ghosted_count,
+  count(*) filter (where s.outcome = 'offer_revoked')::int as revoked_count,
+  round(avg(s.days_waited))::int as avg_days_waited,
+  max(s.created_at) as last_story_at
+from public.companies c
+left join public.stories s on s.company_id = c.id and s.status = 'published'
+where c.status = 'listed'
+group by c.id;
+revoke all on public.company_scores from anon, authenticated;
+grant select on public.company_scores to service_role;
 
 commit;

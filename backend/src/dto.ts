@@ -1,5 +1,6 @@
 // Shapes that leave the API. Internal UUIDs (user, story, company) are never included.
 import { fromBytea } from "./lib/compression.js";
+import { dimensionScore, storyScore } from "./score.js";
 import { unsealBytea } from "./lib/sealed.js";
 import type { Profile } from "./security.js";
 
@@ -45,7 +46,8 @@ export function storyAuthor(p: AuthorRow) {
   return { ...author, name: author.revealed?.name ?? p.handle };
 }
 
-const score = (rating: number) => (rating - 1) * 25;
+// Missing ratings (not every journey has all five) stay null, never a fake score.
+const score = dimensionScore;
 
 export type StoryRow = {
   id: string;
@@ -55,14 +57,16 @@ export type StoryRow = {
   job_role: string | null;
   title: string;
   body_z: string; // bytea as "\x<hex>", Brotli-compressed
-  rating_hiring: number;
-  rating_communication: number;
-  rating_culture: number;
-  rating_pay: number;
-  rating_growth: number;
+  rating_hiring: number | null;
+  rating_communication: number | null;
+  rating_culture: number | null;
+  rating_pay: number | null;
+  rating_growth: number | null;
   salary_min_lpa: number | null;
   salary_max_lpa: number | null;
   days_waited: number | null;
+  joined?: boolean | null;
+  quick?: boolean;
   anonymous: boolean;
   edited_at: string | null;
   created_at: string;
@@ -71,7 +75,7 @@ export type StoryRow = {
   moderation?: { redactedBy?: string } | null;
 };
 
-export const STORY_COLUMNS = `id, public_id, outcome, stage, job_role, title, body_z, rating_hiring, rating_communication, rating_culture, rating_pay, rating_growth, salary_min_lpa, salary_max_lpa, days_waited, anonymous, created_at, edited_at, moderation, company:companies(slug, name, color, logo_url), author:profiles!stories_author_id_fkey(${AUTHOR_COLUMNS})`;
+export const STORY_COLUMNS = `id, public_id, outcome, stage, job_role, title, body_z, rating_hiring, rating_communication, rating_culture, rating_pay, rating_growth, salary_min_lpa, salary_max_lpa, days_waited, joined, quick, anonymous, created_at, edited_at, moderation, company:companies(slug, name, color, logo_url), author:profiles!stories_author_id_fkey(${AUTHOR_COLUMNS})`;
 // "!stories_author_id_fkey" names the link explicitly: stories also reach profiles through reactions,
 // and without the hint the database refuses to guess (PGRST201).
 
@@ -88,6 +92,9 @@ export function storyDto(s: StoryRow, counts: Counts | undefined, mine: Set<stri
     title: s.title,
     body: fromBytea(s.body_z),
     scores: { hiring: score(s.rating_hiring), communication: score(s.rating_communication), culture: score(s.rating_culture), pay: score(s.rating_pay), growth: score(s.rating_growth) },
+    flagScore: storyScore({ hiring: s.rating_hiring, communication: s.rating_communication, culture: s.rating_culture, pay: s.rating_pay, growth: s.rating_growth }),
+    joined: s.joined ?? null,
+    quick: s.quick ?? false,
     salary: s.salary_min_lpa != null && s.salary_max_lpa != null ? [Number(s.salary_min_lpa), Number(s.salary_max_lpa)] : null,
     daysWaited: s.days_waited,
     company: s.company,
@@ -107,6 +114,7 @@ export function storyDto(s: StoryRow, counts: Counts | undefined, mine: Set<stri
 export type CompanyScoreRow = {
   slug: string; name: string; color: string; summary: string | null; story_count: number;
   score_hiring: number | null; score_communication: number | null; score_culture: number | null; score_pay: number | null; score_growth: number | null;
+  count_hiring?: number; count_communication?: number; count_culture?: number; count_pay?: number; count_growth?: number;
   flag_score: number | null; salary_min_lpa: number | null; salary_max_lpa: number | null;
   ghosted_count: number; revoked_count: number; avg_days_waited: number | null; last_story_at: string | null;
   domain?: string | null; website?: string | null; logo_url?: string | null; about?: string | null; industry?: string | null;
@@ -125,6 +133,8 @@ export const companyDto = (c: CompanyScoreRow) => ({
   flagScore: c.flag_score,
   flag: flagLabel(c.flag_score),
   scores: c.story_count ? { hiring: c.score_hiring, communication: c.score_communication, culture: c.score_culture, pay: c.score_pay, growth: c.score_growth } : null,
+  // How many stories rated each dimension ("based on N stories"); 0 means no data yet.
+  scoreCounts: { hiring: c.count_hiring ?? c.story_count, communication: c.count_communication ?? c.story_count, culture: c.count_culture ?? c.story_count, pay: c.count_pay ?? c.story_count, growth: c.count_growth ?? c.story_count },
   salary: c.salary_min_lpa != null && c.salary_max_lpa != null ? [Number(c.salary_min_lpa), Number(c.salary_max_lpa)] : null,
   badges: [
     ...(c.ghosted_count >= 3 ? ["Ghosts Candidates"] : []),

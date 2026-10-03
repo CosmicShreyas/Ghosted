@@ -257,12 +257,13 @@ async function companyStats(companyId: string, viewer: Profile | null) {
     admin().from("company_follows").select("user_id", { count: "exact", head: true }).eq("company_id", companyId),
   ]);
   if (error) dbFail("company stats", error);
-  type Row = { id: string; outcome: string; stage: string; job_role: string | null; created_at: string; days_waited: number | null; salary_min_lpa: number | null; salary_max_lpa: number | null; rating_avg: number };
+  type Row = { id: string; outcome: string; stage: string; job_role: string | null; created_at: string; days_waited: number | null; salary_min_lpa: number | null; salary_max_lpa: number | null; rating_avg: number | null };
   const rows = (data ?? []) as Row[];
   const ids = rows.map((r) => r.id);
   const { data: counts } = ids.length ? await admin().from("story_counts").select("story_id, relatable, flags, comments").in("story_id", ids.slice(0, 1000)) : { data: [] };
   const sum = (k: string) => (counts ?? []).reduce((n, c) => n + Number((c as Record<string, unknown>)[k] ?? 0), 0);
-  const avg = (r: Row) => Number(r.rating_avg);
+  // A story with no ratings at all counts as mixed, never as critical.
+  const avg = (r: Row) => (r.rating_avg == null ? (POSITIVE + CRITICAL) / 2 : Number(r.rating_avg));
   const positive = rows.filter((r) => avg(r) >= POSITIVE), critical = rows.filter((r) => avg(r) <= CRITICAL);
 
   // Stories per week, split by sentiment (oldest first).

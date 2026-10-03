@@ -36,7 +36,11 @@ export type StoryModel = {
   // Goofy published it with a person's name hidden as [name].
   goofy?: "redacted" | null;
   stage?: string;
-  ratings?: { hiring: number; communication: number; culture: number; pay: number; growth: number };
+  // Not every journey rates all five: missing ones are null (see src/lib/score.ts).
+  ratings?: { hiring: number | null; communication: number | null; culture: number | null; pay: number | null; growth: number | null };
+  joined?: boolean | null;
+  quick?: boolean;
+  flagScore?: number | null;
   salary?: [number, number] | null;
   daysWaited?: number | null;
 };
@@ -111,7 +115,11 @@ export type StoryDto = {
   createdAt: string;
   editedAt?: string | null;
   goofy?: "redacted" | null;
-  ratings?: { hiring: number; communication: number; culture: number; pay: number; growth: number };
+  // Not every journey rates all five: missing ones are null (see src/lib/score.ts).
+  ratings?: { hiring: number | null; communication: number | null; culture: number | null; pay: number | null; growth: number | null };
+  joined?: boolean | null;
+  quick?: boolean;
+  flagScore?: number | null;
   salary?: [number, number] | null;
   daysWaited?: number | null;
 };
@@ -128,7 +136,7 @@ export function fromApi(s: StoryDto, index: Map<string, Company>): StoryModel {
     mine: s.myReactions ?? { relatable: false, flag: false },
     myReaction: s.myReaction,
     editedAt: s.editedAt ?? null, goofy: s.goofy ?? null, stage: s.stage,
-    ...(s.ratings && { ratings: s.ratings }),
+    ...(s.ratings && { ratings: s.ratings }), joined: s.joined ?? null, quick: s.quick ?? false, flagScore: s.flagScore ?? null,
     salary: s.salary ?? null, daysWaited: s.daysWaited ?? null,
   };
 }

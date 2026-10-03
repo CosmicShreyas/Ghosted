@@ -16,38 +16,50 @@ import { rankFeed, type Candidate } from "../algorithms/index.js";
 import { kickSweep } from "../automation.js";
 import { act, ensureCanPost, reportAs, say, strike } from "../goofy/index.js";
 import type { Review } from "../algorithms/index.js";
+import { checkJourney } from "../score.js";
 
 const rating = z.number().int().min(1).max(5);
 
+const optRating = rating.nullable().optional();
+const outcomeEnum = z.enum(["ghosted", "rejected", "offer", "offer_revoked", "ghost_job"]);
+const stageEnum = z.enum(["application", "screening", "technical", "final", "offer"]);
+// Which ratings a story may carry depends on its journey; checkJourney (score.ts) enforces it.
+const ratingsShape = z.object({ hiring: rating.optional(), communication: rating.optional(), culture: optRating, pay: optRating, growth: optRating }).strict();
+const salaryShape = z.object({ min: z.number().min(0).max(1000), max: z.number().min(0).max(1000) }).refine((s) => s.max >= s.min, "Max must be at least min");
+
 const newStory = z.object({
   companySlug: z.string().regex(/^[a-z0-9-]{2,60}$/),
-  outcome: z.enum(["ghosted", "rejected", "offer", "offer_revoked", "ghost_job"]),
-  stage: z.enum(["application", "screening", "technical", "final", "offer"]),
+  outcome: outcomeEnum,
+  stage: stageEnum,
   role: optionalText(140),
   title: text(5, 90),
   body: text(40, 4000),
-  ratings: z.object({ hiring: rating, communication: rating, culture: rating, pay: rating, growth: rating }),
-  salary: z.object({ min: z.number().min(0).max(1000), max: z.number().min(0).max(1000) }).refine((s) => s.max >= s.min, "Max must be at least min").optional(),
+  ratings: ratingsShape,
+  joined: z.boolean().nullable().optional(),
+  quick: z.boolean().optional(),
+  salary: salaryShape.optional(),
   daysWaited: z.number().int().min(0).max(730).optional(),
   // Kept for older clients; ignored. Identity is account-level (see dto.ts storyAuthor).
   anonymous: z.boolean().optional(),
   captchaToken: z.string().max(12000).optional(),
-}).strict();
+}).strict().superRefine(checkJourney);
 
 const idParam = validate("param", z.object({ id: publicId }));
 
 // Editing your own story: everything except the company (moving a story would move scores around).
 // Salary can be cleared with null. Edited stories get an "Edited" badge (edited_at).
 const storyEdit = z.object({
-  outcome: newStory.shape.outcome,
-  stage: newStory.shape.stage,
+  outcome: outcomeEnum,
+  stage: stageEnum,
   role: optionalText(140),
   title: text(5, 90),
   body: text(40, 4000),
-  ratings: newStory.shape.ratings,
-  salary: z.object({ min: z.number().min(0).max(1000), max: z.number().min(0).max(1000) }).refine((s) => s.max >= s.min, "Max must be at least min").nullable().optional(),
+  ratings: ratingsShape,
+  joined: z.boolean().nullable().optional(),
+  quick: z.boolean().optional(),
+  salary: salaryShape.nullable().optional(),
   daysWaited: z.number().int().min(0).max(730).nullable().optional(),
-}).strict();
+}).strict().superRefine(checkJourney);
 
 export const storyRoutes = new Hono<AppEnv>()
   // Feed, newest first, cursor-paginated with `before` (an ISO timestamp from the last item).
@@ -110,7 +122,8 @@ export const storyRoutes = new Hono<AppEnv>()
     const held = goofy.enabled && goofy.holdRisky && review.decision === "review";
     const { data, error } = await admin().from("stories").insert({
       author_id: me(c).id, company_id: company.id, outcome: body.outcome, stage: body.stage, job_role: body.role, title: body.title, body_z: toBytea(body.body),
-      rating_hiring: body.ratings.hiring, rating_communication: body.ratings.communication, rating_culture: body.ratings.culture, rating_pay: body.ratings.pay, rating_growth: body.ratings.growth,
+      rating_hiring: body.ratings.hiring, rating_communication: body.ratings.communication, rating_culture: body.ratings.culture ?? null, rating_pay: body.ratings.pay ?? null, rating_growth: body.ratings.growth ?? null,
+      joined: body.outcome === "offer" ? body.joined ?? null : null, quick: body.quick ?? false,
       salary_min_lpa: body.salary?.min ?? null, salary_max_lpa: body.salary?.max ?? null, days_waited: body.daysWaited ?? null, anonymous: false,
       status: held ? "pending" : "published", moderation: moderationRecord(review),
     }).select("public_id").single();
@@ -145,8 +158,11 @@ export const storyRoutes = new Hono<AppEnv>()
     const { data, error } = await admin().from("stories").update({
       moderation: moderationRecord(review), ...(held && { status: "pending" }),
       outcome: b.outcome, stage: b.stage, job_role: b.role, title: b.title, body_z: toBytea(b.body),
-      rating_hiring: b.ratings.hiring, rating_communication: b.ratings.communication, rating_culture: b.ratings.culture, rating_pay: b.ratings.pay, rating_growth: b.ratings.growth,
-      ...(b.salary !== undefined && { salary_min_lpa: b.salary?.min ?? null, salary_max_lpa: b.salary?.max ?? null }),
+      // Ratings that don't belong to the (possibly changed) journey are cleared, not kept.
+      rating_hiring: b.ratings.hiring, rating_communication: b.ratings.communication, rating_culture: b.ratings.culture ?? null, rating_pay: b.ratings.pay ?? null, rating_growth: b.ratings.growth ?? null,
+      joined: b.outcome === "offer" ? b.joined ?? null : null, ...(b.quick !== undefined && { quick: b.quick }),
+      ...(b.outcome !== "offer" && b.outcome !== "offer_revoked" ? { salary_min_lpa: null, salary_max_lpa: null }
+        : b.salary !== undefined && { salary_min_lpa: b.salary?.min ?? null, salary_max_lpa: b.salary?.max ?? null }),
       ...(b.daysWaited !== undefined && { days_waited: b.daysWaited }),
       edited_at: new Date().toISOString(),
     }).eq("public_id", id).eq("author_id", me(c).id).eq("status", "published").select("id");
