@@ -13,7 +13,7 @@ import { Avatar, CompanyMark, FlagScore, ScoreMeters } from "@/components/ghoste
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { displayName, firstName, isPublic, useTone, type Me } from "@/lib/session";
-import { cn } from "@/lib/utils";
+import { cn, formatCount } from "@/lib/utils";
 import { dashboardPrompts, type Company } from "@/mock/data";
 import { card, FeedStory } from "./widgets";
 import { RightRail } from "./global-widgets";
@@ -229,7 +229,7 @@ function SearchResults({ search, query, ...c }: Common & { search: ReturnType<ty
     {understood.length > 0 && <p className="-mt-2 text-xs text-muted-foreground">Searching {understood.join(" · ")}</p>}
     {search.loading || !d ? <StorySkeletons count={3} /> : <>
       {d.companies.length > 0 && <div className="no-scrollbar -mx-1 flex gap-3 overflow-x-auto px-1 pb-1">{d.companies.map((co) => <button key={co.id} type="button" onClick={() => c.openCompany(co)} className={cn(card, "flex shrink-0 items-center gap-3 p-3 pr-4 text-left transition-transform hover:-translate-y-0.5")}>
-        <CompanyMark company={co} size="sm" /><span><span className="block font-bold">{co.name}</span><span className="text-xs text-muted-foreground">{co.storyCount ? `${co.storyCount} ${co.storyCount === 1 ? "story" : "stories"}` : "No stories yet"}</span></span>{isRated(co) && <FlagScore score={co.score} compact />}
+        <CompanyMark company={co} size="sm" /><span><span className="block font-bold">{co.name}</span><span className="text-xs text-muted-foreground">{co.storyCount ? `${formatCount(co.storyCount)} ${co.storyCount === 1 ? "story" : "stories"}` : "No stories yet"}</span></span>{isRated(co) && <FlagScore score={co.score} compact />}
       </button>)}</div>}
       {d.stories.length ? <div className="space-y-4">{d.stories.map((s) => <FeedStory key={s.id} story={s} saved={c.saved.has(s.id)} onSave={() => c.toggleSave(s.id)} onOpenCompany={c.openCompany} />)}</div>
         : <Empty title="No stories match" copy="Try fewer words, or search a company name. Tips: “exact phrase”, company:acme, outcome:ghosted, -word to exclude." action={<Button onClick={c.onShare}><PenLine />Share a story</Button>} />}
@@ -256,7 +256,7 @@ export function MineView(c: Common) {
   if (apiEnabled && q.isPending) return <div className="space-y-6"><SectionHead eyebrow="Your receipts" title="My stories" /><StorySkeletons count={2} /></div>;
   return <div className="space-y-6">
     <SectionHead eyebrow="Your receipts" title="My stories" action={<Button onClick={c.onShare}><PenLine />New story</Button>} />
-    <div className="grid gap-4 sm:grid-cols-3">{[["Stories shared", mine.length], ["People who related", helped.toLocaleString("en-IN")], ["Red flags raised", mine.reduce((n, s) => n + s.flags, 0)]].map(([l, n]) => <div key={l} className={cn(card, "p-4")}><p className="text-xs font-bold uppercase text-muted-foreground">{l}</p><p className="mt-1 font-display text-3xl font-bold">{n}</p></div>)}</div>
+    <div className="grid gap-4 sm:grid-cols-3">{[["Stories shared", formatCount(mine.length)], ["People who related", formatCount(helped)], ["Red flags raised", formatCount(mine.reduce((n, s) => n + s.flags, 0))]].map(([l, n]) => <div key={l} className={cn(card, "p-4")}><p className="text-xs font-bold uppercase text-muted-foreground">{l}</p><p className="mt-1 font-display text-3xl font-bold">{n}</p></div>)}</div>
     {mine.length ? <StoryList list={mine} {...c} /> : <Empty title="No stories yet" copy="Your first story could save someone six rounds and a surprise take-home." action={<Button onClick={c.onShare}><PenLine />Share your first story</Button>} />}
   </div>;
 }
@@ -297,7 +297,7 @@ export function CompaniesView(c: Common) {
       const count = co.storyCount ?? sampleCount(co.id);
       const rated = isRated(co);
       return <button key={co.id} type="button" onClick={() => c.openCompany(co)} className="card-lift flex flex-col rounded-xl border-2 border-foreground bg-card p-5 text-left shadow-hard-sm">
-        <div className="flex items-start justify-between gap-3"><div className="flex min-w-0 items-center gap-3"><CompanyMark company={co} /><div className="min-w-0"><h3 className="truncate font-bold">{co.name}</h3><p className="truncate text-xs text-muted-foreground">{count} {count === 1 ? "story" : "stories"}{co.salary[1] > 0 ? ` · ₹${co.salary[0]}–${co.salary[1]} LPA` : co.domain ? ` · ${co.domain}` : ""}</p></div></div>
+        <div className="flex items-start justify-between gap-3"><div className="flex min-w-0 items-center gap-3"><CompanyMark company={co} /><div className="min-w-0"><h3 className="truncate font-bold">{co.name}</h3><p className="truncate text-xs text-muted-foreground">{formatCount(count)} {count === 1 ? "story" : "stories"}{co.salary[1] > 0 ? ` · ₹${co.salary[0]}–${co.salary[1]} LPA` : co.domain ? ` · ${co.domain}` : ""}</p></div></div>
           {rated ? <FlagScore score={co.score} compact /> : <span className="shrink-0 rounded-full border-2 border-foreground bg-accent px-2.5 py-0.5 text-[11px] font-bold uppercase">New</span>}</div>
         <p className="mt-3 line-clamp-3 text-sm">{co.summary || co.about}</p>
         {rated && <div className="mt-4"><ScoreMeters company={co} /></div>}

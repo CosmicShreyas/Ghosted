@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { apiEnabled } from "@/lib/api";
 import { useSearch } from "@/lib/search";
 import { isRated, useCompanyIndex } from "@/lib/stories";
-import { cn } from "@/lib/utils";
+import { cn, formatCount } from "@/lib/utils";
 import type { Company } from "@/mock/data";
 
 // Names people in Bengaluru tech hiring search for most. Shown as one-tap examples only when the
@@ -49,7 +49,7 @@ export function CompanySearch({ size = "lg", autoFocus = false, className }: { s
       className="absolute inset-x-0 top-full z-30 mt-2 overflow-hidden rounded-xl border-2 border-foreground bg-card text-left shadow-hard">
       {results.length ? <ul className="p-1.5">{results.map((c) => <li key={c.id}><button type="button" onClick={() => go(c)} className="flex min-h-12 w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left hover:bg-muted">
         <CompanyMark company={c} size="sm" />
-        <span className="min-w-0 flex-1"><span className="block truncate font-bold">{c.name}</span><span className="block text-xs text-muted-foreground">{isRated(c) ? `${c.storyCount ?? 0} ${(c.storyCount ?? 0) === 1 ? "story" : "stories"}` : "No stories yet. Be the first."}</span></span>
+        <span className="min-w-0 flex-1"><span className="block truncate font-bold">{c.name}</span><span className="block text-xs text-muted-foreground">{isRated(c) ? `${formatCount(c.storyCount ?? 0)} ${(c.storyCount ?? 0) === 1 ? "story" : "stories"}` : "No stories yet. Be the first."}</span></span>
         {isRated(c) && <FlagScore score={c.score} compact />}
       </button></li>)}</ul>
         : !loading && <div className="p-4 text-sm"><p className="font-bold">No company called “{q.trim()}” yet.</p><p className="mt-1 text-muted-foreground">Been through their hiring? Add it and share what happened.</p><Button size="sm" className="mt-3 min-h-10" asChild><Link to="/auth" search={{ intent: "share" }}><PenLine />Add it anonymously</Link></Button></div>}

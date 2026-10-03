@@ -18,12 +18,12 @@ import { ApiRequestError } from "@/lib/api";
 import type { CompanyPage, CompanyStats, useCompanyPage } from "@/lib/companies";
 import { useTone, voice } from "@/lib/session";
 import { isRated, OUTCOME_LABEL, type StoryModel } from "@/lib/stories";
-import { cn } from "@/lib/utils";
+import { cn, formatCount } from "@/lib/utils";
 import { activeDot, axis, barCursor, ChartTooltip, grid, INK, lineCursor } from "./chart-kit";
 import { INDUSTRY_LABEL } from "./global-widgets";
 import { card, popup, popupBody } from "./ui-kit";
 
-const nf = (n: number) => (n >= 10_000 ? `${(n / 1000).toFixed(1)}k` : n.toLocaleString("en-IN"));
+const nf = formatCount;
 const STAGE: Record<string, string> = { application: "Applied", screening: "Screen", technical: "Technical", final: "Final", offer: "Offer" };
 const OUTCOME_TONE: Record<string, string> = { ghosted: "var(--flag-red)", ghost_job: "var(--flag-red)", offer_revoked: "var(--flag-red)", rejected: "var(--flag-amber)", offer: "var(--flag-green)" };
 const SHORT: Record<string, string> = { ghosted: "Ghosted", rejected: "Rejected", offer: "Offer", offer_revoked: "Revoked", ghost_job: "Fake job" };

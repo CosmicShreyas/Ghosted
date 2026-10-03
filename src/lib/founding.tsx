@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { motion } from "motion/react";
 import { Award } from "lucide-react";
 import { api, apiEnabled } from "@/lib/api";
-import { cn } from "@/lib/utils";
+import { cn, formatCount } from "@/lib/utils";
 
 export type Founding = { contributors: number; limit: number; complete: boolean; foundingRank: number | null };
 
@@ -20,8 +20,7 @@ export function milestone(n: number) {
   return { next, prev };
 }
 
-// 950 → "950", 2500 → "2.5k", 3000 → "3k", 1250000 → "1.3M"
-export const short = (n: number) => (n < 1000 ? String(n) : n < 1_000_000 ? `${+(n / 1000).toFixed(n < 10_000 ? 1 : 0)}k` : `${+(n / 1_000_000).toFixed(1)}M`);
+const short = formatCount;
 
 export function FoundingProgress({ className, compact = false }: { className?: string; compact?: boolean }) {
   const f = useFounding();

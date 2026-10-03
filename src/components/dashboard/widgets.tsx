@@ -17,7 +17,7 @@ import { react, samplePublicId, type Author, type StoryModel, type StoryReaction
 import { ShareModal } from "./share-story";
 import { GOOFY_AVATAR, GOOFY_ID } from "@/lib/goofy";
 import { ReportFlow } from "./report-flow";
-import { cn } from "@/lib/utils";
+import { cn, formatCount } from "@/lib/utils";
 import type { Company } from "@/mock/data";
 
 // Shared class names (re-exported: many components import them from here).
@@ -186,18 +186,18 @@ export function FeedStory({ story, saved, onSave, onOpenCompany, full = false }:
           onContextMenu={(e) => e.preventDefault()}
           onClick={() => { if (held.current) { held.current = false; return; } void toggle(state.mine ?? "relatable"); }}
           className={cn("inline-flex items-center gap-1.5 rounded-full border-2 px-3 py-1 text-xs font-bold transition-colors [@media(pointer:fine)]:rounded-r-none", state.mine ? selected.active : "border-foreground bg-card hover:bg-muted")}>
-          <selected.Icon className={cn("size-3.5", state.mine === "love" && "fill-current")} />{state.counts[state.mine ?? "relatable"]} {state.mine ? selected.label.toLowerCase() : "relatable"}
+          <selected.Icon className={cn("size-3.5", state.mine === "love" && "fill-current")} />{formatCount(state.counts[state.mine ?? "relatable"])} {state.mine ? selected.label.toLowerCase() : "relatable"}
         </button>
         <button type="button" aria-label="Choose another reaction" aria-expanded={pickerOpen} onClick={() => setPickerOpen((v) => !v)} className="hidden w-8 place-items-center rounded-r-full border-2 border-l-0 border-foreground bg-card hover:bg-muted [@media(pointer:fine)]:grid"><Plus className="size-3.5" /></button>
       </div>
       {/* One strip above the button on every screen. Phones get icon + count only, so all five fit in a row. */}
       <AnimatePresence>{pickerOpen && <motion.div initial={{ opacity: 0, y: 6, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 6, scale: 0.96 }} transition={{ type: "spring", stiffness: 500, damping: 32 }}
         className="absolute bottom-10 left-0 z-20 flex max-w-[calc(100vw-3rem)] origin-bottom-left gap-1 rounded-full border-2 border-foreground bg-card p-1 shadow-hard sm:gap-1.5 sm:rounded-xl sm:p-2" role="menu" aria-label="Story reactions">
-        {REACTIONS.map(({ id, label, Icon, active, soft }) => <button key={id} type="button" role="menuitemradio" aria-checked={state.mine === id} aria-label={`${label}, ${state.counts[id]}`} onClick={() => void toggle(id)} title={label} className={cn("inline-flex items-center gap-1 whitespace-nowrap rounded-full border-2 border-transparent px-2 py-1.5 text-xs font-bold sm:gap-1.5 sm:px-2.5", state.mine === id ? active : soft)}><Icon className={cn("size-4", id === "love" && state.mine === id && "fill-current")} /><span className="hidden sm:inline">{label}</span><span className="tabular-nums opacity-75">{state.counts[id]}</span></button>)}
+        {REACTIONS.map(({ id, label, Icon, active, soft }) => <button key={id} type="button" role="menuitemradio" aria-checked={state.mine === id} aria-label={`${label}, ${state.counts[id]}`} onClick={() => void toggle(id)} title={label} className={cn("inline-flex items-center gap-1 whitespace-nowrap rounded-full border-2 border-transparent px-2 py-1.5 text-xs font-bold sm:gap-1.5 sm:px-2.5", state.mine === id ? active : soft)}><Icon className={cn("size-4", id === "love" && state.mine === id && "fill-current")} /><span className="hidden sm:inline">{label}</span><span className="tabular-nums opacity-75">{formatCount(state.counts[id])}</span></button>)}
       </motion.div>}</AnimatePresence>
       {full
-        ? <button type="button" onClick={() => document.getElementById("chitchats")?.scrollIntoView({ behavior: "smooth", block: "start" })} className={pill(false)}><MessageCircle className="size-3.5" />{story.comments} chitchats</button>
-        : <Link to="/s/$id" params={{ id: story.id }} hash="chitchats" className={pill(false)}><MessageCircle className="size-3.5" />{story.comments} chitchats</Link>}
+        ? <button type="button" onClick={() => document.getElementById("chitchats")?.scrollIntoView({ behavior: "smooth", block: "start" })} className={pill(false)}><MessageCircle className="size-3.5" />{formatCount(story.comments)} chitchats</button>
+        : <Link to="/s/$id" params={{ id: story.id }} hash="chitchats" className={pill(false)}><MessageCircle className="size-3.5" />{formatCount(story.comments)} chitchats</Link>}
       <span className="flex-1" />
       <button type="button" onClick={share} aria-label="Copy link to story" className="grid size-8 place-items-center rounded-lg hover:bg-muted"><Share2 className="size-4" /></button>
     </div>

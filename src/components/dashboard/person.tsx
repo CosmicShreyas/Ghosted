@@ -15,12 +15,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { ApiRequestError } from "@/lib/api";
 import { OUTCOME_LABEL } from "@/lib/stories";
 import type { PersonPage, PersonStats, usePerson } from "@/lib/people";
-import { cn } from "@/lib/utils";
+import { cn, formatCount } from "@/lib/utils";
 import { activeDot, axis, barCursor, ChartTooltip, grid, INK, lineCursor, SERIES } from "./chart-kit";
 import { card, popup, popupBody } from "./ui-kit";
 import { FoundingBadge } from "@/lib/founding";
 
-const nf = (n: number) => (n >= 10_000 ? `${(n / 1000).toFixed(n >= 100_000 ? 0 : 1)}k` : n.toLocaleString("en-IN"));
+const nf = formatCount;
 const joined = (iso: string | null) => (iso ? new Intl.DateTimeFormat("en-IN", { month: "long", year: "numeric" }).format(new Date(iso)) : null);
 
 // ---------- header ----------

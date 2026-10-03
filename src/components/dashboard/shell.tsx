@@ -199,7 +199,7 @@ function Notifications() {
   const unread = bell.unread;
   // Opening the list no longer marks anything read: only the eye buttons do.
   const onOpenChange = (open: boolean) => { if (open) anim.start(); };
-  const trigger = <Button size="icon" variant="outline" {...anim.trigger} className="relative border-2 border-foreground" aria-label={`Notifications${unread ? `, ${unread} unread` : ""}`}><BellIcon ref={anim.ref} size={16} />{unread > 0 && <span className="absolute -right-1.5 -top-1.5 grid size-5 place-items-center rounded-full border-2 border-foreground bg-flag-red text-[10px] font-bold text-primary-foreground">{unread}</span>}</Button>;
+  const trigger = <Button size="icon" variant="outline" {...anim.trigger} className="relative border-2 border-foreground" aria-label={`Notifications${unread ? `, ${unread} unread` : ""}`}><BellIcon ref={anim.ref} size={16} />{unread > 0 && <span className="absolute -right-1.5 -top-1.5 grid size-5 place-items-center rounded-full border-2 border-foreground bg-flag-red text-[10px] font-bold text-primary-foreground">{unread > 99 ? "99+" : unread}</span>}</Button>;
 
   if (touch) return <Drawer shouldScaleBackground={false} onOpenChange={onOpenChange}>
     <DrawerTrigger asChild>{trigger}</DrawerTrigger>

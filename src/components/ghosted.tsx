@@ -4,7 +4,7 @@ import type { StoryModel } from "@/lib/stories";
 import { plainText } from "@/components/markdown";
 import { getCompany, getUser } from "@/mock/data";
 import { Flag, HeartHandshake, MessageCircle, Zap } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, formatCount } from "@/lib/utils";
 
 export function Avatar({ seed, pastel, size = "md", label = "Anonymous user" }: { seed: string; pastel: string; size?: "sm" | "md" | "lg"; label?: string }) {
   return <img src={`https://api.dicebear.com/9.x/open-peeps/svg?seed=${seed}`} alt={label} className={cn("shrink-0 rounded-full border-2 border-foreground object-cover", pastel, size === "sm" && "size-9", size === "md" && "size-11", size === "lg" && "size-16")} />;
@@ -76,7 +76,7 @@ export function StoryModelCard({ story }: { story: StoryModel }) {
     <div className="mb-3 flex flex-wrap items-center gap-2"><span className="rounded-full border-2 border-foreground bg-accent px-2.5 py-0.5 text-[11px] font-bold uppercase">{story.outcomeLabel}</span>{story.role && <span className="text-xs font-semibold text-muted-foreground">{story.role}</span>}</div>
     {story.title && <h3 className="mb-1 font-bold">{story.title}</h3>}
     <p className="line-clamp-6 leading-relaxed">{plainText(story.body)}</p>
-    <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold">{([[HeartHandshake, story.relatable, "relatable"], [Flag, story.flags, "red flags"], [MessageCircle, story.comments, "chitchats"]] as const).map(([I, n, label]) => { const red = label === "red flags"; return <span key={label} className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1", red ? "border-flag-red text-flag-red" : "border-foreground")}><I className={cn("size-3.5", red && "fill-flag-red/20")} />{n} {label}</span>; })}</div>
+    <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold">{([[HeartHandshake, story.relatable, "relatable"], [Flag, story.flags, "red flags"], [MessageCircle, story.comments, "chitchats"]] as const).map(([I, n, label]) => { const red = label === "red flags"; return <span key={label} className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1", red ? "border-flag-red text-flag-red" : "border-foreground")}><I className={cn("size-3.5", red && "fill-flag-red/20")} />{formatCount(n)} {label}</span>; })}</div>
   </article>;
 }
 
@@ -88,6 +88,6 @@ export function StoryCard({ story, tilted = false }: { story: Story; tilted?: bo
     <div className="mb-4 flex items-center gap-3"><Avatar seed={user.seed} pastel={user.pastel} size="sm" label={user.handle} /><div className="min-w-0"><p className="truncate text-sm font-bold">{user.handle}</p><p className="truncate text-xs text-muted-foreground">about {company.name} · {story.time}</p></div></div>
     <div className="mb-3 flex flex-wrap items-center gap-2"><span className="rounded-full border-2 border-foreground bg-accent px-2.5 py-0.5 text-[11px] font-bold uppercase">{outcome}</span>{role && <span className="text-xs font-semibold text-muted-foreground">{role}</span>}</div>
     <p className="leading-relaxed">{story.excerpt}</p>
-    <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold">{[[HeartHandshake, story.relatable, "relatable"], [Flag, story.flags, "red flags"], [MessageCircle, story.comments, "chitchats"]].map(([Icon, n, label]) => { const I = Icon as typeof Flag; const red = label === "red flags"; return <span key={label as string} className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1", red ? "border-flag-red text-flag-red" : "border-foreground")}><I className={cn("size-3.5", red && "fill-flag-red/20")} />{n as number} {label as string}</span>; })}</div>
+    <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold">{[[HeartHandshake, story.relatable, "relatable"], [Flag, story.flags, "red flags"], [MessageCircle, story.comments, "chitchats"]].map(([Icon, n, label]) => { const I = Icon as typeof Flag; const red = label === "red flags"; return <span key={label as string} className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1", red ? "border-flag-red text-flag-red" : "border-foreground")}><I className={cn("size-3.5", red && "fill-flag-red/20")} />{formatCount(n as number)} {label as string}</span>; })}</div>
   </article>;
 }

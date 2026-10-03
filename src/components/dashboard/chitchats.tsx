@@ -18,7 +18,7 @@ import { useReachEnd } from "@/lib/feed";
 import { displayName, useMe, useTone, voice } from "@/lib/session";
 import { samplePublicId, timeAgo, type Author } from "@/lib/stories";
 import { apiEnabled } from "@/lib/api";
-import { cn } from "@/lib/utils";
+import { cn, formatCount } from "@/lib/utils";
 import { PersonLink } from "./widgets";
 import { card } from "./ui-kit";
 
@@ -83,7 +83,7 @@ function Item({ c, isReply, storyAuthorId, onReply, hooks, onReport }: { c: Chit
       <div className="mt-1.5 flex flex-wrap items-center gap-1">
         {/* Chitchats can be relatable (never red-flagged). */}
         <button type="button" aria-pressed={c.myRelatable} onClick={() => void relate()} className={cn("inline-flex items-center gap-1.5 rounded-full border-2 px-2.5 py-0.5 text-xs font-bold transition-colors", c.myRelatable ? "border-foreground bg-primary text-primary-foreground" : "border-transparent hover:border-foreground hover:bg-muted")}>
-          <HeartHandshake className="size-3.5" />{c.relatable > 0 ? c.relatable : ""}<span className="sr-only sm:not-sr-only">{c.relatable === 1 ? "relatable" : "relatable"}</span>
+          <HeartHandshake className="size-3.5" />{c.relatable > 0 ? formatCount(c.relatable) : ""}<span className="sr-only sm:not-sr-only">{c.relatable === 1 ? "relatable" : "relatable"}</span>
         </button>
         <button type="button" onClick={onReply} className="inline-flex items-center gap-1.5 rounded-full border-2 border-transparent px-2.5 py-0.5 text-xs font-bold hover:border-foreground hover:bg-muted"><CornerDownRight className="size-3.5" />Reply</button>
         <DropdownMenu>

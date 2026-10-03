@@ -16,11 +16,11 @@ import { timeAgo } from "@/lib/stories";
 import { GOOFY_AVATAR, useGoofyActivity, type GoofyActivity, type GoofyStats } from "@/lib/goofy";
 import type { PersonPage, usePerson } from "@/lib/people";
 import { useReachEnd } from "@/lib/feed";
-import { cn } from "@/lib/utils";
+import { cn, formatCount } from "@/lib/utils";
 import { axis, barCursor, ChartTooltip, grid } from "./chart-kit";
 import { card } from "./ui-kit";
 
-const nf = (n: number) => (n >= 10_000 ? `${(n / 1000).toFixed(n >= 100_000 ? 0 : 1)}k` : n.toLocaleString("en-IN"));
+const nf = formatCount;
 
 // Violet like his portrait, with his cream sparkles and rings scattered across.
 function GoofyBanner({ className }: { className?: string }) {
