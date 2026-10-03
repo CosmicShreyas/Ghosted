@@ -85,7 +85,8 @@ export function CompanyActions({ page, hook, onShare, onReport }: { page: Compan
   };
   const spin = (id: string, icon: ReactNode) => (busy === id ? <Loader2 className="animate-spin" /> : icon);
   return <>
-    <Button onClick={onShare}><PenLine />Share a story here</Button>
+    {/* Short label so Share, Follow, the bell and the menu stay on one row. */}
+    <Button onClick={onShare}><PenLine />Share a story</Button>
     {rel.following
       ? <Button variant="outline" disabled={!!busy} onClick={() => void run("follow", hook.unfollow, `Stopped following ${name}.`)} className="group"><span className="contents group-hover:hidden">{spin("follow", <UserCheck />)}Following</span><span className="hidden group-hover:contents"><UserPlus className="rotate-45" />Unfollow</span></Button>
       : <Button variant="outline" disabled={!!busy} onClick={() => void run("follow", hook.follow, `Following ${name}.`)}>{spin("follow", <UserPlus />)}Follow</Button>}

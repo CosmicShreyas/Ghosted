@@ -1,9 +1,13 @@
 // Link-preview images (1200×630), like GitHub's repo cards: what shows when a story or company page
-// is shared on LinkedIn, X, WhatsApp or Slack. Drawn with satori (layout to SVG) and resvg (to PNG).
+// is shared on LinkedIn, X, WhatsApp or Slack. Drawn with @vercel/og (satori + resvg in WebAssembly).
 // A story card shows its title, company, outcome, wait and Flag Score, never the story text or who
 // wrote it. Fonts are fetched once per server instance and cached.
+// satori lays the card out as SVG; resvg's WebAssembly build turns it into a PNG. No native binary
+// (the native resvg build failed to load on Vercel), so it runs anywhere Node runs.
 import satori from "satori";
-import { Resvg } from "@resvg/resvg-js";
+import { initWasm, Resvg } from "@resvg/resvg-wasm";
+import { readFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { EMAIL_LOGO_BASE64 } from "./mail/logo.js";
 
 type Node = { type: string; props: Record<string, unknown> & { children?: unknown } };
@@ -44,9 +48,15 @@ const frame = (site: string, ...children: unknown[]) => h("div", { width: 1200, 
   h("div", { flexDirection: "column", justifyContent: "space-between", width: "100%", height: "100%", border: `4px solid ${INK}`, borderRadius: 36, background: "#fff", padding: "40px 52px", boxShadow: `12px 12px 0 ${INK}` },
     brand(site), ...children));
 
-async function render(node: Node) {
-  const svg = await satori(node as never, { width: 1200, height: 630, fonts: await loadFonts() });
-  return new Resvg(svg, { fitTo: { mode: "width", value: 1200 } }).render().asPng();
+// The renderer's WebAssembly, loaded once per server instance. require.resolve lets Vercel's file
+// tracing find and ship the .wasm file with the function.
+let wasmReady: Promise<void> | null = null;
+const ensureWasm = () => (wasmReady ??= readFile(createRequire(import.meta.url).resolve("@resvg/resvg-wasm/index_bg.wasm")).then((buf) => initWasm(buf)).catch((e: Error) => { wasmReady = null; throw e; }));
+
+async function render(node: Node): Promise<Buffer> {
+  const [, loaded] = await Promise.all([ensureWasm(), loadFonts()]);
+  const svg = await satori(node as never, { width: 1200, height: 630, fonts: loaded });
+  return Buffer.from(new Resvg(svg, { fitTo: { mode: "width", value: 1200 } }).render().asPng());
 }
 
 const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s);

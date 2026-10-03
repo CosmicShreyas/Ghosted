@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { companyCard, siteCard, storyCard } from "../src/og.js";
 
 const out = process.argv[2] ?? ".";
-const site = "https://ghosted-platform.vibgyor.co.in";
+const site = "https://ghosted-platform.vercel.app";
 writeFileSync(join(out, "og-story.png"), await storyCard({ title: "Ghosted after the final round, waited over 2 months", company: "Example Corp", outcome: "Ghosted", wait: "over 2 months", score: 13, quick: true, relatable: 3 }, site));
 writeFileSync(join(out, "og-company.png"), await companyCard({ name: "Example Corp", stories: 4, score: 38, ghosted: 2, avgWait: 34, city: "Bengaluru" }, site));
 writeFileSync(join(out, "og-site.png"), await siteCard(site));
