@@ -6,8 +6,11 @@ import { requestId } from "hono/request-id";
 import { secureHeaders } from "hono/secure-headers";
 import { env } from "./env.js";
 import { admin } from "./supabase.js";
-import { companyCard, siteCard, storyCard } from "./og.js";
 import { storyScore } from "./score.js";
+// The preview-image renderer (satori + resvg, which has a native binary) is loaded only when an
+// image is requested. If it can't load on the server, only /v1/og fails; the rest of the API is
+// unaffected (importing it here at start-up once took every endpoint down).
+const og = () => import("./og.js");
 import { ApiError } from "./errors.js";
 import { authRoutes } from "./routes/auth.js";
 import { applicationRoutes } from "./routes/applications.js";
@@ -152,27 +155,34 @@ app.get("/v1/sitemap.xml", rateLimit({ name: "sitemap", max: 30, windowSeconds: 
 // missing, unpublished or failing falls back to the generic site card, so a share never breaks.
 const OG_OUTCOME: Record<string, string> = { ghosted: "Ghosted", rejected: "Rejected", offer: "Got an offer", offer_revoked: "Offer revoked", ghost_job: "Ghost job" };
 const waitWords = (d: number) => (d < 7 ? "under a week" : d <= 14 ? "1 to 2 weeks" : d <= 30 ? "2 to 4 weeks" : d <= 60 ? "1 to 2 months" : "over 2 months");
+// The generic site card; if even that can't be drawn, the platform's square icon (never a 500).
+const fallback = async (c: Context, site: string) => {
+  try { return png(c, await (await og()).siteCard(site)); }
+  catch (e) { console.error("[og] renderer unavailable", (e as Error).message); return c.redirect(`${site}/icon-512.png`, 302); }
+};
 const png = (c: Context, buf: Buffer) => { c.header("Content-Type", "image/png"); c.header("Cache-Control", "public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800"); return c.body(new Uint8Array(buf)); };
 app.get("/v1/og/s/:id{[0-9]{15}}.png", rateLimit({ name: "og", max: 120, windowSeconds: 60 }), async (c) => {
   const site = env().FRONTEND_URL;
   try {
     const { data } = await admin().from("stories").select("id, title, outcome, days_waited, quick, rating_hiring, rating_communication, rating_culture, rating_pay, rating_growth, company:companies(name)").eq("public_id", c.req.param("id")).eq("status", "published").maybeSingle();
     const s = data as unknown as { id: string; title: string; outcome: string; days_waited: number | null; quick: boolean | null; rating_hiring: number | null; rating_communication: number | null; rating_culture: number | null; rating_pay: number | null; rating_growth: number | null; company: { name: string } | null } | null;
-    if (!s) return png(c, await siteCard(site));
+    if (!s) return fallback(c, site);
+    const { storyCard } = await og();
     const { data: counts } = await admin().from("story_counts").select("relatable").eq("story_id", s.id).maybeSingle();
     return png(c, await storyCard({ title: s.title, company: s.company?.name ?? "a company", outcome: OG_OUTCOME[s.outcome] ?? s.outcome, wait: s.days_waited != null ? waitWords(s.days_waited) : null, score: storyScore({ hiring: s.rating_hiring, communication: s.rating_communication, culture: s.rating_culture, pay: s.rating_pay, growth: s.rating_growth }), quick: !!s.quick, relatable: Number((counts as { relatable?: number } | null)?.relatable ?? 0) }, site));
-  } catch (e) { console.error("[og] story", (e as Error).message); return png(c, await siteCard(site).catch(() => Buffer.alloc(0))); }
+  } catch (e) { console.error("[og] story", (e as Error).message); return fallback(c, site); }
 });
 app.get("/v1/og/c/:slug{[a-z0-9-]{2,60}}.png", rateLimit({ name: "og", max: 120, windowSeconds: 60 }), async (c) => {
   const site = env().FRONTEND_URL;
   try {
     const { data } = await admin().from("company_scores").select("name, story_count, flag_score, ghosted_count, avg_days_waited, hq_city").eq("slug", c.req.param("slug")).maybeSingle();
     const r = data as { name: string; story_count: number; flag_score: number | null; ghosted_count: number; avg_days_waited: number | null; hq_city: string | null } | null;
-    if (!r) return png(c, await siteCard(site));
+    if (!r) return fallback(c, site);
+    const { companyCard } = await og();
     return png(c, await companyCard({ name: r.name, stories: r.story_count, score: r.flag_score, ghosted: r.ghosted_count, avgWait: r.avg_days_waited, city: r.hq_city }, site));
-  } catch (e) { console.error("[og] company", (e as Error).message); return png(c, await siteCard(site).catch(() => Buffer.alloc(0))); }
+  } catch (e) { console.error("[og] company", (e as Error).message); return fallback(c, site); }
 });
-app.get("/v1/og/site.png", rateLimit({ name: "og", max: 120, windowSeconds: 60 }), async (c) => png(c, await siteCard(env().FRONTEND_URL)));
+app.get("/v1/og/site.png", rateLimit({ name: "og", max: 120, windowSeconds: 60 }), (c) => fallback(c, env().FRONTEND_URL));
 
 app.route("/v1/me/2fa", mfaRoutes);
 app.route("/v1/me/applications", applicationRoutes);
