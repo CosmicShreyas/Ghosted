@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Bookmark, HandHeart, Heart, HeartHandshake, Lightbulb, MessageCircle, MoreHorizontal, PenLine, Plus, Share2, ShieldAlert, Sparkles, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -177,7 +177,7 @@ export function FeedStory({ story, saved, onSave, onOpenCompany, full = false }:
       </AlertDialog>
     </>}
     <div className="relative mt-4 flex flex-wrap items-center gap-2">
-      <div className="flex items-center">
+      <div className="flex items-stretch">
         <button type="button" aria-pressed={!!state.mine} aria-label={`${state.mine ? `Remove ${selected.label}` : "Relatable"}. Press and hold on touch screens for more reactions.`}
           onPointerDown={startHold} onPointerUp={endHold} onPointerCancel={endHold} onPointerLeave={endHold}
           onContextMenu={(e) => e.preventDefault()}
@@ -185,11 +185,13 @@ export function FeedStory({ story, saved, onSave, onOpenCompany, full = false }:
           className={cn("inline-flex items-center gap-1.5 rounded-full border-2 px-3 py-1 text-xs font-bold transition-colors [@media(pointer:fine)]:rounded-r-none", state.mine ? selected.active : "border-foreground bg-card hover:bg-muted")}>
           <selected.Icon className={cn("size-3.5", state.mine === "love" && "fill-current")} />{state.counts[state.mine ?? "relatable"]} {state.mine ? selected.label.toLowerCase() : "relatable"}
         </button>
-        <button type="button" aria-label="Choose another reaction" aria-expanded={pickerOpen} onClick={() => setPickerOpen((v) => !v)} className="hidden size-[30px] -ml-0.5 place-items-center rounded-r-full border-2 border-foreground bg-card hover:bg-muted [@media(pointer:fine)]:grid"><Plus className="size-3.5" /></button>
+        <button type="button" aria-label="Choose another reaction" aria-expanded={pickerOpen} onClick={() => setPickerOpen((v) => !v)} className="hidden w-8 place-items-center rounded-r-full border-2 border-l-0 border-foreground bg-card hover:bg-muted [@media(pointer:fine)]:grid"><Plus className="size-3.5" /></button>
       </div>
-      {pickerOpen && <div className="order-last flex w-full flex-wrap gap-1.5 rounded-xl border-2 border-foreground bg-card p-2 shadow-hard sm:absolute sm:bottom-9 sm:left-0 sm:z-20 sm:w-auto sm:flex-nowrap" role="menu" aria-label="Story reactions">
-        {REACTIONS.map(({ id, label, Icon, active, soft }) => <button key={id} type="button" role="menuitemradio" aria-checked={state.mine === id} onClick={() => void toggle(id)} title={label} className={cn("inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border-2 border-transparent px-2.5 py-1.5 text-xs font-bold", state.mine === id ? active : soft)}><Icon className={cn("size-4", id === "love" && state.mine === id && "fill-current")} /><span>{label}</span><span className="tabular-nums opacity-75">{state.counts[id]}</span></button>)}
-      </div>}
+      {/* One strip above the button on every screen. Phones get icon + count only, so all five fit in a row. */}
+      <AnimatePresence>{pickerOpen && <motion.div initial={{ opacity: 0, y: 6, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 6, scale: 0.96 }} transition={{ type: "spring", stiffness: 500, damping: 32 }}
+        className="absolute bottom-10 left-0 z-20 flex max-w-[calc(100vw-3rem)] origin-bottom-left gap-1 rounded-full border-2 border-foreground bg-card p-1 shadow-hard sm:gap-1.5 sm:rounded-xl sm:p-2" role="menu" aria-label="Story reactions">
+        {REACTIONS.map(({ id, label, Icon, active, soft }) => <button key={id} type="button" role="menuitemradio" aria-checked={state.mine === id} aria-label={`${label}, ${state.counts[id]}`} onClick={() => void toggle(id)} title={label} className={cn("inline-flex items-center gap-1 whitespace-nowrap rounded-full border-2 border-transparent px-2 py-1.5 text-xs font-bold sm:gap-1.5 sm:px-2.5", state.mine === id ? active : soft)}><Icon className={cn("size-4", id === "love" && state.mine === id && "fill-current")} /><span className="hidden sm:inline">{label}</span><span className="tabular-nums opacity-75">{state.counts[id]}</span></button>)}
+      </motion.div>}</AnimatePresence>
       {full
         ? <button type="button" onClick={() => document.getElementById("chitchats")?.scrollIntoView({ behavior: "smooth", block: "start" })} className={pill(false)}><MessageCircle className="size-3.5" />{story.comments} chitchats</button>
         : <Link to="/s/$id" params={{ id: story.id }} hash="chitchats" className={pill(false)}><MessageCircle className="size-3.5" />{story.comments} chitchats</Link>}
