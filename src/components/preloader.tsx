@@ -18,11 +18,13 @@ export function Preloader() {
   }, [lines]);
 
   return <div className="grid min-h-screen place-items-center bg-background px-6" role="status" aria-live="polite" aria-busy="true">
-    <div className="flex flex-col items-center gap-4 text-center">
-      <motion.img src="/ghosted-mark.png" alt="" className="size-20 object-contain" animate={{ y: [0, -10, 0], rotate: [-4, 4, -4] }} transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }} />
-      <div className="h-6">
+    <div className="flex w-full max-w-lg flex-col items-center gap-4 text-center">
+      <div className="grid h-24 w-24 shrink-0 place-items-center" aria-hidden="true">
+        <motion.img src="/ghosted-mark.png" alt="" className="size-20 object-contain" animate={{ y: [0, -10, 0], rotate: [-4, 4, -4] }} transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }} />
+      </div>
+      <div className="relative grid min-h-14 w-full place-items-center overflow-hidden px-2 sm:min-h-12">
         <AnimatePresence mode="wait">
-          <motion.p key={`${tone}-${i}`} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.2 }} className="font-display text-lg font-bold">{lines[i % lines.length]}</motion.p>
+          <motion.p key={`${tone}-${i}`} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.2 }} className="col-start-1 row-start-1 max-w-full text-balance font-display text-base font-bold leading-snug sm:text-lg">{lines[i % lines.length]}</motion.p>
         </AnimatePresence>
       </div>
       <div className="h-1.5 w-40 overflow-hidden rounded-full border border-foreground bg-muted">

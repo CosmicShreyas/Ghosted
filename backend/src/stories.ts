@@ -8,7 +8,7 @@ export async function hydrate(rows: StoryRow[], viewer: Profile | null) {
   if (!rows.length) return [];
   const ids = rows.map((r) => r.id);
   const [countsRes, mineRes] = await Promise.all([
-    admin().from("story_counts").select("story_id, relatable, flags, comments").in("story_id", ids),
+    admin().from("story_counts").select("story_id, relatable, insightful, creative, support, love, flags, comments").in("story_id", ids),
     viewer ? admin().from("reactions").select("story_id, kind").eq("user_id", viewer.id).in("story_id", ids) : Promise.resolve({ data: [], error: null }),
   ]);
   if (countsRes.error) dbFail("story counts", countsRes.error);

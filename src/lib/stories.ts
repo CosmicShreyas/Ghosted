@@ -9,6 +9,10 @@ import { companies as sampleCompanies, getCompany, getUser, stories as sampleSto
 export type Author = { publicId: string; name: string; avatarSeed: string; pastel: string; revealed: Revealed | null };
 export type Revealed = { name: string | null; role: string | null; experience: string | null; city: string | null; linkedin: string | null };
 
+export const STORY_REACTIONS = ["relatable", "insightful", "creative", "support", "love"] as const;
+export type StoryReaction = (typeof STORY_REACTIONS)[number];
+export type StoryReactionCounts = Record<StoryReaction, number>;
+
 export type StoryModel = {
   id: string; // public id (API) or sample id
   company: Company;
@@ -19,11 +23,13 @@ export type StoryModel = {
   body: string;
   relatable: number;
   flags: number;
+  reactions: StoryReactionCounts;
   comments: number;
   createdAt: string | null;
   timeLabel: string;
   author: Author;
   mine: { relatable: boolean; flag: boolean };
+  myReaction: StoryReaction | null;
   // Present on real (API) stories: when it was last edited, and the raw values behind it, so the
   // author can edit it with everything pre-filled.
   editedAt?: string | null;
@@ -60,9 +66,10 @@ export function fromSample(s: Story): StoryModel {
   const outcome = OUTCOME_FROM_TEXT.find(([re]) => re.test(outcomeText))?.[1] ?? "rejected";
   return {
     id: s.id, company: getCompany(s.companyId), outcome, outcomeLabel: outcomeText, role, title: null, body: s.excerpt,
-    relatable: s.relatable, flags: s.flags, comments: s.comments, createdAt: null, timeLabel: s.time,
+    relatable: s.relatable, flags: s.flags, reactions: { relatable: s.relatable, insightful: Math.round(s.flags * .35), creative: Math.round(s.flags * .15), support: Math.round(s.flags * .3), love: Math.round(s.flags * .2) }, comments: s.comments, createdAt: null, timeLabel: s.time,
     author: { publicId: samplePublicId(user.id), name: user.handle, avatarSeed: user.seed, pastel: user.pastel, revealed: null },
     mine: { relatable: false, flag: false },
+    myReaction: null,
   };
 }
 
@@ -98,8 +105,9 @@ export type StoryDto = {
   publicId: string; outcome: string; stage: string; role: string | null; title: string; body: string;
   company: { slug: string; name: string; color: string } | null;
   author: { publicId: string; name: string; avatarSeed: string; pastel: string; revealed: Revealed | null } | null;
-  counts: { relatable: number; flags: number; comments: number };
-  myReactions: { relatable: boolean; flag: boolean } | null;
+  counts: StoryReactionCounts & { flags: number; comments: number };
+  myReaction: StoryReaction | null;
+  myReactions?: { relatable: boolean; flag: boolean } | null;
   createdAt: string;
   editedAt?: string | null;
   goofy?: "redacted" | null;
@@ -115,9 +123,10 @@ export function fromApi(s: StoryDto, index: Map<string, Company>): StoryModel {
     : getCompany("nimbus"));
   return {
     id: s.publicId, company, outcome: s.outcome, outcomeLabel: OUTCOME_LABEL[s.outcome] ?? s.outcome, role: s.role, title: s.title, body: s.body,
-    relatable: s.counts.relatable, flags: s.counts.flags, comments: s.counts.comments, createdAt: s.createdAt, timeLabel: timeAgo(s.createdAt),
+    relatable: s.counts.relatable, flags: s.counts.flags, reactions: { relatable: s.counts.relatable, insightful: s.counts.insightful, creative: s.counts.creative, support: s.counts.support, love: s.counts.love }, comments: s.counts.comments, createdAt: s.createdAt, timeLabel: timeAgo(s.createdAt),
     author: s.author ?? { publicId: "", name: "Former member", avatarSeed: "ghost", pastel: "bg-avatar-lilac", revealed: null },
     mine: s.myReactions ?? { relatable: false, flag: false },
+    myReaction: s.myReaction,
     editedAt: s.editedAt ?? null, goofy: s.goofy ?? null, stage: s.stage,
     ...(s.ratings && { ratings: s.ratings }),
     salary: s.salary ?? null, daysWaited: s.daysWaited ?? null,
@@ -147,6 +156,6 @@ export function useCompanyIndex() {
 }
 
 // Toggles a reaction on the server; resolves to the server's counts and your reactions.
-export async function react(storyId: string, kind: "relatable" | "flag") {
-  return api<{ counts: StoryDto["counts"]; myReactions: { relatable: boolean; flag: boolean } }>(`/v1/stories/${storyId}/reactions`, { method: "POST", body: { kind } });
+export async function react(storyId: string, kind: StoryReaction) {
+  return api<{ counts: StoryDto["counts"]; myReaction: StoryReaction | null }>(`/v1/stories/${storyId}/reactions`, { method: "POST", body: { kind } });
 }

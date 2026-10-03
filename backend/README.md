@@ -103,7 +103,7 @@ Story bodies and comments are stored as `bytea`, compressed with Brotli level 11
 | GET | `/stories?company=&outcome=&before=&limit=` | – | Feed (cursor pagination) |
 | GET / DELETE | `/stories/:publicId` | – / ✓ | Read / remove own story |
 | POST | `/stories` | ✓ | Post a story |
-| POST | `/stories/:publicId/reactions` | ✓ | Toggle `relatable` / `flag` |
+| POST | `/stories/:publicId/reactions` | ✓ | Toggle or replace the viewer's story reaction (`relatable`, `insightful`, `creative`, `support`, or `love`) |
 | GET / POST | `/stories/:publicId/comments` | – / ✓ | Read / add comments |
 | DELETE | `/stories/:publicId/comments/:commentId` | ✓ | Remove own comment |
 | POST | `/stories/:publicId/report` | – | Report a story |

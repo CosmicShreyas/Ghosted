@@ -1,8 +1,8 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { motion } from "motion/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Bookmark, Flag, HeartHandshake, MessageCircle, MoreHorizontal, PenLine, Share2, ShieldAlert, Trash2 } from "lucide-react";
+import { Bookmark, HandHeart, Heart, HeartHandshake, Lightbulb, MessageCircle, MoreHorizontal, PenLine, Plus, Share2, ShieldAlert, Sparkles, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Avatar } from "@/components/ghosted";
@@ -12,7 +12,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { api, ApiRequestError, apiEnabled } from "@/lib/api";
 import { liveNudge } from "@/lib/live";
 import { useMe, useTone, voice } from "@/lib/session";
-import { react, samplePublicId, type Author, type StoryModel } from "@/lib/stories";
+import { react, samplePublicId, type Author, type StoryModel, type StoryReaction, type StoryReactionCounts } from "@/lib/stories";
 import { ShareModal } from "./share-story";
 import { GOOFY_AVATAR, GOOFY_ID } from "@/lib/goofy";
 import { ReportFlow } from "./report-flow";
@@ -43,24 +43,42 @@ export function PersonLink({ author, className, children }: { author: Pick<Autho
 
 // ---------- story card with working reactions, save and share ----------
 
-type Reactions = { relatable: boolean; flag: boolean };
+const REACTIONS: { id: StoryReaction; label: string; Icon: typeof HeartHandshake; active: string; soft: string }[] = [
+  { id: "relatable", label: "Relatable", Icon: HeartHandshake, active: "border-primary bg-primary text-primary-foreground", soft: "text-primary hover:bg-primary/10" },
+  { id: "insightful", label: "Eye-opening", Icon: Lightbulb, active: "border-sky-600 bg-sky-500 text-white", soft: "text-sky-700 hover:bg-sky-500/10 dark:text-sky-300" },
+  { id: "creative", label: "Fresh take", Icon: Sparkles, active: "border-emerald-700 bg-emerald-500 text-slate-950", soft: "text-emerald-700 hover:bg-emerald-500/10 dark:text-emerald-300" },
+  { id: "support", label: "With you", Icon: HandHeart, active: "border-amber-700 bg-amber-400 text-slate-950", soft: "text-amber-700 hover:bg-amber-400/15 dark:text-amber-300" },
+  { id: "love", label: "Love this", Icon: Heart, active: "border-pink-700 bg-pink-500 text-white", soft: "text-pink-700 hover:bg-pink-500/10 dark:text-pink-300" },
+];
 
 // `full`: the story's own page (whole text, no "Read more", the chitchat pill scrolls to the thread).
 // Everywhere else the title and text open that page.
 export function FeedStory({ story, saved, onSave, onOpenCompany, full = false }: { story: StoryModel; saved: boolean; onSave: () => void; onOpenCompany: (c: Company) => void; full?: boolean }) {
   const { company, author } = story;
   // Counts and your reactions start from the server's (or the sample's) and update instantly on tap.
-  const [state, setState] = useState({ mine: story.mine, relatable: story.relatable, flags: story.flags });
-  useEffect(() => setState({ mine: story.mine, relatable: story.relatable, flags: story.flags }), [story.mine, story.relatable, story.flags]);
-  const toggle = async (k: keyof Reactions) => {
+  const [state, setState] = useState({ mine: story.myReaction, counts: story.reactions });
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const holdTimer = useRef<number | null>(null);
+  const held = useRef(false);
+  useEffect(() => setState({ mine: story.myReaction, counts: story.reactions }), [story.myReaction, story.reactions]);
+  const toggle = async (kind: StoryReaction) => {
     const prev = state;
-    const on = !prev.mine[k];
-    const count = k === "relatable" ? "relatable" : "flags";
-    setState({ ...prev, mine: { ...prev.mine, [k]: on }, [count]: prev[count] + (on ? 1 : -1) });
+    const next = prev.mine === kind ? null : kind;
+    const counts = { ...prev.counts };
+    if (prev.mine) counts[prev.mine] = Math.max(0, counts[prev.mine] - 1);
+    if (next) counts[next] += 1;
+    setState({ mine: next, counts });
+    setPickerOpen(false);
     if (!apiEnabled) return;
-    try { const r = await react(story.id, k); setState({ mine: r.myReactions, relatable: r.counts.relatable, flags: r.counts.flags }); }
+    try { const r = await react(story.id, kind); setState({ mine: r.myReaction, counts: { relatable: r.counts.relatable, insightful: r.counts.insightful, creative: r.counts.creative, support: r.counts.support, love: r.counts.love } }); }
     catch (err) { setState(prev); toast.error(err instanceof ApiRequestError && err.status === 401 ? "Log in to react." : "Couldn't save that. Try again."); }
   };
+  const startHold = (e: React.PointerEvent) => {
+    if (e.pointerType === "mouse") return;
+    held.current = false;
+    holdTimer.current = window.setTimeout(() => { held.current = true; setPickerOpen(true); }, 450);
+  };
+  const endHold = () => { if (holdTimer.current != null) window.clearTimeout(holdTimer.current); holdTimer.current = null; };
   // Links go to the story's own page. Phones get the native share sheet; elsewhere it's copied.
   const share = async () => {
     const url = `${window.location.origin}/s/${story.id}`;
@@ -74,7 +92,7 @@ export function FeedStory({ story, saved, onSave, onOpenCompany, full = false }:
   const minutes = Math.max(1, Math.round(story.body.split(/\s+/).length / 220));
 
   const pill = (active: boolean) => cn("inline-flex items-center gap-1.5 rounded-full border-2 border-foreground px-3 py-1 text-xs font-bold transition-colors", active ? "bg-primary text-primary-foreground" : "bg-card hover:bg-muted");
-  const { mine } = state;
+  const selected = REACTIONS.find((r) => r.id === state.mine) ?? REACTIONS[0]!;
 
   // Your own stories get Edit and Delete (in the preview, the sample person standing in for you).
   const { me } = useMe();
@@ -158,10 +176,20 @@ export function FeedStory({ story, saved, onSave, onOpenCompany, full = false }:
         </AlertDialogContent>
       </AlertDialog>
     </>}
-    <div className="mt-4 flex flex-wrap items-center gap-2">
-      <button type="button" aria-pressed={mine.relatable} onClick={() => void toggle("relatable")} className={pill(mine.relatable)}><HeartHandshake className="size-3.5" />{state.relatable} relatable</button>
-      {/* Red flags are always red: outlined in red, and solid red once you add yours. */}
-      <button type="button" aria-pressed={mine.flag} onClick={() => void toggle("flag")} className={cn("inline-flex items-center gap-1.5 rounded-full border-2 px-3 py-1 text-xs font-bold transition-colors", mine.flag ? "border-flag-red bg-flag-red text-primary-foreground" : "border-flag-red bg-card text-flag-red hover:bg-flag-red/10")}><Flag className={cn("size-3.5", !mine.flag && "fill-flag-red/20")} />{state.flags} red flags</button>
+    <div className="relative mt-4 flex flex-wrap items-center gap-2">
+      <div className="flex items-center">
+        <button type="button" aria-pressed={!!state.mine} aria-label={`${state.mine ? `Remove ${selected.label}` : "Relatable"}. Press and hold on touch screens for more reactions.`}
+          onPointerDown={startHold} onPointerUp={endHold} onPointerCancel={endHold} onPointerLeave={endHold}
+          onContextMenu={(e) => e.preventDefault()}
+          onClick={() => { if (held.current) { held.current = false; return; } void toggle(state.mine ?? "relatable"); }}
+          className={cn("inline-flex items-center gap-1.5 rounded-full border-2 px-3 py-1 text-xs font-bold transition-colors [@media(pointer:fine)]:rounded-r-none", state.mine ? selected.active : "border-foreground bg-card hover:bg-muted")}>
+          <selected.Icon className={cn("size-3.5", state.mine === "love" && "fill-current")} />{state.counts[state.mine ?? "relatable"]} {state.mine ? selected.label.toLowerCase() : "relatable"}
+        </button>
+        <button type="button" aria-label="Choose another reaction" aria-expanded={pickerOpen} onClick={() => setPickerOpen((v) => !v)} className="hidden size-[30px] -ml-0.5 place-items-center rounded-r-full border-2 border-foreground bg-card hover:bg-muted [@media(pointer:fine)]:grid"><Plus className="size-3.5" /></button>
+      </div>
+      {pickerOpen && <div className="order-last flex w-full flex-wrap gap-1.5 rounded-xl border-2 border-foreground bg-card p-2 shadow-hard sm:absolute sm:bottom-9 sm:left-0 sm:z-20 sm:w-auto sm:flex-nowrap" role="menu" aria-label="Story reactions">
+        {REACTIONS.map(({ id, label, Icon, active, soft }) => <button key={id} type="button" role="menuitemradio" aria-checked={state.mine === id} onClick={() => void toggle(id)} title={label} className={cn("inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border-2 border-transparent px-2.5 py-1.5 text-xs font-bold", state.mine === id ? active : soft)}><Icon className={cn("size-4", id === "love" && state.mine === id && "fill-current")} /><span>{label}</span><span className="tabular-nums opacity-75">{state.counts[id]}</span></button>)}
+      </div>}
       {full
         ? <button type="button" onClick={() => document.getElementById("chitchats")?.scrollIntoView({ behavior: "smooth", block: "start" })} className={pill(false)}><MessageCircle className="size-3.5" />{story.comments} chitchats</button>
         : <Link to="/s/$id" params={{ id: story.id }} hash="chitchats" className={pill(false)}><MessageCircle className="size-3.5" />{story.comments} chitchats</Link>}
@@ -174,6 +202,4 @@ export function FeedStory({ story, saved, onSave, onOpenCompany, full = false }:
 
 // The "Share a story" flow lives in share-story.tsx.
 
-// The company popup, red flags popup and right rail live in global-widgets.tsx.
-
-
+// The company popups and right rail live in global-widgets.tsx.

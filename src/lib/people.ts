@@ -56,7 +56,7 @@ function samplePage(publicId: string, rel: Relationship | null): PersonPage | nu
     stats: {
       stories: mine.length,
       relatableReceived: mine.reduce((a, s) => a + s.relatable, 0),
-      flagsReceived: mine.reduce((a, s) => a + s.flags, 0),
+      flagsReceived: mine.reduce((a, s) => a + s.reactions.insightful + s.reactions.creative + s.reactions.support + s.reactions.love, 0),
       chitchatsReceived: mine.reduce((a, s) => a + s.comments, 0),
       followers: 40 + n * 17 + (rel?.following ? 1 : 0), following: 12 + n * 3, companies: byCompany.size, avgDaysWaited: 10 + n * 2,
       outcomes: OUTCOMES.map((o) => ({ outcome: o, count: mine.filter((s) => s.outcome === o).length })),

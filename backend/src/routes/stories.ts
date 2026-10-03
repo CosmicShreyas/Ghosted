@@ -169,21 +169,22 @@ export const storyRoutes = new Hono<AppEnv>()
     return c.json({ ok: true });
   })
 
-  // Toggles a reaction. Returns the new state.
-  .post("/:id/reactions", requireAuth, rateLimit({ name: "react", max: 90, windowSeconds: 60, by: "user" }), idParam, validate("json", z.object({ kind: z.enum(["relatable", "flag"]) })), async (c) => {
+  // A person has one reaction per story. Tapping it again removes it; choosing another replaces it.
+  .post("/:id/reactions", requireAuth, rateLimit({ name: "react", max: 90, windowSeconds: 60, by: "user" }), idParam, validate("json", z.object({ kind: z.enum(["relatable", "insightful", "creative", "support", "love"]) })), async (c) => {
     const story = await storyByPublicId(c.req.valid("param").id);
     const { kind } = c.req.valid("json");
-    const key = { story_id: story.id, user_id: me(c).id, kind };
+    const key = { story_id: story.id, user_id: me(c).id };
     const { data: removed, error } = await admin().from("reactions").delete().match(key).select("kind");
     if (error) dbFail("unreact", error);
-    if (!removed?.length) {
-      const { error: iErr } = await admin().from("reactions").insert(key);
+    const wasSame = removed?.some((row) => row.kind === kind);
+    if (!wasSame) {
+      const { error: iErr } = await admin().from("reactions").insert({ ...key, kind });
       if (iErr && iErr.code !== "23505") dbFail("react", iErr);
       if (!iErr && kind === "relatable") later(notifyRelatable(story.id, me(c).id));
     }
     later(bump({ user: me(c).id, topics: ["stories"], shared: [`story:${c.req.valid("param").id}`] }));
     const [updated] = await hydrate([story], me(c));
-    return c.json({ counts: updated!.counts, myReactions: updated!.myReactions });
+    return c.json({ counts: updated!.counts, myReaction: updated!.myReaction });
   })
 
   // Chitchats (comments): top-level ones with their replies nested (one level), relatable counts and

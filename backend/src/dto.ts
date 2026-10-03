@@ -75,7 +75,9 @@ export const STORY_COLUMNS = `id, public_id, outcome, stage, job_role, title, bo
 // "!stories_author_id_fkey" names the link explicitly: stories also reach profiles through reactions,
 // and without the hint the database refuses to guess (PGRST201).
 
-export type Counts = { relatable: number; flags: number; comments: number };
+export const STORY_REACTIONS = ["relatable", "insightful", "creative", "support", "love"] as const;
+export type StoryReaction = (typeof STORY_REACTIONS)[number];
+export type Counts = { relatable: number; insightful: number; creative: number; support: number; love: number; flags: number; comments: number };
 
 export function storyDto(s: StoryRow, counts: Counts | undefined, mine: Set<string> | undefined) {
   return {
@@ -90,7 +92,8 @@ export function storyDto(s: StoryRow, counts: Counts | undefined, mine: Set<stri
     daysWaited: s.days_waited,
     company: s.company,
     author: s.author ? storyAuthor(s.author) : null,
-    counts: counts ?? { relatable: 0, flags: 0, comments: 0 },
+    counts: counts ?? { relatable: 0, insightful: 0, creative: 0, support: 0, love: 0, flags: 0, comments: 0 },
+    myReaction: mine ? STORY_REACTIONS.find((kind) => mine.has(`${s.id}:${kind}`)) ?? null : null,
     myReactions: mine ? { relatable: mine.has(`${s.id}:relatable`), flag: mine.has(`${s.id}:flag`) } : null,
     createdAt: s.created_at,
     editedAt: s.edited_at ?? null,

@@ -43,11 +43,11 @@ async function statsFor(person: Person) {
   const since = new Date(Date.now() - WEEKS * 7 * 86400_000);
   const [{ data: counts }, { data: recent }] = ids.length
     ? await Promise.all([
-        admin().from("story_counts").select("story_id, relatable, flags, comments").in("story_id", ids),
+        admin().from("story_counts").select("story_id, relatable, insightful, creative, support, love, comments").in("story_id", ids),
         admin().from("reactions").select("kind, created_at").in("story_id", ids).gte("created_at", since.toISOString()).limit(10000),
       ])
     : [{ data: [] }, { data: [] }];
-  const sum = (k: "relatable" | "flags" | "comments") => (counts ?? []).reduce((n, c) => n + Number((c as Record<string, unknown>)[k] ?? 0), 0);
+  const sum = (k: "relatable" | "insightful" | "creative" | "support" | "love" | "comments") => (counts ?? []).reduce((n, c) => n + Number((c as Record<string, unknown>)[k] ?? 0), 0);
 
   // Reactions their stories received, per week, oldest first (the activity chart).
   const weekly = Array.from({ length: WEEKS }, (_, i) => {
@@ -56,7 +56,7 @@ async function statsFor(person: Person) {
   });
   for (const r of recent ?? []) {
     const i = Math.min(WEEKS - 1, Math.floor((new Date(r.created_at as string).getTime() - since.getTime()) / (7 * 86400_000)));
-    if (i >= 0) weekly[i]![r.kind === "flag" ? "flags" : "relatable"]++;
+    if (i >= 0) weekly[i]![r.kind === "relatable" ? "relatable" : "flags"]++;
   }
 
   const byCompany = new Map<string, { slug: string; name: string; color: string; stories: number }>();
@@ -67,7 +67,7 @@ async function statsFor(person: Person) {
   return {
     stories: stories.length,
     relatableReceived: sum("relatable"),
-    flagsReceived: sum("flags"),
+    flagsReceived: sum("insightful") + sum("creative") + sum("support") + sum("love"),
     chitchatsReceived: sum("comments"),
     followers: followers.count ?? 0,
     following: following.count ?? 0,

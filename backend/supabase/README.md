@@ -97,7 +97,7 @@ Public story chitchats and replies.
 
 ### Reactions and social relationships
 
-- `reactions`: one `relatable` or `flag` reaction per `(story_id, user_id, kind)`; `created_at` records when.
+- `reactions`: one active positive reaction per person and story, selected from `relatable`, `insightful`, `creative`, `support`, or `love`; the API replaces the previous selection and `created_at` records when.
 - `comment_reactions`: one relatable reaction per `(comment_id, user_id)`.
 - `follows`: member-to-member follows; `notify` controls new-story alerts.
 - `mutes`: member-to-member mute relationships.
@@ -216,7 +216,40 @@ Separate admin identities; these are not member profiles.
 
 - `company_scores`: listed-company details plus story count, category/overall scores, salary range, outcome counts, average wait and latest story time.
 - `platform_stats`: aggregate counts for profiles, companies, published stories, reactions and comments.
-- `story_counts`: per-story relatable, flag and published-chitchat counts.
+- `story_counts`: per-story counts for each positive reaction plus published chitchats. Its legacy `flags` column remains zero for older analytics consumers; moderation uses reports instead of public dislike reactions.
+
+### Existing database reaction upgrade
+
+Before deploying backend code that uses the five-reaction picker, run this once in the Supabase SQL editor. It removes legacy public red-flag reactions; formal reports are stored separately and are not affected.
+
+```sql
+begin;
+
+drop view if exists public.story_counts;
+delete from public.reactions where kind = 'flag';
+alter table public.reactions drop constraint if exists reactions_kind_check;
+alter table public.reactions add constraint reactions_kind_check
+  check (kind in ('relatable','insightful','creative','support','love'));
+alter table public.reactions drop constraint if exists reactions_pkey;
+alter table public.reactions add primary key (story_id, user_id);
+
+create view public.story_counts as
+select
+  s.id as story_id,
+  count(r.*) filter (where r.kind = 'relatable')::int as relatable,
+  count(r.*) filter (where r.kind = 'insightful')::int as insightful,
+  count(r.*) filter (where r.kind = 'creative')::int as creative,
+  count(r.*) filter (where r.kind = 'support')::int as support,
+  count(r.*) filter (where r.kind = 'love')::int as love,
+  0::int as flags,
+  (select count(*) from public.comments c where c.story_id = s.id and c.status = 'published')::int as comments
+from public.stories s
+left join public.reactions r on r.story_id = s.id
+group by s.id;
+
+revoke all on public.story_counts from anon, authenticated;
+commit;
+```
 
 ## Service-role functions
 

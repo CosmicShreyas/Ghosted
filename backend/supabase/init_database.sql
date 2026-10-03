@@ -76,9 +76,9 @@ create index stories_author_idx  on public.stories (author_id);
 create table public.reactions (
   story_id   uuid not null references public.stories (id) on delete cascade,
   user_id    uuid not null references public.profiles (id) on delete cascade,
-  kind       text not null check (kind in ('relatable','flag')),
+  kind       text not null check (kind in ('relatable','insightful','creative','support','love')),
   created_at timestamptz not null default now(),
-  primary key (story_id, user_id, kind)
+  primary key (story_id, user_id)
 );
 
 create table public.comments (
@@ -143,7 +143,11 @@ create or replace view public.story_counts as
 select
   s.id as story_id,
   count(r.*) filter (where r.kind = 'relatable')::int as relatable,
-  count(r.*) filter (where r.kind = 'flag')::int      as flags,
+  count(r.*) filter (where r.kind = 'insightful')::int as insightful,
+  count(r.*) filter (where r.kind = 'creative')::int   as creative,
+  count(r.*) filter (where r.kind = 'support')::int    as support,
+  count(r.*) filter (where r.kind = 'love')::int       as love,
+  0::int as flags,
   (select count(*) from public.comments c where c.story_id = s.id and c.status = 'published')::int as comments
 from public.stories s
 left join public.reactions r on r.story_id = s.id
