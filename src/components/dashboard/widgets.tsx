@@ -163,8 +163,8 @@ export function FeedStory({ story, saved, onSave, onOpenCompany, full = false }:
       : <>
           {/* The card itself opens the story; the title is also a real link for keyboards and screen readers. */}
           <h3 className="mt-3 truncate font-bold leading-snug"><Link to="/s/$id" params={{ id: story.id }} className="rounded hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2" aria-label={`Open the story${story.title ? `: ${story.title}` : ""}`}>{story.title ?? `A story about ${company.name}`}</Link></h3>
+          {/* Exactly three lines, cut with "…"; tapping the card (or the title) opens the whole story. */}
           <p className="mt-1.5 line-clamp-3 h-[4.875em] leading-[1.625] text-foreground/90">{plainText(story.body)}</p>
-          <Link to="/s/$id" params={{ id: story.id }} className="mt-1 inline-block text-sm font-bold text-primary hover:underline">Read the story</Link>
         </>}
     {!isMine && reporting && <ReportStoryDialog open={reporting} onOpenChange={setReporting} storyId={story.id} subject={story.title ?? story.body.slice(0, 120)} />}
     {isMine && <>
