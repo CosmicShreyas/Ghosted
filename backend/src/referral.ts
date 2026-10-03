@@ -12,11 +12,13 @@ import { admin } from "./supabase.js";
 import { addNotification } from "./notify.js";
 
 export const FLAIRS = {
-  violet: { label: "Violet", how: "Complete 3 missions" },
-  sunrise: { label: "Sunrise", how: "Bring your first voice, or join through an invite and share a story" },
-  mint: { label: "Mint", how: "Complete all 6 missions" },
-  gold: { label: "Gold", how: "Bring 3 voices" },
-  cosmic: { label: "Cosmic", how: "Bring 10 voices" },
+  // Invite levels (the ids stay as stored in profiles.flair; only the names people see changed).
+  sunrise: { label: "Invite Level 1", how: "Bring your first voice, or join through an invite and share a story" },
+  gold: { label: "Invite Level 2", how: "Bring 3 voices" },
+  cosmic: { label: "Invite Level 3", how: "Bring 10 voices" },
+  // Mission rings.
+  violet: { label: "Missions ring", how: "Complete 3 missions" },
+  mint: { label: "All missions ring", how: "Complete all 6 missions" },
 } as const;
 export type Flair = keyof typeof FLAIRS;
 export const isFlair = (v: unknown): v is Flair => typeof v === "string" && v in FLAIRS;
@@ -96,8 +98,9 @@ export async function notifyInviter(author: { id: string; referred_by?: string |
     const { count } = await admin().from("stories").select("id", { count: "exact", head: true }).eq("author_id", author.id).eq("status", "published");
     if (count !== 1) return;
     const { voices } = await referralStats(author.referred_by);
+    const level = voices >= 10 ? 3 : voices >= 3 ? 2 : 1;
     const next = voices < 3 ? 3 : voices < 10 ? 10 : null;
-    await addNotification(author.referred_by, "system", `Someone you invited just shared their first story. That's ${voices} ${voices === 1 ? "voice" : "voices"} you've brought to Ghosted${next ? `, ${next - voices} to go for your next flair` : ""}.`);
+    await addNotification(author.referred_by, "system", `Someone you invited just shared their first story. That's ${voices} ${voices === 1 ? "voice" : "voices"}: you're at Invite Level ${level}${next ? `, ${next - voices} to go for Level ${level + 1}` : ", the top level"}.`);
   } catch (e) { console.error("[invite] notify", (e as Error).message); }
 }
 

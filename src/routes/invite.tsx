@@ -17,17 +17,48 @@ import { cn, formatCount } from "@/lib/utils";
 // open someone's invite link (?ref=CODE). Rewards unlock only when the invited person shares a story.
 export const Route = createFileRoute("/invite")({
   validateSearch: (s: Record<string, unknown>): { ref?: string } => (typeof s["ref"] === "string" && /^[A-Za-z2-9]{8}$/.test(s["ref"]) ? { ref: s["ref"].toUpperCase() } : {}),
-  head: () => pageHead({ title: "Invite friends to Ghosted | Bring a voice, unlock flair", description: "Invite someone who's been through a hiring process. When they share their experience, you both unlock flair. Anonymous, no money, no spam.", path: "/invite" }),
+  head: () => pageHead({ title: "Invite friends to Ghosted | Bring a voice, level up", description: "Invite someone who's been through a hiring process. When they share their experience, you both reach Invite Level 1, and every friend after that levels you up. Anonymous, no money, no spam.", path: "/invite" }),
   component: InvitePage,
 });
 
-const FLAIR_INFO: { id: FlairId; label: string; how: string }[] = [
-  { id: "violet", label: "Violet", how: "Complete 3 missions" },
-  { id: "sunrise", label: "Sunrise", how: "Your first voice, or join through an invite and share" },
-  { id: "mint", label: "Mint", how: "Complete all 6 missions" },
-  { id: "gold", label: "Gold", how: "Bring 3 voices" },
-  { id: "cosmic", label: "Cosmic", how: "Bring 10 voices" },
+// Invite levels: a bigger, brighter avatar ring at 1, 3 and 10 voices.
+const LEVELS: { level: number; id: FlairId; voices: number; perk: string }[] = [
+  { level: 1, id: "sunrise", voices: 1, perk: "Your first avatar ring, shown on every story and your page" },
+  { level: 2, id: "gold", voices: 3, perk: "A gold ring, and your “I want to know” requests go to the top" },
+  { level: 3, id: "cosmic", voices: 10, perk: "The rarest ring on Ghosted, and a thank-you from Goofy in the weekly digest" },
 ];
+const FLAIR_INFO: { id: FlairId; label: string; how: string }[] = [
+  ...LEVELS.map((l) => ({ id: l.id, label: `Invite Level ${l.level}`, how: l.voices === 1 ? "Bring your first voice, or join through an invite and share" : `Bring ${l.voices} voices` })),
+  { id: "violet", label: "Missions ring", how: "Complete 3 missions" },
+  { id: "mint", label: "All missions ring", how: "Complete all 6 missions" },
+];
+
+// What each side gets, said plainly, right under the hero.
+function WhatYouGet() {
+  return <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
+    <p className="text-sm font-bold text-primary">What you get</p>
+    <h2 className="mt-1 text-4xl font-bold">Every friend who shares levels you up.</h2>
+    <p className="mt-2 max-w-2xl text-muted-foreground">A friend counts once they publish their first story (a quick one takes about 30 seconds). Then you both get something.</p>
+    <div className="mt-8 grid gap-5 lg:grid-cols-[1.4fr_1fr]">
+      <div className="rounded-2xl border-2 border-foreground bg-card p-5 shadow-hard sm:p-6">
+        <p className="flex items-center gap-2 font-display text-xl font-bold"><Gift className="size-5 text-primary" />You, for inviting</p>
+        <ol className="mt-4 space-y-3">{LEVELS.map((l) => <li key={l.level} className="flex items-center gap-4 rounded-xl border-2 border-foreground/15 p-3">
+          <FlairRing flair={l.id}><span className="grid size-12 place-items-center rounded-full bg-card font-display text-lg font-bold">{l.level}</span></FlairRing>
+          <span className="min-w-0 flex-1"><span className="block font-bold">Invite Level {l.level} <span className="ml-1 rounded-full bg-muted px-2 py-0.5 text-xs font-bold">{l.voices} {l.voices === 1 ? "voice" : "voices"}</span></span><span className="block text-sm text-muted-foreground">{l.perk}</span></span>
+        </li>)}</ol>
+        <ul className="mt-4 grid gap-2 text-sm sm:grid-cols-2">{["A notification every time a friend's story goes live", "Your impact: how many people found their stories relatable", "Counts toward the “Bring a voice” mission", "Nobody, including your friend, learns who you are"].map((t) => <li key={t} className="flex items-start gap-2"><Check className="mt-0.5 size-4 shrink-0 text-flag-green" />{t}</li>)}</ul>
+      </div>
+      <div className="rounded-2xl border-2 border-foreground bg-accent p-5 shadow-hard sm:p-6">
+        <p className="flex items-center gap-2 font-display text-xl font-bold"><UserPlus className="size-5" />Your friend, for joining</p>
+        <div className="mt-4 flex items-center gap-4 rounded-xl border-2 border-foreground bg-card p-3">
+          <FlairRing flair="sunrise"><span className="grid size-12 place-items-center rounded-full bg-card font-display text-lg font-bold">1</span></FlairRing>
+          <span><span className="block font-bold">Invite Level 1, straight away</span><span className="block text-sm text-muted-foreground">The ring unlocks the moment their first story is published</span></span>
+        </div>
+        <ul className="mt-4 space-y-2 text-sm">{["Share in about 30 seconds: tap a few answers, no writing needed", "Anonymous from the start: no name, no company email", "Their story helps the next candidate know what to expect", "Missions to unlock more rings as they explore"].map((t) => <li key={t} className="flex items-start gap-2"><Check className="mt-0.5 size-4 shrink-0 text-flag-green" />{t}</li>)}</ul>
+      </div>
+    </div>
+  </section>;
+}
 
 function InvitedHero({ code }: { code: string }) {
   const q = useQuery({ queryKey: ["invite-lookup", code], queryFn: () => api<{ valid: boolean; inviter?: { handle: string; avatarSeed: string; pastel: string } }>(`/v1/invite/${code}`), enabled: apiEnabled, retry: false });
@@ -41,7 +72,7 @@ function InvitedHero({ code }: { code: string }) {
       <div>
         <p className="text-sm font-bold text-primary">You've been invited</p>
         <h1 className="mt-1 text-4xl font-bold leading-tight sm:text-5xl">{inv ? <>{inv.handle} thinks your story matters.</> : <>Someone thinks your story matters.</>}</h1>
-        <p className="mt-3 max-w-xl text-lg text-muted-foreground">Ghosted is where candidates share how hiring really went, anonymously. Join, share your experience in about 30 seconds, and you'll both unlock the Sunrise flair.</p>
+        <p className="mt-3 max-w-xl text-lg text-muted-foreground">Ghosted is where candidates share how hiring really went, anonymously. Join, share your experience in about 30 seconds, and you'll both reach Invite Level 1.</p>
         <div className="mt-6 flex flex-wrap gap-3">
           <Button size="lg" className="min-h-12" asChild><Link to="/auth" search={{ intent: "share" }}><UserPlus />Join and share<ArrowRight /></Link></Button>
           <Button size="lg" variant="outline" className="min-h-12" asChild><Link to="/">See what Ghosted is</Link></Button>
@@ -71,7 +102,7 @@ function YourInvite() {
       <div className="rounded-2xl border-2 border-foreground bg-card p-5 shadow-hard sm:p-7">
         <p className="text-sm font-bold text-primary">Your invite</p>
         <h2 className="mt-1 font-display text-3xl font-bold">{data.voices ? `${formatCount(data.voices)} ${data.voices === 1 ? "voice" : "voices"} brought in` : "Bring your first voice"}</h2>
-        <p className="mt-1 text-sm text-muted-foreground">{next ? voice(tone, `${next - data.voices} more and your next flair is yours.`, `${next - data.voices} more ${next - data.voices === 1 ? "voice unlocks" : "voices unlock"} your next flair.`) : "Every invite flair unlocked."}</p>
+        <p className="mt-1 text-sm text-muted-foreground">{data.voices >= 1 && <span className="mr-1 rounded-full border-2 border-foreground bg-accent px-2 py-0.5 text-xs font-bold text-foreground">Invite Level {data.voices >= 10 ? 3 : data.voices >= 3 ? 2 : 1}</span>}{next ? `${next - data.voices} more ${next - data.voices === 1 ? "voice" : "voices"} to reach Invite Level ${VOICE_TIERS.indexOf(next) + 1}.` : "You're at the top level. Thank you."}</p>
         {link ? <>
           <div className="mt-5 flex flex-wrap items-center gap-2 rounded-xl border-2 border-foreground bg-background p-2">
             <code className="min-w-0 flex-1 truncate px-2 font-mono text-sm">{link}</code>
@@ -92,7 +123,7 @@ function YourInvite() {
       </div>
 
       <div className="rounded-2xl border-2 border-foreground bg-card p-5 shadow-hard sm:p-7">
-        <p className="text-sm font-bold text-primary">Your flair</p>
+        <p className="text-sm font-bold text-primary">Your rings</p>
         <h2 className="mt-1 font-display text-2xl font-bold">Pick your avatar ring</h2>
         <p className="mt-1 text-sm text-muted-foreground">It shows on your stories and your page. Nothing else about you changes.</p>
         <ul className="mt-4 space-y-2">
@@ -118,21 +149,23 @@ function InvitePage() {
       <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-14 sm:px-6 lg:grid-cols-[1.2fr_1fr]">
         <div>
           <p className="mb-4 inline-flex items-center gap-2 rounded-full border-2 border-foreground bg-accent px-3 py-1 text-sm font-bold"><Gift className="size-4" />Invites</p>
-          <h1 className="text-5xl font-bold leading-[1.02] sm:text-6xl">Bring a voice.<br /><span className="text-primary">Unlock flair together.</span></h1>
-          <p className="mt-5 max-w-xl text-lg text-muted-foreground">Know someone who's been ghosted, rejected or surprised by an offer? Invite them. When they share their experience, you both unlock flair, and the next candidate gets one more honest story.</p>
+          <h1 className="text-5xl font-bold leading-[1.02] sm:text-6xl">Bring a voice.<br /><span className="text-primary">Level up together.</span></h1>
+          <p className="mt-5 max-w-xl text-lg text-muted-foreground">Know someone who's been ghosted, rejected or surprised by an offer? Invite them. When they share their experience, you both unlock Invite Level 1, and every friend after that takes you higher.</p>
           {!signedIn && <div className="mt-7 flex flex-wrap gap-3"><Button size="lg" className="min-h-12" asChild><Link to="/auth"><UserPlus />Join to get your link</Link></Button><Button size="lg" variant="outline" className="min-h-12" asChild><Link to="/auth" search={{ tab: "login" }}>Log in</Link></Button></div>}
         </div>
-        {/* The rewards, as the rings people will actually see. */}
-        <div className="relative mx-auto grid grid-cols-3 gap-5 sm:gap-7">
-          {FLAIR_INFO.slice(0, 5).map((f, i) => <motion.div key={f.id} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 * i, type: "spring", stiffness: 220, damping: 18 }} className={cn("flex flex-col items-center gap-2 text-center", i === 3 && "col-start-1 sm:col-start-auto", i >= 3 && "translate-x-1/2 sm:translate-x-0")}>
-            <FlairRing flair={f.id}><Avatar seed={`${me.avatarSeed}-${f.id}`} pastel={["bg-avatar-lilac", "bg-avatar-amber", "bg-avatar-mint", "bg-avatar-sky", "bg-avatar-pink"][i]!} size="lg" label={`${f.label} flair`} /></FlairRing>
-            <span className="text-xs font-bold">{f.label}</span>
+        {/* The level ladder, as the rings people will actually see: bigger at each level. */}
+        <div className="mx-auto flex items-end justify-center gap-4 sm:gap-8">
+          {LEVELS.map((l, i) => <motion.div key={l.level} initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 * i, type: "spring", stiffness: 220, damping: 18 }} className="flex flex-col items-center gap-2 text-center">
+            <FlairRing flair={l.id}><div className={cn(i === 0 ? "[&_img]:size-14" : i === 1 ? "[&_img]:size-20" : "[&_img]:size-28")}><Avatar seed={`${me.avatarSeed}-lvl${l.level}`} pastel={["bg-avatar-amber", "bg-avatar-sky", "bg-avatar-lilac"][i]!} size="lg" label={`Invite Level ${l.level}`} /></div></FlairRing>
+            <span className="rounded-full border-2 border-foreground bg-card px-2.5 py-0.5 text-xs font-bold">Level {l.level}</span>
+            <span className="text-xs text-muted-foreground">{l.voices} {l.voices === 1 ? "voice" : "voices"}</span>
           </motion.div>)}
         </div>
       </div>
     </section>}
 
     {signedIn && <YourInvite />}
+    <WhatYouGet />
 
     <section className="border-y-2 border-foreground bg-secondary py-16">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
@@ -141,7 +174,7 @@ function InvitePage() {
         <ol className="mt-8 grid gap-5 md:grid-cols-3">{[
           [Share2, "Share your link", "Copy your personal invite link and send it to a friend, a group chat, or post it with #GhostedReceipts."],
           [PenLine, "They join and share", "They sign up anonymously and share their hiring experience. A quick story takes about 30 seconds."],
-          [Sparkles, "You both unlock flair", "Once their story is published, it counts as a voice. You unlock the Sunrise flair, and so do they."],
+          [Sparkles, "You both level up", "Once their story is published, it counts as a voice. You reach Invite Level 1, and so do they. 3 voices is Level 2, 10 is Level 3."],
         ].map(([Icon, title, copy], i) => { const I = Icon as typeof Share2; return <li key={title as string} className="rounded-xl border-2 border-foreground bg-card p-6 shadow-hard-sm">
           <span className="grid size-11 place-items-center rounded-full border-2 border-foreground bg-accent font-display font-bold">{i + 1}</span>
           <I className="mt-4 size-6 text-primary" />
@@ -165,7 +198,7 @@ function InvitePage() {
         <div>
           <p className="text-sm font-bold text-primary">Missions</p>
           <h2 className="mt-1 text-4xl font-bold">Six small things that keep Ghosted useful.</h2>
-          <p className="mt-2 text-muted-foreground">Your dashboard tracks them. Three unlocks Violet, all six unlocks Mint.</p>
+          <p className="mt-2 text-muted-foreground">Your dashboard tracks them. Three unlocks the Missions ring, all six unlocks the All missions ring.</p>
           <ol className="mt-6 grid gap-2 sm:grid-cols-2">{[[PenLine, "Share your first story"], [Sparkles, "React to 3 stories"], [MessageCircle, "Leave a chitchat"], [Users, "Follow a company"], [Target, "Track an application"], [Gift, "Bring a voice"]].map(([Icon, label]) => { const I = Icon as typeof PenLine; return <li key={label as string} className="flex items-center gap-3 rounded-lg border-2 border-foreground/15 p-3 text-sm font-bold"><span className="grid size-9 place-items-center rounded-full border-2 border-foreground bg-accent"><I className="size-4" /></span>{label as string}</li>; })}</ol>
         </div>
       </div>
@@ -179,7 +212,7 @@ function InvitePage() {
           ["Does the person I invite see who I am?", "Only your public handle and avatar, the same thing anyone sees on your stories. Never your name, email or anything else."],
           ["Do I see who joined with my link?", "No. You see numbers: how many joined, how many shared, and how many people found those stories relatable."],
           ["Why only when they share a story?", "Because sign-ups alone don't help the next candidate. Counting only published stories also stops fake accounts."],
-          ["Is there money involved?", voice(tone, "Nope. Paying for stories is how review sites lose trust. We'd rather keep ours.", "No. Paying for referrals invites fake stories, so rewards are flair only.")],
+          ["Is there money involved?", voice(tone, "Nope. Paying for stories is how review sites lose trust. We'd rather keep ours.", "No. Paying for referrals invites fake stories, so rewards are levels and avatar rings only.")],
           ["Can I invite myself?", "Invites from your own connection aren't counted, and every story still goes through Goofy's checks."],
           ["What if I already have an account?", "Invite links are for new members. Your existing account keeps everything it has."],
         ].map(([q, a]) => <div key={q}><dt className="font-display text-lg font-bold">{q}</dt><dd className="mt-1 text-background/75">{a}</dd></div>)}</dl>
