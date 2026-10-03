@@ -7,6 +7,10 @@
       "destination": "https://ghosted-backend.vercel.app/v1/sitemap.xml"
     },
     {
+      "source": "/og/:path*",
+      "destination": "https://ghosted-backend.vercel.app/v1/og/:path*"
+    },
+    {
       "source": "/api/:path*",
       "destination": "https://ghosted-backend.vercel.app/:path*"
     }

@@ -10,7 +10,7 @@ import { CompanyRail, StoryCompanyCard } from "@/components/dashboard/company-pa
 import { LogoutDialog } from "@/components/dashboard/confirm-dialogs";
 import { Preloader } from "@/components/preloader";
 import { PublicShell } from "@/components/public-shell";
-import { pageHead } from "@/lib/meta";
+import { ogImage, pageHead } from "@/lib/meta";
 import { BackButton } from "@/components/back-button";
 import { Button } from "@/components/ui/button";
 import { api, apiEnabled } from "@/lib/api";
@@ -27,7 +27,18 @@ import type { Company } from "@/mock/data";
 // company card, a swipeable strip of numbers, then chitchats.
 export const Route = createFileRoute("/s/$id")({
   // Shared links get a proper preview, but never the story's text, and story pages stay out of search.
-  head: ({ params }) => pageHead({ title: "A hiring story on Ghosted", description: "Read a real candidate's hiring experience, shared anonymously on Ghosted.", type: "article", noindex: true, path: `/s/${params.id}` }),
+  // The story's title and company for the preview text, and its own preview card as the image (never
+  // the story's body or who wrote it). Best effort: generic text if the API is slow.
+  loader: async ({ params }) => {
+    if (!apiEnabled) return null;
+    try { const r = await api<{ story: { title: string; company: { name: string } | null } }>(`/v1/stories/${params.id}`, { timeoutMs: 3000 }); return { title: r.story.title, company: r.story.company?.name ?? null }; }
+    catch { return null; }
+  },
+  head: ({ params, loaderData }) => pageHead({
+    title: loaderData ? `${loaderData.title} | Ghosted` : "A hiring story on Ghosted",
+    description: loaderData?.company ? `A real candidate's hiring experience with ${loaderData.company}, shared anonymously on Ghosted. #GhostedReceipts` : "Read a real candidate's hiring experience, shared anonymously on Ghosted.",
+    type: "article", noindex: true, path: `/s/${params.id}`, image: ogImage.story(params.id),
+  }),
   component: StoryPage,
 });
 

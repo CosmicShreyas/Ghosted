@@ -12,21 +12,37 @@ export function useFounding() {
   return useQuery({ queryKey: ["founding"], queryFn: () => api<Founding>("/v1/stats/founding"), enabled: apiEnabled, staleTime: 60_000, retry: false }).data ?? null;
 }
 
+// Milestones after the first 50: the bar always shows the next one, so it never stops at "complete".
+const MILESTONES = [50, 100, 250, 500, 1000, 2500, 5000, 10000];
+export function milestone(n: number) {
+  const next = MILESTONES.find((m) => n < m) ?? Math.ceil((n + 1) / 10000) * 10000;
+  const prev = [...MILESTONES].reverse().find((m) => m <= n) ?? 0;
+  return { next, prev };
+}
+
 export function FoundingProgress({ className, compact = false }: { className?: string; compact?: boolean }) {
   const f = useFounding();
   if (!f) return null;
-  const n = Math.min(f.contributors, f.limit);
-  const pct = (n / f.limit) * 100;
-  return <div className={cn("rounded-xl border-2 border-foreground bg-card p-3 shadow-hard-sm", className)}>
-    <div className="flex items-baseline justify-between gap-2">
-      <p className="flex items-center gap-1.5 text-sm font-bold"><Award className="size-4 text-primary" />{f.complete ? "Founding 50 complete" : `Founding 50: ${n} of ${f.limit} voices`}</p>
-      {f.foundingRank && <span className="text-xs font-bold text-primary">You're #{f.foundingRank}</span>}
+  const n = f.contributors;
+  const { next, prev } = milestone(n);
+  const founding = next === f.limit;
+  // From the last milestone to the next one, so the bar always has room to move.
+  const pct = Math.min(100, ((n - prev) / (next - prev)) * 100);
+  const title = founding ? `Founding 50: ${n} of 50 voices` : `${n.toLocaleString("en-IN")} voices · next milestone ${next.toLocaleString("en-IN")}`;
+  const context = founding
+    ? "The first 50 people to share a hiring experience get a founding contributor badge on their profile and stories, for good."
+    : `Founding 50 complete, and the badges stay. Every experience shared makes Ghosted more useful for the next candidate. ${(next - n).toLocaleString("en-IN")} to go to ${next.toLocaleString("en-IN")}.`;
+  return <div className={cn("rounded-xl border-2 border-foreground bg-card p-3 shadow-hard-sm sm:p-4", className)}>
+    <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+      <p className="flex items-center gap-1.5 text-sm font-bold"><Award className="size-4 text-primary" />{title}</p>
+      {f.foundingRank ? <span className="text-xs font-bold text-primary">You're founding contributor #{f.foundingRank}</span> : founding && <span className="text-xs font-semibold text-muted-foreground">{50 - n} spots left</span>}
     </div>
-    <div className="relative mt-2 h-2.5 rounded-full border-2 border-foreground bg-muted">
+    <div className="relative mt-2.5 h-2.5 rounded-full border-2 border-foreground bg-muted">
       <motion.div className="h-full rounded-full bg-primary" initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ type: "spring", stiffness: 120, damping: 20 }} />
       <span aria-hidden="true" className="absolute top-1/2 size-3.5 -translate-y-1/2 rounded-full border-2 border-foreground bg-card" style={{ left: `calc(${pct}% - 7px)` }} />
     </div>
-    {!compact && <p className="mt-1.5 text-xs text-muted-foreground">{f.complete ? "The first 50 people to share a story keep their founding badge for good." : "The first 50 people to share a story get a founding contributor badge, for good."}</p>}
+    <div className="mt-1 flex justify-between text-[10px] font-semibold tabular-nums text-muted-foreground"><span>{prev.toLocaleString("en-IN")}</span><span>{next.toLocaleString("en-IN")}</span></div>
+    {!compact && <p className="mt-1 text-xs text-muted-foreground">{context}</p>}
   </div>;
 }
 

@@ -67,7 +67,63 @@ const PLATFORM_SCHEMA = z.object({
 }).partial().strict();
 const GOOFY_SCHEMA = z.object(Object.fromEntries(Object.keys(GOOFY_DEFAULTS).map((key) => [key, z.boolean()])) as Record<keyof GoofyControls, z.ZodBoolean>).partial().strict();
 
+// ---------- growth: the weekly Ghosting Report and ready-made replies ----------
+const REPORT_MIN = 20;
+const median = (xs: number[]) => { if (!xs.length) return null; const s = [...xs].sort((a, b) => a - b); const m = Math.floor(s.length / 2); return s.length % 2 ? s[m]! : Math.round((s[m - 1]! + s[m]!) / 2); };
+const STAGE_NAME: Record<string, string> = { application: "applying", screening: "a screening call", technical: "a technical round", final: "a final round", offer: "the offer stage" };
+
 export const adminExtraRoutes = new Hono<AdminEnv>()
+  // Findings from real published stories, each with a LinkedIn post and an X post that link back
+  // to a company page. Withheld until there are enough stories to mean something.
+  .get("/growth/report", async (c) => {
+    const site = env().FRONTEND_URL;
+    const [{ data: rows }, { data: cos }] = await Promise.all([
+      db().from("stories").select("outcome, stage, days_waited, created_at, company:companies(name, slug)").eq("status", "published").limit(20000),
+      db().from("company_scores").select("name, slug, story_count, ghosted_count, avg_days_waited, flag_score").gt("story_count", 0).limit(5000),
+    ]);
+    const all = (rows ?? []) as unknown as { outcome: string; stage: string; days_waited: number | null; created_at: string; company: { name: string; slug: string } | null }[];
+    const companies = (cos ?? []) as { name: string; slug: string; story_count: number; ghosted_count: number; avg_days_waited: number | null; flag_score: number | null }[];
+    if (all.length < REPORT_MIN) return c.json({ ready: false, stories: all.length, needed: REPORT_MIN, findings: [] });
+    const link = (slug?: string) => (slug ? `${site}/c/${slug}` : site);
+    const tag = "#GhostedReceipts";
+    type F = { id: string; headline: string; detail: string; link: string; linkedin: string; x: string };
+    const out: F[] = [];
+    const add = (id: string, headline: string, detail: string, url: string) => out.push({
+      id, headline, detail, link: url,
+      linkedin: `${headline}\n\n${detail}\n\nFrom ${all.length} anonymous candidate experiences on Ghosted. See the details: ${url}\n\n${tag} #hiring #jobsearch #India`,
+      x: `${headline} ${detail}`.slice(0, 200) + ` ${url} ${tag}`,
+    });
+    const replied = all.filter((r) => r.outcome !== "ghosted" && r.outcome !== "ghost_job").length;
+    add("reply-rate", `Only ${Math.round((replied / all.length) * 100)}% of candidates got any reply.`, `${all.length - replied} of ${all.length} candidates on Ghosted were ghosted or applied to a ghost job.`, site);
+    for (const stage of ["final", "technical", "screening"]) {
+      const w = all.filter((r) => r.stage === stage && r.days_waited != null).map((r) => r.days_waited!);
+      if (w.length >= 5) { add(`wait-${stage}`, `Median wait after ${STAGE_NAME[stage]}: ${median(w)} days.`, `Based on ${w.length} candidates who shared how long they waited.`, site); break; }
+    }
+    const ghostiest = [...companies].filter((c) => c.story_count >= 3).sort((a, b) => b.ghosted_count / b.story_count - a.ghosted_count / a.story_count)[0];
+    if (ghostiest && ghostiest.ghosted_count > 0) add("ghostiest", `${ghostiest.ghosted_count} of ${ghostiest.story_count} candidates say ${ghostiest.name} ghosted them.`, `Read what happened before you apply.`, link(ghostiest.slug));
+    const slowest = [...companies].filter((c) => c.story_count >= 2 && c.avg_days_waited != null).sort((a, b) => b.avg_days_waited! - a.avg_days_waited!)[0];
+    if (slowest) add("slowest", `Candidates waited ${slowest.avg_days_waited} days on average to hear back from ${slowest.name}.`, `The slowest reply time on Ghosted right now.`, link(slowest.slug));
+    const best = [...companies].filter((c) => c.story_count >= 3 && c.flag_score != null).sort((a, b) => b.flag_score! - a.flag_score!)[0];
+    if (best) add("best", `${best.name} has the best candidate experience on Ghosted: a Flag Score of ${best.flag_score}/100.`, `Good hiring deserves a shout-out too.`, link(best.slug));
+    const ghostJobs = all.filter((r) => r.outcome === "ghost_job").length;
+    if (ghostJobs >= 3) add("ghost-jobs", `${ghostJobs} candidates applied to roles that never really existed.`, `Ghost jobs are real. Check the company before you spend a weekend on the application.`, site);
+    return c.json({ ready: true, stories: all.length, needed: REPORT_MIN, findings: out });
+  })
+  // "Anyone interviewed at X recently?": a ready reply linking to the company page.
+  .get("/growth/reply", validate("query", z.object({ q: z.string().trim().min(2).max(60) })), async (c) => {
+    const site = env().FRONTEND_URL;
+    const q = c.req.valid("query").q.replace(/[%_\\]/g, (m) => `\\${m}`);
+    const { data } = await db().from("company_scores").select("name, slug, story_count, ghosted_count, avg_days_waited, flag_score").ilike("name", `%${q}%`).order("story_count", { ascending: false }).limit(6);
+    const items = ((data ?? []) as { name: string; slug: string; story_count: number; ghosted_count: number; avg_days_waited: number | null; flag_score: number | null }[]).map((co) => {
+      const url = `${site}/c/${co.slug}`;
+      const facts = co.story_count ? [`${co.story_count} candidate ${co.story_count === 1 ? "experience" : "experiences"}`, ...(co.avg_days_waited != null ? [`an average wait of ${co.avg_days_waited} days`] : []), ...(co.ghosted_count ? [`${co.ghosted_count} ghosted`] : [])].join(", ") : null;
+      const reply = facts
+        ? `There are ${facts} for ${co.name} on Ghosted, shared anonymously by people who went through their hiring: rounds, waiting time and how it ended. Might help before you decide: ${url}`
+        : `Nobody has shared a ${co.name} experience on Ghosted yet. If you go through their process, adding yours anonymously would help the next person: ${url}`;
+      return { name: co.name, slug: co.slug, stories: co.story_count, url, reply };
+    });
+    return c.json({ items });
+  })
   // ================= you =================
   .get("/me/settings", async (c) => {
     const a = c.get("admin");

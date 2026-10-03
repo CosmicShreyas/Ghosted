@@ -322,7 +322,7 @@ export const landingHero = {
 // two lines, so nothing below it jumps while the text retypes).
 export const heroRotatingLines = [
   "before you apply.",
-  "before round six.",
+  "before round six begins.",
   "before the take-home.",
   "before you're ghosted.",
   "before “we'll call you.”",

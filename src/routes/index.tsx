@@ -129,7 +129,6 @@ function LandingPage() {
           <Button size="lg" variant="outline" asChild><a href="#ghost-o-meter"><Hourglass />Waiting on a reply?</a></Button>
         </div>
         <p className="mt-4 flex max-w-lg items-center gap-2 text-sm font-semibold"><ShieldCheck className="size-4 shrink-0 text-flag-green" />No name. No company email. About 30 seconds to share.</p>
-        <FoundingProgress compact className="mt-6 max-w-md" />
       </div>
       {/* The collage is designed at 512×500 and scaled to fit smaller screens (66% on phones, 85% on
           small tablets). The outer box reserves the scaled height so nothing overlaps below it. */}
@@ -142,6 +141,8 @@ function LandingPage() {
         <div className="hero-float-slow absolute bottom-4 right-7 z-40"><Avatar {...getUser("u7")} size="lg" /></div>
         <div className="hero-float-reverse absolute right-8 top-52 z-10 rounded-lg border-2 border-foreground bg-primary px-4 py-3 text-primary-foreground shadow-hard-sm"><p className="text-[10px] font-bold uppercase opacity-80">{heroScene.activity}</p><p className="font-display text-xl font-bold">{heroScene.activityValue}</p></div>
       </div></div>
+      {/* Full width under both columns, with the context of what the milestone means. */}
+      <FoundingProgress className="lg:col-span-2" />
     </section>
     <Marquee />
     <StatsStrip />

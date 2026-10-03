@@ -3,7 +3,7 @@
 // on, and the author is never on it. Drawn in the browser (html-to-image); nothing is uploaded.
 import { useRef, useState } from "react";
 import { toPng } from "html-to-image";
-import { Copy, Download, Eye, EyeOff, Loader2, Share2 } from "lucide-react";
+import { Copy, Download, Eye, EyeOff, Linkedin, Loader2, Share2, Twitter } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -33,7 +33,7 @@ export function ShareCard({ data }: { data: ShareCardData }) {
     try {
       const blob = await (await fetch(await render())).blob();
       const file = new File([blob], "ghosted-story.png", { type: "image/png" });
-      const payload = { title: "My hiring story on Ghosted", text: data.headline, url: link };
+      const payload = { title: "My hiring story on Ghosted", text: `${data.headline} #GhostedReceipts`, url: link };
       if (navigator.canShare?.({ files: [file] })) await navigator.share({ ...payload, files: [file] });
       else if (navigator.share) await navigator.share(payload);
       else { await navigator.clipboard.writeText(link); toast.success("Link copied."); }
@@ -57,6 +57,12 @@ export function ShareCard({ data }: { data: ShareCardData }) {
     <button type="button" onClick={() => setShowCompany((v) => !v)} aria-pressed={showCompany} className={cn("mt-4 inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-foreground px-3 text-sm font-bold", showCompany ? "bg-primary text-primary-foreground" : "bg-card hover:bg-muted")}>
       {showCompany ? <EyeOff className="size-4" /> : <Eye className="size-4" />}{showCompany ? "Hide company name" : "Show company name"}
     </button>
+    {/* A gentle nudge: the link's preview card shows the story (never who wrote it). */}
+    <p className="mt-4 text-sm font-semibold">Posting this to LinkedIn helps the next candidate. <span className="text-primary">#GhostedReceipts</span></p>
+    <div className="mt-2 flex flex-wrap justify-center gap-2">
+      <Button className="min-h-11" variant="outline" asChild><a href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(link)}`} target="_blank" rel="noopener noreferrer"><Linkedin />LinkedIn</a></Button>
+      <Button className="min-h-11" variant="outline" asChild><a href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`${data.headline}. Shared anonymously on Ghosted.`)}&url=${encodeURIComponent(link)}&hashtags=GhostedReceipts`} target="_blank" rel="noopener noreferrer"><Twitter />Post on X</a></Button>
+    </div>
     <div className="mt-3 flex flex-wrap justify-center gap-2">
       <Button className="min-h-11" onClick={() => void share()} disabled={!!busy}>{busy === "share" ? <Loader2 className="animate-spin" /> : <Share2 />}Share</Button>
       <Button className="min-h-11" variant="outline" onClick={() => void download()} disabled={!!busy}>{busy === "download" ? <Loader2 className="animate-spin" /> : <Download />}Download PNG</Button>

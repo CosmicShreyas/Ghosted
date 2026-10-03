@@ -5,10 +5,12 @@
 export const SITE_URL = ((import.meta.env["VITE_SITE_URL"] as string | undefined) ?? "https://ghosted-platform.vibgyor.co.in").replace(/\/$/, "");
 export const SITE_NAME = "Ghosted";
 const IMAGE = `${SITE_URL}/icon-512.png`;
+// 1200×630 preview cards drawn by the API (backend/src/og.ts), served at /og/… through vercel.json.
+export const ogImage = { site: `${SITE_URL}/og/site.png`, story: (id: string) => `${SITE_URL}/og/s/${id}.png`, company: (slug: string) => `${SITE_URL}/og/c/${slug}.png` };
 
-type Head = { title: string; description: string; path?: string; type?: "website" | "article"; noindex?: boolean; jsonLd?: object[] };
+type Head = { title: string; description: string; path?: string; type?: "website" | "article"; noindex?: boolean; jsonLd?: object[]; image?: string };
 
-export function pageMeta({ title, description, type = "website", noindex = false, path }: Head) {
+export function pageMeta({ title, description, type = "website", noindex = false, path, image = ogImage.site }: Head) {
   return [
     { title },
     { name: "description", content: description },
@@ -19,12 +21,14 @@ export function pageMeta({ title, description, type = "website", noindex = false
     { property: "og:site_name", content: SITE_NAME },
     { property: "og:locale", content: "en_IN" },
     ...(path ? [{ property: "og:url", content: `${SITE_URL}${path}` }] : []),
-    { property: "og:image", content: IMAGE },
-    { property: "og:image:alt", content: "Ghosted logo" },
-    { name: "twitter:card", content: "summary" },
+    { property: "og:image", content: image },
+    { property: "og:image:width", content: "1200" },
+    { property: "og:image:height", content: "630" },
+    { property: "og:image:alt", content: title },
+    { name: "twitter:card", content: "summary_large_image" },
     { name: "twitter:title", content: title },
     { name: "twitter:description", content: description },
-    { name: "twitter:image", content: IMAGE },
+    { name: "twitter:image", content: image },
   ];
 }
 
