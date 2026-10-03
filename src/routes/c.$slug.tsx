@@ -8,6 +8,9 @@ import { ShareModal } from "@/components/dashboard/share-story";
 import { CompanyActions, CompanyHeader, CompanyRail, ReportCompanyDialog, WhatPeopleSay } from "@/components/dashboard/company-page";
 import { LogoutDialog } from "@/components/dashboard/confirm-dialogs";
 import { Preloader } from "@/components/preloader";
+import { PublicShell } from "@/components/public-shell";
+import { pageMeta } from "@/lib/meta";
+import { askToJoin } from "@/lib/api";
 import { BackButton } from "@/components/back-button";
 import { SlidingPill, usePill } from "@/components/sliding-pill";
 import { Button } from "@/components/ui/button";
@@ -21,7 +24,7 @@ import type { Company } from "@/mock/data";
 // A company's page, addressed by its slug. Same layout as people pages: header, what people say,
 // stories (filterable), and the stats rail.
 export const Route = createFileRoute("/c/$slug")({
-  head: () => ({ meta: [{ title: "Company | Ghosted" }, { name: "description", content: "Hiring stories, Flag Score and salaries from candidates who interviewed here." }] }),
+  head: () => ({ meta: pageMeta({ title: "Company hiring stories | Ghosted", description: "Hiring stories, Flag Score and salaries from candidates who interviewed here, shared anonymously on Ghosted." }) }),
   component: CompanyPageRoute,
 });
 
@@ -35,7 +38,7 @@ function CompanyPageRoute() {
   const navigate = useNavigate();
   const tone = useTone();
   const { me } = useMe();
-  const { waiting } = useAuthGuard("private");
+  const { waiting, signedOut } = useAuthGuard("optional");
   const { logout } = useAccountActions();
   const hook = useCompanyPage(slug);
   const [query, setQuery] = useState("");
@@ -59,8 +62,10 @@ function CompanyPageRoute() {
   const openCompany = (c: Company) => navigate({ to: "/c/$slug", params: { slug: c.id } });
 
   if (waiting || hook.loading) return <Preloader />;
+  // Signed out: sharing needs an account, so it opens the join prompt instead.
+  const startShare = () => (signedOut ? askToJoin() : setShare(true));
 
-  const shell = (body: React.ReactNode) => <div className="min-h-screen bg-background lg:pl-60">
+  const shell = (body: React.ReactNode) => signedOut ? <PublicShell>{body}</PublicShell> : <div className="min-h-screen bg-background lg:pl-60">
     <Sidebar view={null} onChange={goView} me={me} savedCount={saved.size} />
     <Topbar query={query} onQuery={setQuery} onShare={() => setShare(true)} me={me} view={null} onChange={goView} onLogout={() => setConfirmLogout(true)} savedCount={saved.size} />
     <main className="mx-auto max-w-[1500px] p-4 pb-28 sm:p-6 sm:pb-28 lg:pb-6">{body}</main>
@@ -81,7 +86,7 @@ function CompanyPageRoute() {
   return shell(<div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
     <div className="min-w-0 space-y-6">
       <BackButton fallback={{ to: "/dashboard", search: { view: "companies" } }} />
-      <CompanyHeader page={page} actions={<CompanyActions page={page} hook={hook} onShare={() => setShare(true)} onReport={() => setReporting(true)} />} />
+      <CompanyHeader page={page} actions={<CompanyActions page={page} hook={hook} onShare={startShare} onReport={() => (signedOut ? askToJoin() : setReporting(true))} />} />
       <WhatPeopleSay stats={page.stats} />
 
       {/* Phones/tablets: the stats as a swipeable strip (desktop shows them on the right). */}
@@ -101,7 +106,7 @@ function CompanyPageRoute() {
           ? <div className="rounded-xl border-2 border-dashed border-foreground/40 p-10 text-center">
               <p className="font-display text-xl font-bold">{filter === "all" ? voice(tone, "Suspiciously quiet.", "No stories yet.") : `No ${filter} stories yet.`}</p>
               <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">{voice(tone, `Interviewed at ${name}? Your story could save someone six rounds.`, `Interviewed at ${name}? Share how it went.`)}</p>
-              <Button className="mt-5" onClick={() => setShare(true)}><PenLine />Share a story about {name}</Button>
+              <Button className="mt-5" onClick={startShare}><PenLine />Share a story about {name}</Button>
             </div>
           : <div className="space-y-4">
               {list.map((s) => <FeedStory key={s.id} story={s} saved={saved.has(s.id)} onSave={() => toggleSave(s.id)} onOpenCompany={openCompany} />)}

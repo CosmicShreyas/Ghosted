@@ -9,7 +9,7 @@ import { Avatar } from "@/components/ghosted";
 import { StoryBody } from "@/components/markdown";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { api, ApiRequestError, apiEnabled } from "@/lib/api";
+import { api, ApiRequestError, apiEnabled, askToJoin } from "@/lib/api";
 import { liveNudge } from "@/lib/live";
 import { useMe, useTone, voice } from "@/lib/session";
 import { react, samplePublicId, type Author, type StoryModel, type StoryReaction, type StoryReactionCounts } from "@/lib/stories";
@@ -71,7 +71,8 @@ export function FeedStory({ story, saved, onSave, onOpenCompany, full = false }:
     setPickerOpen(false);
     if (!apiEnabled) return;
     try { const r = await react(story.id, kind); setState({ mine: r.myReaction, counts: { relatable: r.counts.relatable, insightful: r.counts.insightful, creative: r.counts.creative, support: r.counts.support, love: r.counts.love } }); }
-    catch (err) { setState(prev); toast.error(err instanceof ApiRequestError && err.status === 401 ? "Log in to react." : "Couldn't save that. Try again."); }
+    // Signed out: the page's join prompt opens instead (api.ts), so no extra error toast.
+    catch (err) { setState(prev); if (!(err instanceof ApiRequestError && err.status === 401)) toast.error("Couldn't save that. Try again."); }
   };
   const startHold = (e: React.PointerEvent) => {
     if (e.pointerType === "mouse") return;
@@ -95,7 +96,7 @@ export function FeedStory({ story, saved, onSave, onOpenCompany, full = false }:
   const selected = REACTIONS.find((r) => r.id === state.mine) ?? REACTIONS[0]!;
 
   // Your own stories get Edit and Delete (in the preview, the sample person standing in for you).
-  const { me } = useMe();
+  const { me, signedIn } = useMe();
   const tone = useTone();
   const qc = useQueryClient();
   const navigate = useNavigate();
@@ -145,7 +146,7 @@ export function FeedStory({ story, saved, onSave, onOpenCompany, full = false }:
       <DropdownMenu>
         <DropdownMenuTrigger asChild><button type="button" aria-label="Story options" className="-mr-1 grid size-8 shrink-0 place-items-center rounded-lg border-2 border-transparent hover:border-foreground hover:bg-muted"><MoreHorizontal className="size-4" /></button></DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-44">
-          <DropdownMenuItem onSelect={onSave}><Bookmark className={cn(saved && "fill-primary text-primary")} />{saved ? "Remove from saved" : "Save story"}</DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => (apiEnabled && !signedIn ? askToJoin() : onSave())}><Bookmark className={cn(saved && "fill-primary text-primary")} />{saved ? "Remove from saved" : "Save story"}</DropdownMenuItem>
           {isMine ? <>
             <DropdownMenuItem onSelect={() => setEditing(true)}><PenLine />Edit story</DropdownMenuItem>
             <DropdownMenuItem onSelect={() => setConfirmDelete(true)} className="text-flag-red focus:bg-flag-red focus:text-primary-foreground"><Trash2 />Delete story</DropdownMenuItem>

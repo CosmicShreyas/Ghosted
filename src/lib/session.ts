@@ -115,22 +115,27 @@ export function useMe() {
 
 // Page guard: sends signed-in users away from public-only pages and signed-out users away from
 // private ones. `waiting` is true while the answer isn't known yet (show the preloader then).
-export function useAuthGuard(page: "public-only" | "private") {
+// `optional`: readable signed out or in (shared story and company links); never redirects.
+// `returnTo` (public-only pages): where a signed-in visitor goes instead of the dashboard.
+export function useAuthGuard(page: "public-only" | "private" | "optional", { returnTo }: { returnTo?: string | null } = {}) {
   const navigate = useNavigate();
   const { checking, signedIn, signedOut } = useMe();
   const [hint, setHint] = useState(false);
   useEffect(() => setHint(signedInHint.get()), []);
   useEffect(() => {
     if (!apiEnabled) return; // demo mode has no real sessions
-    if (page === "public-only" && signedIn) navigate({ to: "/dashboard", replace: true });
+    if (page === "public-only" && signedIn) { const back = safeReturnTo(returnTo); if (back) navigate({ href: back, replace: true }); else navigate({ to: "/dashboard", replace: true }); }
     if (page === "private" && signedOut) navigate({ to: "/auth", replace: true });
-  }, [page, signedIn, signedOut, navigate]);
-  if (!apiEnabled) return { waiting: false };
-  // Private pages always wait. Public pages only wait if this browser was probably logged in,
-  // so first-time visitors see the page instantly.
-  const waiting = page === "private" ? checking || signedOut : (checking && hint) || signedIn;
-  return { waiting };
+  }, [page, signedIn, signedOut, navigate, returnTo]);
+  if (!apiEnabled) return { waiting: false, signedOut: false };
+  // Private pages always wait. Public and optional pages only wait if this browser was probably
+  // logged in, so first-time visitors see the page instantly.
+  const waiting = page === "private" ? checking || signedOut : page === "optional" ? checking && hint : (checking && hint) || signedIn;
+  return { waiting, signedOut: page === "optional" ? signedOut || (checking && !hint) : signedOut };
 }
+
+// Only a story or company page can be a return address after signing in (no open redirects).
+export const safeReturnTo = (p: string | null | undefined) => (p && /^\/(s|c)\/[A-Za-z0-9-]{1,60}$/.test(p) ? p : null);
 
 export function useAccountActions() {
   const qc = useQueryClient();

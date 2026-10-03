@@ -23,6 +23,9 @@ export const apiEnabled = API_URL !== null;
 if (typeof window !== "undefined") { try { localStorage.removeItem("ghosted.session"); } catch { /* storage blocked */ } }
 
 export const UNAUTHORIZED_EVENT = "ghosted:unauthorized";
+export const NEED_ACCOUNT_EVENT = "ghosted:need-account";
+// Ask the signed-out page to show its "join to do this" prompt (for actions that never reach the API).
+export const askToJoin = () => { if (typeof window !== "undefined") window.dispatchEvent(new Event(NEED_ACCOUNT_EVENT)); };
 
 export class ApiRequestError extends Error {
   constructor(readonly status: number, readonly code: string, message: string, readonly fields?: Record<string, string>) {
@@ -43,7 +46,11 @@ export async function api<T>(path: string, { method = "GET", body, timeoutMs }: 
   });
   const json = (await res.json().catch(() => ({}))) as { error?: { code: string; message: string; fields?: Record<string, string> } };
   // A 401 outside the auth endpoints means the session is gone (both tokens expired or revoked).
-  if (res.status === 401 && !path.startsWith("/v1/auth/") && typeof window !== "undefined") window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
+  if (res.status === 401 && !path.startsWith("/v1/auth/") && typeof window !== "undefined") {
+    window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
+    // An action (react, chitchat, follow…) by a visitor who isn't signed in: offer to join.
+    if (method !== "GET") window.dispatchEvent(new Event(NEED_ACCOUNT_EVENT));
+  }
   if (!res.ok) throw new ApiRequestError(res.status, json.error?.code ?? "http_error", json.error?.message ?? "Request failed.", json.error?.fields);
   return json as T;
 }

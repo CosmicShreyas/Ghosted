@@ -12,7 +12,7 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import { toast } from "sonner";
 import { ApiRequestError, apiEnabled, authApi, type MfaMethod } from "@/lib/api";
 import { handleFromSeed, randomHandle } from "@/lib/handles";
-import { useAccountActions, useAuthGuard } from "@/lib/session";
+import { safeReturnTo, useAccountActions, useAuthGuard } from "@/lib/session";
 import { Preloader } from "@/components/preloader";
 import { HumanCheck, useHumanCheck } from "@/components/human-check";
 import { ThemeToggle } from "@/components/theme-picker";
@@ -32,7 +32,11 @@ export const Route = createFileRoute("/auth")({
     ],
   }),
   // /auth?tab=login opens the Log in tab (the header's "Log in" button); anything else opens Sign up.
-  validateSearch: (search: Record<string, unknown>): { tab?: "login" } => (search["tab"] === "login" ? { tab: "login" } : {}),
+  // ?returnTo=/s/<id> or /c/<slug>: after signing in or up, go back to that page.
+  validateSearch: (search: Record<string, unknown>): { tab?: "login"; returnTo?: string } => ({
+    ...(search["tab"] === "login" && { tab: "login" as const }),
+    ...(typeof search["returnTo"] === "string" && safeReturnTo(search["returnTo"]) && { returnTo: search["returnTo"] }),
+  }),
   component: AuthPage,
 });
 
@@ -131,7 +135,9 @@ function AuthPage() {
   const account = useAccountActions();
 
   // Already logged in (the session cookie is still good)? Straight to the dashboard.
-  const { waiting } = useAuthGuard("public-only");
+  const returnTo = Route.useSearch().returnTo ?? null;
+  const { waiting } = useAuthGuard("public-only", { returnTo });
+  const goIn = () => { const back = safeReturnTo(returnTo); if (back) navigate({ href: back }); else navigate({ to: "/dashboard" }); };
 
   // Load the profile first so the dashboard opens already knowing who you are, with no flash.
   const enterDashboard = async (afterSignup = false) => {
@@ -147,7 +153,7 @@ function AuthPage() {
         );
       }
     }
-    navigate({ to: "/dashboard" });
+    goIn();
   };
 
   useEffect(() => {
@@ -210,7 +216,7 @@ function AuthPage() {
         setNotice({ tone: "info", text: r.method === "email" ? `We emailed a 6-digit sign-in code to ${email}.` : "Open your authenticator app and enter the 6-digit code for Ghosted." });
         return;
       }
-      if (r.profile) { account.prime(r.profile); navigate({ to: "/dashboard" }); return; }
+      if (r.profile) { account.prime(r.profile); goIn(); return; }
     }
     await enterDashboard();
   });

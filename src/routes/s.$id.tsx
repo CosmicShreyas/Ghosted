@@ -9,6 +9,8 @@ import { ChitchatThread } from "@/components/dashboard/chitchats";
 import { CompanyRail, StoryCompanyCard } from "@/components/dashboard/company-page";
 import { LogoutDialog } from "@/components/dashboard/confirm-dialogs";
 import { Preloader } from "@/components/preloader";
+import { PublicShell } from "@/components/public-shell";
+import { pageMeta } from "@/lib/meta";
 import { BackButton } from "@/components/back-button";
 import { Button } from "@/components/ui/button";
 import { api, apiEnabled } from "@/lib/api";
@@ -24,7 +26,8 @@ import type { Company } from "@/mock/data";
 // about (follow, bell, company page) and that company's numbers. Phones and tablets stack it: story,
 // company card, a swipeable strip of numbers, then chitchats.
 export const Route = createFileRoute("/s/$id")({
-  head: () => ({ meta: [{ title: "Story | Ghosted" }, { name: "description", content: "A hiring story shared on Ghosted, and the chitchat around it." }] }),
+  // Shared links get a proper preview, but never the story's text, and story pages stay out of search.
+  head: () => ({ meta: pageMeta({ title: "A hiring story on Ghosted", description: "Read a real candidate's hiring experience, shared anonymously on Ghosted.", type: "article", noindex: true }) }),
   component: StoryPage,
 });
 
@@ -33,7 +36,7 @@ function StoryPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { me } = useMe();
-  const { waiting } = useAuthGuard("private");
+  const { waiting, signedOut } = useAuthGuard("optional");
   const { logout } = useAccountActions();
   const { index, ready } = useCompanyIndex();
   const [saved, toggleSave] = useSaved();
@@ -53,17 +56,19 @@ function StoryPage() {
 
   if (waiting || (apiEnabled && (q.isPending || !ready))) return <Preloader />;
 
+  const body = story ? <StoryLayout story={story} saved={saved.has(story.id)} onSave={() => toggleSave(story.id)} onOpenCompany={openCompany} />
+    : <div className="mx-auto max-w-lg rounded-xl border-2 border-dashed border-foreground/40 p-10 text-center">
+        <p className="font-display text-xl font-bold">This story isn't here any more</p>
+        <p className="mt-2 text-sm text-muted-foreground">Its author may have deleted it.</p>
+        <Button className="mt-5" variant="outline" asChild><Link to={signedOut ? "/" : "/dashboard"}><ArrowLeft />{signedOut ? "Go to Ghosted" : "Back to the feed"}</Link></Button>
+      </div>;
+  // Signed out: readable, with a simple top bar; actions open the join prompt.
+  if (signedOut) return <PublicShell>{body}</PublicShell>;
+
   return <div className="min-h-screen bg-background lg:pl-60">
     <Sidebar view={null} onChange={goView} me={me} savedCount={saved.size} />
     <Topbar query="" onQuery={() => undefined} onShare={() => setShare(true)} me={me} view={null} onChange={goView} onLogout={() => setConfirmLogout(true)} savedCount={saved.size} />
-    <main className="mx-auto max-w-[1400px] p-4 pb-28 sm:p-6 sm:pb-28 lg:pb-6">
-      {story ? <StoryLayout story={story} saved={saved.has(story.id)} onSave={() => toggleSave(story.id)} onOpenCompany={openCompany} />
-        : <div className="mx-auto max-w-lg rounded-xl border-2 border-dashed border-foreground/40 p-10 text-center">
-            <p className="font-display text-xl font-bold">This story isn't here any more</p>
-            <p className="mt-2 text-sm text-muted-foreground">Its author may have deleted it.</p>
-            <Button className="mt-5" variant="outline" asChild><Link to="/dashboard"><ArrowLeft />Back to the feed</Link></Button>
-          </div>}
-    </main>
+    <main className="mx-auto max-w-[1400px] p-4 pb-28 sm:p-6 sm:pb-28 lg:pb-6">{body}</main>
     <ShareModal open={share} onOpenChange={setShare} presetCompany={story?.company.id ?? null} />
     <LogoutDialog open={confirmLogout} onOpenChange={setConfirmLogout} onConfirm={async () => { await logout(); setConfirmLogout(false); navigate({ to: "/auth" }); }} />
   </div>;

@@ -29,6 +29,7 @@ import { useCompanyIndex, type StoryModel } from "@/lib/stories";
 import { journey, storyScore, type Dimension, type Outcome } from "@/lib/score";
 import { cn } from "@/lib/utils";
 import { ListCompanyDialog } from "./list-company";
+import { ShareCard } from "./share-card";
 import { popup, popupBody, scoreTone } from "./ui-kit";
 
 // ---------- options ----------
@@ -286,6 +287,7 @@ export function ShareModal({ open, onOpenChange, editing = null, presetCompany =
   const [done, setDone] = useState(false);
   const [listing, setListing] = useState(false);
   const [restored, setRestored] = useState(false);
+  const [postedId, setPostedId] = useState<string | null>(null);
 
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((s) => ({ ...s, [k]: v }));
   const company = index.get(d.company);
@@ -404,6 +406,7 @@ export function ShareModal({ open, onOpenChange, editing = null, presetCompany =
         onPublished?.(r.publicId ?? null); refresh(); close(false);
         return;
       }
+      setPostedId(r.story?.publicId ?? null);
       setDone(true);
       onPublished?.(r.story?.publicId ?? null);
       refresh();
@@ -562,14 +565,15 @@ export function ShareModal({ open, onOpenChange, editing = null, presetCompany =
 
   return <Dialog open={open} onOpenChange={close}>
     <DialogContent className={cn(popup, "max-w-2xl")}>
-      {done ? <div className={cn(popupBody, "grid place-items-center py-12 text-center")} data-lenis-prevent>
+      {done ? <div className={cn(popupBody, "grid place-items-center py-8 text-center")} data-lenis-prevent>
         <motion.div initial={{ scale: 0.4, rotate: -12, opacity: 0 }} animate={{ scale: 1, rotate: 0, opacity: 1 }} transition={{ type: "spring", stiffness: 260, damping: 14 }} className="relative">
-          <img src="/ghosted-mark.png" alt="" className="size-28 object-contain" />
+          <img src="/ghosted-mark.png" alt="" className="size-20 object-contain" />
           {[...Array(8)].map((_, i) => <motion.span key={i} className="absolute left-1/2 top-1/2 size-2.5 rounded-full" style={{ background: ["#6D28D9", "#F59E0B", "#22C55E", "#EF4444"][i % 4] }}
-            initial={{ x: 0, y: 0, opacity: 1 }} animate={{ x: Math.cos((i / 8) * Math.PI * 2) * 90, y: Math.sin((i / 8) * Math.PI * 2) * 90, opacity: 0 }} transition={{ duration: 0.9, delay: 0.15, ease: "easeOut" }} />)}
+            initial={{ x: 0, y: 0, opacity: 1 }} animate={{ x: Math.cos((i / 8) * Math.PI * 2) * 80, y: Math.sin((i / 8) * Math.PI * 2) * 80, opacity: 0 }} transition={{ duration: 0.9, delay: 0.15, ease: "easeOut" }} />)}
         </motion.div>
-        <DialogTitle className="mt-5 font-display text-3xl">{voice(tone, "Receipts filed.", "Story shared.")}</DialogTitle>
-        <DialogDescription className="mx-auto mt-2 max-w-sm">{apiEnabled ? voice(tone, "Somewhere, a candidate just dodged a six-round interview. That was you.", "Thank you. Your story is live and will help other candidates.") : "Preview mode: stories aren't saved here."}</DialogDescription>
+        <DialogTitle className="mt-4 font-display text-3xl">{voice(tone, "Receipts filed.", "Story shared.")}</DialogTitle>
+        <DialogDescription className="mx-auto mt-2 max-w-sm">{apiEnabled ? voice(tone, "Now get it in front of the next candidate. The card never shows who you are.", "Thank you. Share the card below; it never shows who you are.") : "Preview mode: stories aren't saved here."}</DialogDescription>
+        <div className="mt-5 flex w-full justify-center"><ShareCard data={{ storyId: postedId, headline: d.title.trim() || autoTitle(d), wait: neverHired(d.outcome) && days != null ? waitPhrase(days) : null, score: flagScore, company: company?.name ?? "" }} /></div>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <Button variant="outline" onClick={() => { setD(EMPTY); setDone(false); setStep(0); setReached(0); }}><PenLine />Share another</Button>
           <Button onClick={() => close(false)}><Sparkles />Back to the feed</Button>
