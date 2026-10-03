@@ -10,6 +10,7 @@ import {
 import { useEffect, type ReactNode } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { CookieConsent } from "@/components/cookie-consent";
+import { IosInstallHint } from "@/components/ios-install";
 import { AnnouncementBar } from "@/components/announcement";
 import { SmoothScroll } from "@/components/smooth-scroll";
 import { MotionConfig } from "motion/react";
@@ -168,6 +169,7 @@ function RootComponent() {
       <Toaster position="bottom-right" />
       {/* Asked once; any choice is remembered for a year. Footer → Cookie settings reopens it. */}
       <CookieConsent />
+      <IosInstallHint />
     </QueryClientProvider>
   );
 }
