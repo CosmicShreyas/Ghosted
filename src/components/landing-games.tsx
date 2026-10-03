@@ -39,9 +39,19 @@ export function GhostOMeter() {
     <div className="mt-10 grid gap-5 lg:grid-cols-2">
       <div className="flex flex-col rounded-xl border-2 border-foreground bg-card p-6 shadow-hard sm:p-8">
         <p className="text-xs font-bold uppercase text-muted-foreground">Step 1 · Days since their last reply</p>
-        <div className="mt-3 flex items-end gap-3"><span className="font-display text-8xl font-bold leading-none tabular-nums">{days}</span><span className="pb-2 font-display text-2xl font-bold text-muted-foreground">{days === 1 ? "day" : "days"}</span></div>
-        <input type="range" min={0} max={MAX_DAYS} value={days} onChange={(e) => setDays(Number(e.target.value))} aria-label="Days since their last reply" className="mt-8 h-2 w-full cursor-pointer accent-primary" />
-        <div className="relative mt-3 h-8">
+        <div className="mt-3 flex items-end gap-3">
+          <span className="font-display text-7xl font-bold leading-none tabular-nums sm:text-8xl">{days}</span><span className="pb-2 font-display text-2xl font-bold text-muted-foreground">{days === 1 ? "day" : "days"}</span>
+          {/* Phones and tablets: one-tap nudges, easier than dragging a thin slider. */}
+          <span className="ml-auto flex gap-2 pb-1 lg:hidden">
+            <button type="button" onClick={() => setDays((d) => Math.max(0, d - 1))} aria-label="One day fewer" className="grid size-11 place-items-center rounded-full border-2 border-foreground bg-card font-display text-xl font-bold active:bg-muted">−</button>
+            <button type="button" onClick={() => setDays((d) => Math.min(MAX_DAYS, d + 1))} aria-label="One day more" className="grid size-11 place-items-center rounded-full border-2 border-foreground bg-card font-display text-xl font-bold active:bg-muted">+</button>
+          </span>
+        </div>
+        <input type="range" min={0} max={MAX_DAYS} value={days} onChange={(e) => setDays(Number(e.target.value))} aria-label="Days since their last reply" className="mt-6 h-3 w-full cursor-pointer accent-primary sm:mt-8 lg:h-2" />
+        {/* Phones and tablets: the stages as chips that wrap (the proportional bar truncated them). */}
+        <div className="mt-4 flex flex-wrap gap-2 lg:hidden">{ghostStages.map((s) => <button key={s.name} type="button" onClick={() => setDays(s.from)} aria-pressed={s === stage}
+          className={cn("min-h-10 rounded-full border-2 border-foreground px-3 text-xs font-bold transition-colors", s === stage ? "bg-foreground text-background" : "bg-card text-muted-foreground active:bg-muted")}>{s.name} <span className="font-normal opacity-70">{s.from}+</span></button>)}</div>
+        <div className="relative mt-3 hidden h-8 lg:block">
           {ghostStages.map((s, i) => { const next = ghostStages[i + 1]?.from ?? MAX_DAYS; const active = s === stage; return <button key={s.name} type="button" onClick={() => setDays(s.from)} style={{ left: `${(s.from / MAX_DAYS) * 100}%`, width: `${((next - s.from) / MAX_DAYS) * 100}%` }} className={cn("absolute top-0 h-full border-l-2 border-foreground px-1.5 text-left text-[11px] font-bold leading-8 transition-colors", active ? "bg-foreground text-background" : "text-muted-foreground hover:bg-muted")}><span className="block truncate">{s.name}</span></button>; })}
         </div>
         <div className="mt-8 flex-1 rounded-lg border-2 border-foreground bg-background p-5">
