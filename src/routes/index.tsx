@@ -119,7 +119,9 @@ function LandingPage() {
     <section id="top-search" className="mx-auto grid max-w-7xl scroll-mt-20 items-center gap-8 overflow-x-clip px-4 py-10 sm:gap-12 sm:px-6 sm:py-14 lg:min-h-[640px] lg:grid-cols-[1.05fr_.95fr] lg:gap-16 lg:py-20">
       <div className="animate-fade-up">
         <div className="mb-5 inline-flex items-center gap-2 rounded-full border-2 border-foreground bg-accent px-3 py-1 text-sm font-bold"><Sparkles className="size-4" />Real hiring experiences, by company</div>
-        <h1 className="max-w-3xl text-5xl font-bold leading-[.97] sm:text-6xl lg:text-7xl">Know what happened<br /><span className="block min-h-[2em] text-primary"><RetypingLine /></span></h1>
+        {/* Exactly two lines are reserved for the typing line (h-[1.94em] at this line height), so the
+    page below never moves; the lines themselves are short enough to never need a third. */}
+<h1 className="max-w-3xl text-[2.6rem] font-bold leading-[.97] min-[380px]:text-5xl sm:text-6xl lg:text-7xl">Know what happened<br /><span className="block h-[1.94em] overflow-hidden text-primary"><RetypingLine /></span></h1>
         <p className="mt-4 max-w-xl text-lg leading-relaxed text-muted-foreground">Real candidate experiences, anonymous by default and searchable by company: the rounds, the waiting, the replies (or not), the offers and the ghosting.</p>
         <CompanySearch className="mt-7 max-w-xl" />
         <div className="mt-6 flex flex-wrap items-center gap-3">

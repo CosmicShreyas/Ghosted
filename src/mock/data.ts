@@ -318,17 +318,19 @@ export const landingHero = {
 
 // The hero reads "Know what happened" + one of these. The first is the plain promise (it's what shows
 // before JavaScript loads and what search engines read); the rest are the fun ones.
+// Kept to about 20 characters so every line fits in two lines on a phone (the hero reserves exactly
+// two lines, so nothing below it jumps while the text retypes).
 export const heroRotatingLines = [
   "before you apply.",
   "before round six.",
-  "before the take-home eats your weekend.",
-  "before “we'll get back to you.”",
-  "before you're left on read.",
-  "before “competitive pay” turns out to be vibes.",
-  "before the offer gets un-offered.",
-  "before the recruiter goes to Goa and never comes back.",
-  "before you prep for a role that never existed.",
-  "before the ghosting, not after.",
+  "before the take-home.",
+  "before you're ghosted.",
+  "before “we'll call you.”",
+  "before you're on read.",
+  "before the offer flips.",
+  "before pay is “vibes.”",
+  "before HR goes silent.",
+  "before the fake job.",
 ];
 
 export const heroScene = {
