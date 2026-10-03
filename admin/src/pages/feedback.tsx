@@ -1,6 +1,7 @@
 // Bugs, ideas and feedback from /feedback: read, set a status, reply (the author is notified).
 import { useEffect, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
+import { LoadMore, useAdminList } from "../paging";
 import { Bug, Lightbulb, Loader2, MessageSquareHeart, Monitor, Send, Star } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -50,9 +51,10 @@ export function FeedbackPage() {
   const qc = useQueryClient();
   const [kind, setKind] = useState<"all" | "bug" | "feature" | "feedback">("all");
   const [status, setStatus] = useState<"open" | "done" | "all">("open");
-  const q = useQuery({ queryKey: ["admin", "feedback", kind, status], queryFn: () => adminApi<{ items: Item[] }>(`/feedback?kind=${kind}&status=${status === "done" ? "done" : status}`) });
+  const list = useAdminList<Item>(["admin", "feedback", kind, status], `/feedback?kind=${kind}&status=${status === "done" ? "done" : status}`);
+  const q = { isPending: list.loading };
   const [sel, setSel] = useState<string | null>(null);
-  const items = q.data?.items ?? [];
+  const items = list.items;
   const current = items.find((i) => i.publicId === sel) ?? items[0] ?? null;
   return <>
     <PageHead eyebrow="Community" title="Feedback" copy="From the /feedback page. Status changes and replies are sent to the author's notifications." action={<div className="flex flex-wrap gap-2">
@@ -66,7 +68,7 @@ export function FeedbackPage() {
             <Icon className="mt-0.5 size-4 shrink-0" />
             <span className="min-w-0 flex-1"><span className="flex items-center gap-1.5"><span className="truncate text-sm font-bold">{it.title ?? "Feedback"}</span>{it.status === "new" && <span className="size-2 shrink-0 rounded-full bg-primary" aria-label="New" />}</span>
               <span className="block truncate text-xs text-muted-foreground">{STATUSES.find(([v]) => v === it.status)?.[1]} · {ago(it.created_at)}</span></span>
-          </button></li>; })}</ul>
+          </button></li>; })}<li><LoadMore list={list} noun="items" /></li></ul>
         {current && <Detail key={current.publicId} it={current} onSaved={() => { void qc.invalidateQueries({ queryKey: ["admin", "feedback"] }); void qc.invalidateQueries({ queryKey: ["admin", "overview"] }); }} />}
       </div>}
   </>;

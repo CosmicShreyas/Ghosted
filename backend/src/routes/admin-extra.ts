@@ -22,6 +22,7 @@ import { admin as db } from "../supabase.js";
 import { validate } from "../validate.js";
 import { inspectWebsite, SiteCheckError } from "../lib/site-check.js";
 import { gatherFacts } from "../lib/company-facts.js";
+import { offsetQ, PAGE, paged } from "../admin-paging.js";
 
 const DAY = 86400_000;
 const pid = z.string().regex(/^\d{15}$/);
@@ -506,9 +507,9 @@ export const adminExtraRoutes = new Hono<AdminEnv>()
   })
 
   // ================= members =================
-  .get("/members", validate("query", z.object({ q: z.string().trim().max(60).optional(), filter: z.enum(["all", "banned", "paused", "new"]).default("all") })), async (c) => {
-    const { q, filter } = c.req.valid("query");
-    let query = db().from("profiles").select("public_id, handle, avatar_seed, pastel, created_at, posting_paused_until, banned_at, banned_until").eq("kind", "person").order("created_at", { ascending: false }).limit(60);
+  .get("/members", validate("query", z.object({ q: z.string().trim().max(60).optional(), filter: z.enum(["all", "banned", "paused", "new"]).default("all"), offset: offsetQ })), async (c) => {
+    const { q, filter, offset } = c.req.valid("query");
+    let query = db().from("profiles").select("public_id, handle, avatar_seed, pastel, created_at, posting_paused_until, banned_at, banned_until").eq("kind", "person").order("created_at", { ascending: false }).order("public_id").range(offset, offset + PAGE);
     if (q && /^\d{15}$/.test(q)) query = query.eq("public_id", q);
     else if (q) query = query.ilike("handle", `%${q.replace(/[%_\\]/g, (m) => `\\${m}`)}%`);
     if (filter === "banned") query = query.not("banned_at", "is", null);
@@ -516,7 +517,7 @@ export const adminExtraRoutes = new Hono<AdminEnv>()
     if (filter === "new") query = query.gte("created_at", new Date(Date.now() - 7 * DAY).toISOString());
     const { data, error } = await query;
     if (error) dbFail("admin members", error);
-    return c.json({ items: ((data ?? []) as { public_id: number; handle: string; avatar_seed: string; pastel: string; created_at: string; posting_paused_until: string | null; banned_at: string | null; banned_until: string | null }[]).map((m) => ({ publicId: String(m.public_id), handle: m.handle, avatarSeed: m.avatar_seed, pastel: m.pastel, joinedAt: m.created_at, status: statusOf(m) })) });
+    return c.json(paged(((data ?? []) as { public_id: number; handle: string; avatar_seed: string; pastel: string; created_at: string; posting_paused_until: string | null; banned_at: string | null; banned_until: string | null }[]).map((m) => ({ publicId: String(m.public_id), handle: m.handle, avatarSeed: m.avatar_seed, pastel: m.pastel, joinedAt: m.created_at, status: statusOf(m) })), offset));
   })
   .get("/members/:publicId", validate("param", z.object({ publicId: pid })), async (c) => {
     const m = await member(c.req.valid("param").publicId);
@@ -600,10 +601,11 @@ export const adminExtraRoutes = new Hono<AdminEnv>()
   })
 
   // ================= IP bans =================
-  .get("/ip-bans", async (c) => {
-    const { data, error } = await db().from("ip_bans").select("ip_hash, ip_masked, reason, user_ref, banned_by, expires_at, created_at").order("created_at", { ascending: false }).limit(300);
+  .get("/ip-bans", validate("query", z.object({ offset: offsetQ })), async (c) => {
+    const { offset } = c.req.valid("query");
+    const { data, error } = await db().from("ip_bans").select("ip_hash, ip_masked, reason, user_ref, banned_by, expires_at, created_at").order("created_at", { ascending: false }).range(offset, offset + PAGE);
     if (error) dbFail("ip bans (run supabase/init_database.sql on a fresh project)", error);
-    return c.json({ items: ((data ?? []) as { ip_hash: string; ip_masked: string | null; reason: string | null; user_ref: number | null; banned_by: string; expires_at: string | null; created_at: string }[]).map((b) => ({ ref: b.ip_hash, ip: b.ip_masked, reason: b.reason, member: b.user_ref ? String(b.user_ref) : null, by: b.banned_by, until: b.expires_at, at: b.created_at })) });
+    return c.json(paged(((data ?? []) as { ip_hash: string; ip_masked: string | null; reason: string | null; user_ref: number | null; banned_by: string; expires_at: string | null; created_at: string }[]).map((b) => ({ ref: b.ip_hash, ip: b.ip_masked, reason: b.reason, member: b.user_ref ? String(b.user_ref) : null, by: b.banned_by, until: b.expires_at, at: b.created_at })), offset));
   })
   .post("/ip-bans", validate("json", z.object({ ref: z.string().regex(/^[0-9a-f]{16,64}$/), reason: z.string().trim().min(3).max(300), days: z.number().int().min(1).max(3650).nullable(), member: pid.optional() }).strict()), async (c) => {
     const b = c.req.valid("json");

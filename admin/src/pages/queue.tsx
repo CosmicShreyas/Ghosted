@@ -1,6 +1,7 @@
 // Posts Goofy held because they need a human: approve, approve with names hidden, or remove.
 import { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
+import { LoadMore, useAdminList } from "../paging";
 import { AnimatePresence, motion } from "motion/react";
 import { Check, EyeOff, ExternalLink, Flag, HeartPulse, Hourglass, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -59,11 +60,12 @@ function QueueCard({ it, onDone }: { it: Item; onDone: () => void }) {
 export function QueuePage() {
   const qc = useQueryClient();
   const [kind, setKind] = useState<"story" | "chitchat">("story");
-  const q = useQuery({ queryKey: ["admin", "queue", kind], queryFn: () => adminApi<{ items: Item[] }>(`/queue?kind=${kind}`), refetchInterval: 30_000 });
+  const list = useAdminList<Item>(["admin", "queue", kind], `/queue?kind=${kind}`, { refetchInterval: 30_000 });
+  const q = { isPending: list.loading, data: { items: list.items } };
   const done = () => { void qc.invalidateQueries({ queryKey: ["admin", "queue"] }); void qc.invalidateQueries({ queryKey: ["admin", "overview"] }); };
   return <>
     <PageHead eyebrow="Moderation" title="Held for review" copy="Posts Goofy wasn't sure about. Approving or removing tells the author and settles any open reports." action={<Segmented label="Kind" value={kind} onChange={setKind} options={[{ id: "story", label: "Stories" }, { id: "chitchat", label: "Chitchats" }]} />} />
     {q.isPending ? <ModerationSkeleton count={2} /> : !q.data?.items.length ? <Empty icon={Hourglass} title="Nothing waiting" copy={`No held ${kind === "story" ? "stories" : "chitchats"}. Goofy's handling the rest.`} />
-      : <ul className="space-y-4"><AnimatePresence initial={false}>{q.data.items.map((it) => <QueueCard key={it.publicId} it={it} onDone={done} />)}</AnimatePresence></ul>}
+      : <ul className="space-y-4"><AnimatePresence initial={false}>{q.data.items.map((it) => <QueueCard key={it.publicId} it={it} onDone={done} />)}</AnimatePresence><LoadMore list={list} noun="held posts" /></ul>}
   </>;
 }

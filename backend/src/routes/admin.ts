@@ -15,6 +15,7 @@ import { sealJson, unsealJson } from "../lib/sealed.js";
 import { adminExtraRoutes } from "./admin-extra.js";
 import { platform } from "../platform.js";
 import { sweepWaiting } from "../interest.js";
+import { offsetQ, PAGE, paged } from "../admin-paging.js";
 import { sendMail } from "../mail/mailer.js";
 import { otpEmail } from "../mail/otp-email.js";
 import { env } from "../env.js";
@@ -201,15 +202,17 @@ export const adminRoutes = new Hono<AdminEnv>()
   })
 
   // ---------- the held queue ----------
-  .get("/queue", validate("query", z.object({ kind: z.enum(["story", "chitchat"]).default("story") })), async (c) => {
-    const kind = c.req.valid("query").kind;
+  .get("/queue", validate("query", z.object({ kind: z.enum(["story", "chitchat"]).default("story"), offset: offsetQ })), async (c) => {
+    const { kind, offset } = c.req.valid("query");
     const q = kind === "story"
-      ? db().from("stories").select("id, public_id, title, body_z, outcome, stage, created_at, moderation, author:profiles!stories_author_id_fkey(handle, public_id), company:companies(name, slug)").eq("status", "pending").order("created_at").limit(100)
-      : db().from("comments").select("id, public_id, body_z, created_at, moderation, author:profiles!comments_author_id_fkey(handle, public_id), story:stories(public_id, title)").eq("status", "pending").order("created_at").limit(100);
+      ? db().from("stories").select("id, public_id, title, body_z, outcome, stage, created_at, moderation, author:profiles!stories_author_id_fkey(handle, public_id), company:companies(name, slug)").eq("status", "pending").order("created_at").range(offset, offset + PAGE)
+      : db().from("comments").select("id, public_id, body_z, created_at, moderation, author:profiles!comments_author_id_fkey(handle, public_id), story:stories(public_id, title)").eq("status", "pending").order("created_at").range(offset, offset + PAGE);
     const { data, error } = await q;
     if (error) dbFail("admin queue", error);
     type Row = { id: string; public_id: number; title?: string; body_z: string; outcome?: string; stage?: string; created_at: string; moderation: Record<string, unknown> | null; author: { handle: string; public_id: number } | null; company?: { name: string; slug: string } | null; story?: { public_id: number; title: string } | null };
-    const rows = (data ?? []) as unknown as Row[];
+    const all = (data ?? []) as unknown as Row[];
+    const nextOffset = all.length > PAGE ? offset + PAGE : null;
+    const rows = all.slice(0, PAGE);
     const table = kind === "story" ? "reports" : "comment_reports", col = kind === "story" ? "story_id" : "comment_id";
     const { data: reps } = rows.length ? await db().from(table).select(`${col}, reason, details, priority, auto_hidden`).in(col, rows.map((r) => r.id)).eq("resolved", false) : { data: [] };
     const byItem = new Map<string, { reason: string; details: string | null; priority: number }[]>();
@@ -219,7 +222,7 @@ export const adminRoutes = new Hono<AdminEnv>()
       author: handleOf(r.author), company: r.company ?? null, story: r.story ? { publicId: String(r.story.public_id), title: r.story.title } : null,
       review: r.moderation ? { decision: r.moderation["decision"] ?? null, score: r.moderation["score"] ?? null, reasons: r.moderation["reasons"] ?? [], selfHarm: !!r.moderation["selfHarm"], askedAt: r.moderation["askedAt"] ?? null } : null,
       reports: byItem.get(r.id) ?? [],
-    })) });
+    })), nextOffset });
   })
 
   .post("/queue/:kind/:publicId", validate("param", z.object({ kind: z.enum(["story", "chitchat"]), publicId: z.string().regex(/^\d{15}$/) })), validate("json", z.object({ action: z.enum(["approve", "redact", "remove"]), note: z.string().trim().max(300).optional() }).strict()), async (c) => {
@@ -307,14 +310,14 @@ export const adminRoutes = new Hono<AdminEnv>()
   })
 
   // ---------- feedback ----------
-  .get("/feedback", validate("query", z.object({ kind: z.enum(["bug", "feature", "feedback", "all"]).default("all"), status: z.enum(["open", "new", "seen", "planned", "in_progress", "done", "wont_do", "all"]).default("open") })), async (c) => {
-    const { kind, status } = c.req.valid("query");
-    let q = db().from("feedback").select("public_id, kind, title, body, area, severity, rating, steps, device, status, reply, created_at, updated_at, author:profiles(handle, public_id)").neq("kind", "pulse").order("created_at", { ascending: false }).limit(200);
+  .get("/feedback", validate("query", z.object({ kind: z.enum(["bug", "feature", "feedback", "all"]).default("all"), status: z.enum(["open", "new", "seen", "planned", "in_progress", "done", "wont_do", "all"]).default("open"), offset: offsetQ })), async (c) => {
+    const { kind, status, offset } = c.req.valid("query");
+    let q = db().from("feedback").select("public_id, kind, title, body, area, severity, rating, steps, device, status, reply, created_at, updated_at, author:profiles(handle, public_id)").neq("kind", "pulse").order("created_at", { ascending: false }).range(offset, offset + PAGE);
     if (kind !== "all") q = q.eq("kind", kind);
     if (status === "open") q = q.in("status", ["new", "seen", "planned", "in_progress"]); else if (status !== "all") q = q.eq("status", status);
     const { data, error } = await q;
     if (error) dbFail("admin feedback", error);
-    return c.json({ items: ((data ?? []) as unknown as (Record<string, unknown> & { public_id: number; author: { handle: string; public_id: number } | null })[]).map((f) => ({ ...f, publicId: String(f.public_id), author: handleOf(f.author), public_id: undefined })) });
+    return c.json(paged(((data ?? []) as unknown as (Record<string, unknown> & { public_id: number; author: { handle: string; public_id: number } | null })[]).map((f) => ({ ...f, publicId: String(f.public_id), author: handleOf(f.author), public_id: undefined })), offset));
   })
 
   .patch("/feedback/:publicId", validate("param", z.object({ publicId: z.string().regex(/^\d{15}$/) })), validate("json", z.object({ status: z.enum(["new", "seen", "planned", "in_progress", "done", "wont_do"]).optional(), reply: z.string().trim().max(2000).optional() }).strict()), async (c) => {
@@ -330,14 +333,14 @@ export const adminRoutes = new Hono<AdminEnv>()
   })
 
   // ---------- companies ----------
-  .get("/companies", validate("query", z.object({ status: z.enum(["listed", "hidden", "all"]).default("all"), q: z.string().trim().max(60).optional() })), async (c) => {
-    const { status, q } = c.req.valid("query");
-    let query = db().from("companies").select("slug, name, domain, website, logo_url, industry, size, hq_city, status, created_at, about").order("created_at", { ascending: false }).limit(200);
+  .get("/companies", validate("query", z.object({ status: z.enum(["listed", "hidden", "all"]).default("all"), q: z.string().trim().max(60).optional(), offset: offsetQ })), async (c) => {
+    const { status, q, offset } = c.req.valid("query");
+    let query = db().from("companies").select("slug, name, domain, website, logo_url, industry, size, hq_city, status, created_at, about").order("created_at", { ascending: false }).order("slug").range(offset, offset + PAGE);
     if (status !== "all") query = query.eq("status", status);
     if (q) query = query.ilike("name", `%${q.replace(/[%_\\]/g, (m) => `\\${m}`)}%`);
     const { data, error } = await query;
     if (error) dbFail("admin companies", error);
-    return c.json({ items: data ?? [] });
+    return c.json(paged(data ?? [], offset));
   })
   .patch("/companies/:slug", validate("param", z.object({ slug: z.string().regex(/^[a-z0-9-]{2,60}$/) })), validate("json", z.object({ status: z.enum(["listed", "hidden"]) }).strict()), async (c) => {
     const { slug } = c.req.valid("param");
@@ -350,22 +353,33 @@ export const adminRoutes = new Hono<AdminEnv>()
   })
 
   // ---------- donations ----------
-  .get("/donations", async (c) => {
-    const { data, error } = await db().from("donations").select("public_id, amount_paise, status, message, show_name, razorpay_order_id, razorpay_payment_id, created_at, paid_at, donor:profiles(handle, public_id)").order("created_at", { ascending: false }).limit(300);
+  .get("/donations", validate("query", z.object({ offset: offsetQ })), async (c) => {
+    const { offset } = c.req.valid("query");
+    const { data, error } = await db().from("donations").select("public_id, amount_paise, status, message, show_name, razorpay_order_id, razorpay_payment_id, created_at, paid_at, donor:profiles(handle, public_id)").order("created_at", { ascending: false }).range(offset, offset + PAGE);
     if (error) dbFail("admin donations", error);
-    return c.json({ items: ((data ?? []) as unknown as (Record<string, unknown> & { public_id: number; amount_paise: number; donor: { handle: string; public_id: number } | null })[]).map((d) => ({ ...d, publicId: String(d.public_id), amount: d.amount_paise / 100, donor: handleOf(d.donor) })) });
+    // Totals for the whole history (the list itself is paged), sent with the first page only.
+    let summary: { raised: number; paid: number; abandoned: number } | undefined;
+    if (offset === 0) {
+      const [{ data: all }, { count: abandoned }] = await Promise.all([
+        db().from("donations").select("amount_paise").eq("status", "paid").limit(100000),
+        db().from("donations").select("public_id", { count: "exact", head: true }).neq("status", "paid"),
+      ]);
+      const list = (all ?? []) as { amount_paise: number }[];
+      summary = { raised: list.reduce((s, d) => s + d.amount_paise, 0) / 100, paid: list.length, abandoned: abandoned ?? 0 };
+    }
+    return c.json({ ...(summary && { summary }), ...paged(((data ?? []) as unknown as (Record<string, unknown> & { public_id: number; amount_paise: number; donor: { handle: string; public_id: number } | null })[]).map((d) => ({ ...d, publicId: String(d.public_id), amount: d.amount_paise / 100, donor: handleOf(d.donor) })), offset) });
   })
 
   // ---------- Goofy's word lists ----------
-  .get("/terms", validate("query", z.object({ source: z.enum(["all", "learned", "variant", "dsojevic", "ldnoobw_en", "ldnoobw_hi"]).default("learned"), status: z.enum(["active", "retired", "all"]).default("active"), q: z.string().trim().max(40).optional() })), async (c) => {
-    const { source, status, q } = c.req.valid("query");
-    let query = db().from("moderation_terms").select("term, tier, source, weight, status, evidence, updated_at").order("updated_at", { ascending: false }).limit(300);
+  .get("/terms", validate("query", z.object({ source: z.enum(["all", "learned", "variant", "dsojevic", "ldnoobw_en", "ldnoobw_hi"]).default("learned"), status: z.enum(["active", "retired", "all"]).default("active"), q: z.string().trim().max(40).optional(), offset: offsetQ })), async (c) => {
+    const { source, status, q, offset } = c.req.valid("query");
+    let query = db().from("moderation_terms").select("term, tier, source, weight, status, evidence, updated_at").order("updated_at", { ascending: false }).order("term").range(offset, offset + PAGE);
     if (source !== "all") query = query.eq("source", source);
     if (status !== "all") query = query.eq("status", status);
     if (q) query = query.ilike("term", `%${q.replace(/[%_\\]/g, (m) => `\\${m}`)}%`);
     const { data, error } = await query;
     if (error) dbFail("admin terms", error);
-    return c.json({ items: data ?? [] });
+    return c.json(paged(data ?? [], offset));
   })
   .patch("/terms/:term", validate("param", z.object({ term: z.string().min(2).max(60) })), validate("json", z.object({ status: z.enum(["active", "retired"]).optional(), tier: z.enum(["slur", "severe", "profanity", "watch"]).optional(), allow: z.boolean().optional() }).strict()), async (c) => {
     const { term } = c.req.valid("param");

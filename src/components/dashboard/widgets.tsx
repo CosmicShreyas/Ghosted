@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Avatar, QuickBadge } from "@/components/ghosted";
 import { FlairRing } from "@/lib/invite";
-import { StoryBody } from "@/components/markdown";
+import { plainText, StoryBody } from "@/components/markdown";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { api, ApiRequestError, apiEnabled, askToJoin } from "@/lib/api";
@@ -155,13 +155,16 @@ export function FeedStory({ story, saved, onSave, onOpenCompany, full = false }:
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
-    <div className="mt-3 flex flex-wrap items-center gap-2"><span className="rounded-full border-2 border-foreground bg-accent px-2.5 py-0.5 text-[11px] font-bold uppercase">{story.outcomeLabel}</span>{story.quick && <QuickBadge />}{story.role && <span className="text-xs font-semibold text-muted-foreground">{story.role}</span>}{minutes > 1 && <span className="ml-auto text-xs text-muted-foreground">{minutes} min read</span>}</div>
+    {/* In the feed every card is the same height: one row of tags, a one-line title and exactly three
+        lines of story (padded when shorter, cut with "…" when longer). The full story is one click away. */}
+    <div className={cn("mt-3 flex items-center gap-2", full ? "flex-wrap" : "min-w-0 flex-nowrap overflow-hidden")}><span className="shrink-0 rounded-full border-2 border-foreground bg-accent px-2.5 py-0.5 text-[11px] font-bold uppercase">{story.outcomeLabel}</span>{story.quick && <span className="shrink-0"><QuickBadge /></span>}{story.role && <span className={cn("text-xs font-semibold text-muted-foreground", !full && "min-w-0 truncate")}>{story.role}</span>}{minutes > 1 && <span className="ml-auto shrink-0 text-xs text-muted-foreground">{minutes} min read</span>}</div>
     {full
       ? <>{story.title && <h1 className="mt-3 font-display text-2xl font-bold leading-tight sm:text-3xl">{story.title}</h1>}<StoryBody text={story.body} fold={false} className={cn("text-[16px] sm:text-[17px]", story.title ? "mt-3" : "mt-3")} /></>
       : <>
           {/* The card itself opens the story; the title is also a real link for keyboards and screen readers. */}
-          <h3 className="mt-3 font-bold leading-snug"><Link to="/s/$id" params={{ id: story.id }} className="rounded hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2" aria-label={`Open the story${story.title ? `: ${story.title}` : ""}`}>{story.title ?? `A story about ${company.name}`}</Link></h3>
-          <StoryBody text={story.body} className="mt-1.5" />
+          <h3 className="mt-3 truncate font-bold leading-snug"><Link to="/s/$id" params={{ id: story.id }} className="rounded hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2" aria-label={`Open the story${story.title ? `: ${story.title}` : ""}`}>{story.title ?? `A story about ${company.name}`}</Link></h3>
+          <p className="mt-1.5 line-clamp-3 h-[4.875em] leading-[1.625] text-foreground/90">{plainText(story.body)}</p>
+          <Link to="/s/$id" params={{ id: story.id }} className="mt-1 inline-block text-sm font-bold text-primary hover:underline">Read the story</Link>
         </>}
     {!isMine && reporting && <ReportStoryDialog open={reporting} onOpenChange={setReporting} storyId={story.id} subject={story.title ?? story.body.slice(0, 120)} />}
     {isMine && <>

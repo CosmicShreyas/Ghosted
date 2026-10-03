@@ -5,6 +5,7 @@
 // There is no "sign in as them".
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { LoadMore, useAdminList } from "../paging";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowLeft, ArrowRight, Ban, Check, Globe, Laptop, Loader2, Mail, PauseCircle, PlayCircle, Search, Send, ShieldAlert, ShieldOff, Smartphone, Tablet, Undo2, Users } from "lucide-react";
 import { toast } from "sonner";
@@ -52,7 +53,8 @@ function MemberList({ focus, onFocused }: { focus: string | null; onFocused?: ((
   const [open, setOpen] = useState<string | null>(focus);
   useEffect(() => { if (focus) { setOpen(focus); onFocused?.(); } }, [focus, onFocused]);
   useEffect(() => { const t = setTimeout(() => setDebounced(q.trim()), 250); return () => clearTimeout(t); }, [q]);
-  const list = useQuery({ queryKey: ["admin", "members", debounced, filter], queryFn: () => adminApi<{ items: Row[] }>(`/members?filter=${filter}${debounced ? `&q=${encodeURIComponent(debounced)}` : ""}`) });
+  const paging = useAdminList<Row>(["admin", "members", debounced, filter], `/members?filter=${filter}${debounced ? `&q=${encodeURIComponent(debounced)}` : ""}`);
+  const list = { isPending: paging.loading, data: { items: paging.items } };
   return <>
     <div className="mb-4 flex flex-wrap items-center gap-3">
       <label className="flex h-11 min-w-0 flex-1 basis-64 items-center gap-2 rounded-lg border-2 border-foreground bg-card px-3"><Search className="size-4 text-muted-foreground" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Handle or 15-digit id" className="min-w-0 flex-1 bg-transparent text-sm outline-none" /></label>
@@ -66,6 +68,7 @@ function MemberList({ focus, onFocused }: { focus: string | null; onFocused?: ((
           {m.status !== "active" && <Chip tone={STATUS_CHIP[m.status].tone}>{STATUS_CHIP[m.status].label}</Chip>}
         </button>
       </li>)}</ul>}
+    {!list.isPending && <LoadMore list={paging} noun="members" />}
     {open && <MemberModal key={open} publicId={open} onClose={() => setOpen(null)} />}
   </>;
 }
@@ -266,7 +269,8 @@ type IpBan = { ref: string; ip: string | null; reason: string | null; member: st
 function IpBans() {
   const { ask, confirmation } = useConfirm();
   const qc = useQueryClient();
-  const q = useQuery({ queryKey: ["admin", "ip-bans"], queryFn: () => adminApi<{ items: IpBan[] }>("/ip-bans") });
+  const paging = useAdminList<IpBan>(["admin", "ip-bans"], "/ip-bans");
+  const q = { isPending: paging.loading, data: { items: paging.items } };
   const lift = async (b: IpBan) => { try { await adminApi(`/ip-bans/${b.ref}`, { method: "DELETE" }); toast.success("Connection unblocked."); void qc.invalidateQueries({ queryKey: ["admin", "ip-bans"] }); } catch (e) { fail(e); } };
   return <>
     <p className="mb-4 max-w-2xl text-sm text-muted-foreground">Blocked connections can't use Ghosted at all, signed in or not. Only a keyed hash of the address is stored; the masked form is shown so you can tell them apart. Block from a member's devices list.</p>
@@ -276,5 +280,6 @@ function IpBans() {
         <div className="min-w-0 flex-1"><p className="font-mono text-sm font-bold">{b.ip ?? "Unknown address"}</p><p className="text-xs text-muted-foreground">{b.reason ?? "No reason"}. By {b.by}, {ago(b.at)}{b.until ? `, until ${fmt(b.until)}` : ""}{b.member ? `, from member ${b.member}` : ""}</p></div>
           <Button size="sm" variant="outline" onClick={() => void ask({ title: "Unblock this connection?", copy: "Requests from this connection will be allowed again immediately.", confirm: "Unblock connection" }).then((ok) => ok && lift(b))}><Undo2 />Unblock</Button>
       </li>)}</ul>}
+    {!q.isPending && <LoadMore list={paging} noun="blocked connections" />}
     {confirmation}</>;
 }
