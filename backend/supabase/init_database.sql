@@ -1302,4 +1302,20 @@ alter table public.profiles add column if not exists referred_at timestamptz;
 alter table public.profiles add column if not exists flair text check (flair is null or flair in ('violet','sunrise','mint','gold','cosmic'));
 create index if not exists profiles_referred_by on public.profiles (referred_by) where referred_by is not null;
 
+-- ============================================================================
+-- Storage use, for the admin panel's Storage page: the whole database's size and every public
+-- table's size on disk (data, indexes and TOAST) with an estimated row count. Read-only; callable
+-- by the API (service role) only. Safe to run again.
+-- ============================================================================
+create or replace function public.admin_storage_stats()
+returns table (table_name text, row_estimate bigint, total_bytes bigint, index_bytes bigint, database_bytes bigint)
+language sql stable security definer set search_path = '' as $$
+  select c.relname::text, greatest(c.reltuples, 0)::bigint, pg_total_relation_size(c.oid), pg_indexes_size(c.oid), pg_database_size(current_database())
+  from pg_class c join pg_namespace n on n.oid = c.relnamespace
+  where n.nspname = 'public' and c.relkind = 'r'
+  order by pg_total_relation_size(c.oid) desc;
+$$;
+revoke all on function public.admin_storage_stats() from public, anon, authenticated;
+grant execute on function public.admin_storage_stats() to service_role;
+
 commit;

@@ -11,7 +11,7 @@ export const ACTION: Record<string, string> = {
   member_paused: "paused posting for", member_unpaused: "lifted the pause on", member_banned: "banned", member_unbanned: "lifted the ban on",
   member_private_viewed: "looked at private details of", member_emailed: "emailed", ip_banned: "blocked a connection", ip_unbanned: "unblocked a connection",
   team_added: "added to the team", team_removed: "removed from the team", team_access_changed: "changed access for", team_sign_in_off: "switched sign-in off for",
-  team_sign_in_on: "switched sign-in back on for", team_signed_out: "signed out everywhere", platform_update: "changed the platform", goofy_controls_update: "changed Goofy's controls", goofy_job_run: "ran a Goofy job",
+  team_sign_in_on: "switched sign-in back on for", team_signed_out: "signed out everywhere", platform_update: "changed the platform", goofy_controls_update: "changed Goofy's controls", company_added: "listed a new company", companies_bulk_added: "listed companies in bulk", goofy_job_run: "ran a Goofy job",
 };
 export const actionText = (a: string) => ACTION[a] ?? a.replace(/_/g, " ");
 

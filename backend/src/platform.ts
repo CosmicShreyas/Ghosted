@@ -20,10 +20,13 @@ export const GOOFY_DEFAULTS: GoofyControls = {
 export type Platform = {
   signupsOpen: boolean; postingOpen: boolean; chitchatsOpen: boolean; donationsOpen: boolean; reportsOpen: boolean;
   readOnly: boolean; readOnlyMessage: string; announcement: Announcement; goofy: GoofyControls;
+  // The database plan's storage limit, for the admin Storage page (Supabase free tier: 500 MB).
+  storageLimitMb: number;
 };
 export const DEFAULTS: Platform = {
   signupsOpen: true, postingOpen: true, chitchatsOpen: true, donationsOpen: true, reportsOpen: true,
   readOnly: false, readOnlyMessage: "Ghosted is in read-only mode for a little while. You can still read everything.", announcement: null, goofy: GOOFY_DEFAULTS,
+  storageLimitMb: 500,
 };
 
 let cache: { at: number; value: Platform } | null = null;

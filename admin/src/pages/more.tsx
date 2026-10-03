@@ -10,6 +10,7 @@ import { ApiRequestError } from "@/lib/api";
 import { adminApi, SITE_URL, type AdminMe } from "../api";
 import { ago, card, Chip, Empty, inr, PageHead, Segmented, Stat, useConfirm } from "../ui";
 import { cn } from "@/lib/utils";
+import { AddCompanies } from "./add-companies";
 import { DonationsSkeleton, RuledListSkeleton } from "../page-skeletons";
 
 const fail = (e: unknown) => toast.error(e instanceof ApiRequestError ? e.message : "Couldn't do that.");
@@ -28,7 +29,7 @@ export function CompaniesPage() {
     catch (e) { fail(e); }
   };
   return <>
-    <PageHead eyebrow="Catalogue" title="Companies" copy="Every listing, newest first. Hiding one removes it (and its page) from the site; its stories stay in the database." action={<Segmented label="Status" value={status} onChange={setStatus} options={[{ id: "all", label: "All" }, { id: "listed", label: "Listed" }, { id: "hidden", label: "Hidden" }]} />} />
+    <PageHead eyebrow="Catalogue" title="Companies" copy="Every listing, newest first. Hiding one removes it (and its page) from the site; its stories stay in the database." action={<div className="flex flex-wrap items-center gap-2"><Segmented label="Status" value={status} onChange={setStatus} options={[{ id: "all", label: "All" }, { id: "listed", label: "Listed" }, { id: "hidden", label: "Hidden" }]} /><AddCompanies /></div>} />
     <label className="mb-4 flex h-11 items-center gap-2 rounded-lg border-2 border-foreground bg-card px-3"><Search className="size-4 text-muted-foreground" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by name" className="min-w-0 flex-1 bg-transparent text-sm outline-none" /></label>
     {query.isPending ? <RuledListSkeleton rows={4} logo /> : !query.data?.items.length ? <Empty icon={Building2} title="No companies" />
       : <ul className={cn(card, "divide-y-2 divide-foreground/10")}>{query.data.items.map((c) => <li key={c.slug} className="flex flex-wrap items-center gap-3 p-3 sm:p-4">

@@ -25,9 +25,10 @@ import { PlatformPage } from "./pages/platform";
 import { GoofyControlsPage, GoofyOverviewPage } from "./pages/goofy";
 import { SettingsPage } from "./pages/settings";
 import { GrowthPage } from "./pages/growth";
-import { Megaphone } from "lucide-react";
+import { StoragePage } from "./pages/storage";
+import { HardDrive, Megaphone } from "lucide-react";
 
-export type Page = "overview" | "queue" | "reports" | "goofy" | "goofy-controls" | "terms" | "members" | "feedback" | "companies" | "donations" | "team" | "audit" | "platform" | "growth" | "settings";
+export type Page = "overview" | "queue" | "reports" | "goofy" | "goofy-controls" | "terms" | "members" | "feedback" | "companies" | "donations" | "team" | "audit" | "platform" | "growth" | "storage" | "settings";
 // Animated icons (same set as the main app) play on hover; the rest are plain Lucide icons.
 type Animated = ForwardRefExoticComponent<{ size?: number; className?: string } & RefAttributes<IconHandle>>;
 const ANIM: Partial<Record<Page, Animated>> = { overview: HomeIcon, members: UserIcon, team: ShieldCheckIcon, feedback: MessageCircleIcon, donations: WalletIcon, settings: SettingsIcon, audit: ChartLineIcon, platform: SparklesIcon };
@@ -55,6 +56,7 @@ const NAV: { id: Page; label: string; icon: LucideIcon; group: string; need?: Pe
   { id: "donations", label: "Donations", icon: IndianRupee, group: "Community", need: "donations" },
   { id: "platform", label: "Platform", icon: SlidersHorizontal, group: "Control" },
   { id: "growth", label: "Growth", icon: Megaphone, group: "Control" },
+  { id: "storage", label: "Storage", icon: HardDrive, group: "Control" },
   { id: "audit", label: "Audit log", icon: ScrollText, group: "Control", need: "audit" },
   { id: "settings", label: "Settings", icon: Settings, group: "Control" },
 ];
@@ -86,7 +88,7 @@ function Shell({ me, onSignOut, onMe }: { me: AdminMe; onSignOut: () => void; on
   const body: Record<Page, ReactNode> = {
     overview: <OverviewPage go={go} me={me} />, queue: <QueuePage />, reports: <ReportsPage />, feedback: <FeedbackPage />, members: <MembersPage me={me} focus={focusMember} onFocused={() => setFocusMember(null)} />,
     companies: <CompaniesPage />, donations: <DonationsPage />, goofy: <GoofyOverviewPage me={me} />, "goofy-controls": <GoofyControlsPage me={me} />, terms: <TermsPage />, audit: <AuditPage search={auditSearch} />, team: <TeamPage me={me} />,
-    platform: <PlatformPage me={me} />, growth: <GrowthPage />, settings: <SettingsPage me={me} onMe={onMe} onSignOut={onSignOut} />,
+    platform: <PlatformPage me={me} />, growth: <GrowthPage />, storage: <StoragePage me={me} />, settings: <SettingsPage me={me} onMe={onMe} onSignOut={onSignOut} />,
   };
 
   return <div className="min-h-screen bg-background lg:pl-64">

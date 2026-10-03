@@ -63,6 +63,7 @@ async function emailOfMember(id: string) {
 const PLATFORM_SCHEMA = z.object({
   signupsOpen: z.boolean(), postingOpen: z.boolean(), chitchatsOpen: z.boolean(), donationsOpen: z.boolean(), reportsOpen: z.boolean(),
   readOnly: z.boolean(), readOnlyMessage: z.string().trim().min(10).max(240),
+  storageLimitMb: z.number().int().min(50).max(1_000_000),
   announcement: z.object({ text: z.string().trim().min(3).max(200), tone: z.enum(["info", "warn", "good"]), link: z.string().trim().max(200).regex(/^(\/[\w\-/?=&#.%]*|https:\/\/[\w.-]+(\/[\w\-/?=&#.%]*)?)$/, "Use a path like /feedback or an https:// link").nullable() }).nullable(),
 }).partial().strict();
 const GOOFY_SCHEMA = z.object(Object.fromEntries(Object.keys(GOOFY_DEFAULTS).map((key) => [key, z.boolean()])) as Record<keyof GoofyControls, z.ZodBoolean>).partial().strict();
@@ -72,7 +73,96 @@ const REPORT_MIN = 20;
 const median = (xs: number[]) => { if (!xs.length) return null; const s = [...xs].sort((a, b) => a - b); const m = Math.floor(s.length / 2); return s.length % 2 ? s[m]! : Math.round((s[m - 1]! + s[m]!) / 2); };
 const STAGE_NAME: Record<string, string> = { application: "applying", screening: "a screening call", technical: "a technical round", final: "a final round", offer: "the offer stage" };
 
+// ---------- companies: listing by hand, one or many ----------
+const INDUSTRIES = ["software", "it_services", "fintech", "ecommerce", "edtech", "healthtech", "media", "consulting", "manufacturing", "bfsi", "telecom", "gaming", "logistics", "other"] as const;
+const SIZES = ["1-10", "11-50", "51-200", "201-1000", "1001-5000", "5000+"] as const;
+const companyInput = z.object({
+  name: z.string().trim().min(2).max(80),
+  domain: z.string().trim().toLowerCase().max(120).optional().transform((d) => (d ? d.replace(/^https?:\/\//, "").replace(/^www\./, "").split(/[/?#]/)[0]! : undefined)).refine((d) => !d || /^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(d), "Use a domain like example.com"),
+  industry: z.enum(INDUSTRIES).optional(),
+  size: z.enum(SIZES).optional(),
+  hqCity: z.string().trim().min(2).max(60).optional(),
+  founded: z.number().int().min(1800).max(2100).optional(),
+  about: z.string().trim().max(800).optional(),
+});
+type CompanyInput = z.infer<typeof companyInput>;
+const slugify = (name: string) => name.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60);
+const PALETTE = ["bg-logo-violet", "bg-logo-coral", "bg-logo-sky", "bg-logo-mint", "bg-logo-amber", "bg-logo-pink"];
+
+// Lists one company, skipping anything already on Ghosted (same domain, same name or same address).
+async function listCompany(c: CompanyInput, by: string): Promise<{ name: string; status: "listed" | "skipped"; slug?: string; reason?: string }> {
+  if (c.domain) { const { data } = await db().from("companies").select("slug").eq("domain", c.domain).maybeSingle(); if (data) return { name: c.name, status: "skipped", slug: (data as { slug: string }).slug, reason: "A company with this website is already listed" }; }
+  const { data: same } = await db().from("companies").select("slug").ilike("name", c.name.replace(/[%_\\]/g, (m) => `\\${m}`)).maybeSingle();
+  if (same) return { name: c.name, status: "skipped", slug: (same as { slug: string }).slug, reason: "Already listed under this name" };
+  const base = slugify(c.name);
+  if (base.length < 2) return { name: c.name, status: "skipped", reason: "The name needs letters or numbers" };
+  let slug = base;
+  for (let i = 2; i < 20; i++) { const { data } = await db().from("companies").select("id").eq("slug", slug).maybeSingle(); if (!data) break; slug = `${base.slice(0, 56)}-${i}`; }
+  const about = c.about && c.about.length >= 80 ? c.about : null;
+  const { error } = await db().from("companies").insert({
+    slug, name: c.name, color: PALETTE[Math.floor(Math.random() * PALETTE.length)], domain: c.domain ?? null,
+    website: c.domain ? `https://${c.domain}` : null, logo_url: c.domain ? `https://unavatar.io/${c.domain}?fallback=false` : null,
+    about, industry: c.industry ?? null, size: c.size ?? null, hq_city: c.hqCity ?? null, founded: c.founded ?? null, status: "listed",
+  });
+  if (error) return { name: c.name, status: "skipped", reason: error.message.includes("duplicate") ? "Already listed" : "Couldn't save this one" };
+  void by;
+  return { name: c.name, status: "listed", slug };
+}
+
+// ---------- storage: how much of the database plan is used, and how long it lasts ----------
+// Rough sizes per row, used only when the storage function (init_database.sql) isn't installed yet.
+const ROW_BYTES: Record<string, number> = { stories: 2200, comments: 700, reactions: 120, notifications: 400, profiles: 900, companies: 1500, story_counts: 100, session_devices: 350, rate_limits: 120, feedback: 900, applications: 400, admin_audit: 400, company_follows: 90, follows: 90 };
+
 export const adminExtraRoutes = new Hono<AdminEnv>()
+  .get("/storage", async (c) => {
+    const p = await platform(true);
+    const limit = p.storageLimitMb * 1024 * 1024;
+    const DAY = 86400_000;
+    const n = (q: PromiseLike<{ count: number | null }>) => Promise.resolve(q).then((r) => r.count ?? 0, () => 0);
+    const [stories, storiesMonth, rpc] = await Promise.all([
+      n(db().from("stories").select("id", { count: "exact", head: true })),
+      n(db().from("stories").select("id", { count: "exact", head: true }).gte("created_at", new Date(Date.now() - 30 * DAY).toISOString())),
+      db().rpc("admin_storage_stats"),
+    ]);
+    type T = { table_name: string; row_estimate: number; total_bytes: number; index_bytes: number; database_bytes: number };
+    let tables: { name: string; rows: number; bytes: number; indexBytes: number }[];
+    let used: number, exact = true;
+    if (!rpc.error && Array.isArray(rpc.data) && rpc.data.length) {
+      const rows = rpc.data as T[];
+      tables = rows.map((r) => ({ name: r.table_name, rows: Number(r.row_estimate), bytes: Number(r.total_bytes), indexBytes: Number(r.index_bytes) }));
+      used = Number(rows[0]!.database_bytes);
+    } else {
+      // Estimate from row counts (run the storage section of init_database.sql for exact numbers).
+      exact = false;
+      const names = Object.keys(ROW_BYTES);
+      const counts = await Promise.all(names.map((t) => n(db().from(t).select("*", { count: "exact", head: true }))));
+      tables = names.map((t, i) => ({ name: t, rows: counts[i]!, bytes: Math.round(counts[i]! * ROW_BYTES[t]! * 1.6), indexBytes: Math.round(counts[i]! * ROW_BYTES[t]! * 0.6) })).sort((a, b) => b.bytes - a.bytes);
+      used = tables.reduce((s, t) => s + t.bytes, 0) + 12 * 1024 * 1024; // Postgres and Supabase's own tables
+    }
+    // What one story costs: the story plus what grows with it (reactions, chitchats, counts, notifications).
+    const per = ["stories", "comments", "reactions", "story_counts", "notifications"].reduce((s, t) => s + (tables.find((x) => x.name === t)?.bytes ?? 0), 0);
+    const bytesPerStory = stories > 0 ? Math.max(1024, Math.round(per / stories)) : 6 * 1024;
+    const remaining = Math.max(0, limit - used);
+    const perDay = storiesMonth / 30;
+    return c.json({
+      exact, limitMb: p.storageLimitMb, usedBytes: used, limitBytes: limit, remainingBytes: remaining, percent: Math.min(100, Math.round((used / limit) * 1000) / 10),
+      stories, storiesLast30: storiesMonth, bytesPerStory, storiesThatFit: Math.floor(remaining / bytesPerStory),
+      daysLeft: perDay > 0 ? Math.round(remaining / (bytesPerStory * perDay)) : null,
+      tables: tables.slice(0, 20),
+    });
+  })
+  .post("/companies", validate("json", companyInput), async (c) => {
+    const r = await listCompany(c.req.valid("json"), c.get("admin").name);
+    if (r.status === "listed") { await bump({ shared: ["companies"] }); await audit(c, "company_added", { kind: "company", ref: r.slug ?? null }); }
+    return c.json(r, r.status === "listed" ? 201 : 409);
+  })
+  .post("/companies/bulk", validate("json", z.object({ companies: z.array(companyInput).min(1).max(500) }).strict()), async (c) => {
+    const results = [];
+    for (const row of c.req.valid("json").companies) results.push(await listCompany(row, c.get("admin").name));
+    const listed = results.filter((r) => r.status === "listed").length;
+    if (listed) { await bump({ shared: ["companies"] }); await audit(c, "companies_bulk_added", {}, { listed, skipped: results.length - listed }); }
+    return c.json({ listed, skipped: results.length - listed, results });
+  })
   // Findings from real published stories, each with a LinkedIn post and an X post that link back
   // to a company page. Withheld until there are enough stories to mean something.
   .get("/growth/report", async (c) => {
