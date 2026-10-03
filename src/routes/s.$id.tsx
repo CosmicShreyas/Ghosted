@@ -78,11 +78,8 @@ function StoryLayout({ story, saved, onSave, onOpenCompany }: { story: StoryMode
       <BackButton />
       <FeedStory story={story} saved={saved} onSave={onSave} onOpenCompany={onOpenCompany} full />
 
-      {/* Phones/tablets: the company card, then its numbers as a swipeable strip. */}
-      {page && <div className="space-y-4 xl:hidden">
-        <StoryCompanyCard page={page} hook={company} />
-        <div><p className="mb-3 text-xs font-bold uppercase text-primary">Swipe for {page.company.name}'s numbers</p><CompanyRail page={page} layout="strip" /></div>
-      </div>}
+      {/* Phones/tablets: no company card or numbers under the story; the company name in the
+          story links to its page. Desktop keeps them in the right-hand rail. */}
 
       <ChitchatThread storyId={story.id} storyAuthorId={story.author.publicId} />
     </div>

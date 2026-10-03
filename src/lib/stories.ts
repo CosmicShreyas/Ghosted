@@ -83,7 +83,7 @@ export const sampleModels = () => sampleStories.map(fromSample);
 
 export type CompanyDto = {
   slug: string; name: string; initial: string; color: string; summary: string | null; flagScore: number | null; badges: string[];
-  scores: Company["scores"] | null; salary: [number, number] | null; storyCount: number; avgDaysWaited: number | null;
+  scores: Company["scores"] | null; scoreCounts?: Record<keyof Company["scores"], number>; salary: [number, number] | null; storyCount: number; avgDaysWaited: number | null;
   domain: string | null; website: string | null; logoUrl: string | null; about: string | null; industry: string | null;
   size: string | null; hqCity: string | null; founded: number | null; careersUrl: string | null;
 };
@@ -95,7 +95,7 @@ export function companyFromApi(c: CompanyDto): Company {
     score: c.flagScore ?? 50,
     scores: c.scores ?? { hiring: 50, communication: 50, culture: 50, pay: 50, growth: 50 },
     salary: c.salary ?? [0, 0],
-    storyCount: c.storyCount, avgDaysWaited: c.avgDaysWaited,
+    storyCount: c.storyCount, avgDaysWaited: c.avgDaysWaited, ...(c.scoreCounts && { scoreCounts: c.scoreCounts }),
     logoUrl: c.logoUrl && API_URL ? `${API_URL}/v1/companies/${c.slug}/logo?v=2` : c.logoUrl,
     website: c.website, domain: c.domain,
     about: c.about, industry: c.industry, size: c.size, hqCity: c.hqCity, founded: c.founded, careersUrl: c.careersUrl,

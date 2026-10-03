@@ -41,7 +41,16 @@ export function FlagScore({ score, compact = false }: { score: number; compact?:
 const scoreLabels: [keyof Company["scores"], string][] = [["hiring", "Hiring"], ["communication", "Comms"], ["culture", "Culture"], ["pay", "Pay"], ["growth", "Growth"]];
 
 export function ScoreMeters({ company }: { company: Company }) {
-  return <div className="grid grid-cols-5 gap-2">{scoreLabels.map(([key, label]) => <div key={key} className="min-w-0"><div className="mb-1 h-1.5 overflow-hidden rounded-full bg-muted"><div className={cn("h-full rounded-full", company.scores[key] >= 70 ? "bg-flag-green" : company.scores[key] >= 40 ? "bg-flag-amber" : "bg-flag-red")} style={{ width: `${company.scores[key]}%` }} /></div><span className="block truncate text-[10px] font-semibold text-muted-foreground">{label}</span></div>)}</div>;
+  // An area nobody has rated yet shows an empty dashed bar ("No data yet"), never a made-up 50.
+  return <div className="grid grid-cols-5 gap-2">{scoreLabels.map(([key, label]) => {
+    const v = company.scores[key];
+    const n = company.scoreCounts?.[key];
+    return <div key={key} className="min-w-0" title={v == null ? `${label}: no data yet` : `${label}: ${v}${n != null ? `, based on ${n} ${n === 1 ? "story" : "stories"}` : ""}`}>
+      <div className={cn("mb-1 h-1.5 overflow-hidden rounded-full", v == null ? "border border-dashed border-foreground/30" : "bg-muted")}>{v != null && <div className={cn("h-full rounded-full", v >= 70 ? "bg-flag-green" : v >= 40 ? "bg-flag-amber" : "bg-flag-red")} style={{ width: `${v}%` }} />}</div>
+      <span className="block truncate text-[10px] font-semibold text-muted-foreground">{label}</span>
+      {n != null && <span className="block truncate text-[9px] text-muted-foreground/80">{v == null ? "No data yet" : `${n} ${n === 1 ? "story" : "stories"}`}</span>}
+    </div>;
+  })}</div>;
 }
 
 // The company's own icon (fetched from its website when it was listed) on a white tile, or its

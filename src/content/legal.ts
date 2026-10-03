@@ -60,11 +60,11 @@ export const aboutDoc: Doc = {
     ] },
     { id: "what", heading: "What you can do here", blocks: [[
       "Share your hiring experience anonymously: the rounds, the timelines, the pay and the outcome.",
-      "Rate companies on five things that matter to candidates: hiring process, communication, work culture, pay transparency and growth.",
+      "Rate companies on what you actually saw: everyone rates the hiring process and communication, people who got an offer also rate pay transparency, and people who joined also rate work culture and growth.",
       "Read other candidates' experiences before you apply, interview or accept an offer.",
     ]] },
     { id: "flag-score", heading: "How the Flag Score works", blocks: [
-      "Every company gets a Flag Score from 0 to 100, based on ratings from candidates who went through its hiring process.",
+      "Every company gets a Flag Score from 0 to 100, based on ratings from candidates who went through its hiring process. Each story counts only the areas it rated, and each area shows how many stories it's based on.",
       ["70 to 100: Green Flag. Candidates generally had a fair, respectful experience.", "40 to 69: Mixed Signals. Experiences vary; read the stories.", "0 to 39: Red Flag. Candidates consistently report serious problems."],
       "Scores reflect community opinion. They are not audits or certifications, and companies cannot pay to change them.",
     ] },

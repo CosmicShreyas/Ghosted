@@ -50,7 +50,7 @@ function samplePage(publicId: string, rel: Relationship | null): PersonPage | nu
   const byCompany = new Map<string, { slug: string; name: string; color: string; stories: number }>();
   for (const s of mine) { const e = byCompany.get(s.company.id) ?? { slug: s.company.id, name: s.company.name, color: s.company.color, stories: 0 }; e.stories++; byCompany.set(s.company.id, e); }
   const n = Number(publicId.slice(-2));
-  const avg = (k: keyof StoryModel["company"]["scores"]) => (mine.length ? Math.round(mine.reduce((a, s) => a + s.company.scores[k], 0) / mine.length) : null);
+  const avg = (k: keyof StoryModel["company"]["scores"]) => { const v = mine.map((s) => s.company.scores[k]).filter((x): x is number => x != null); return v.length ? Math.round(v.reduce((a, b) => a + b, 0) / v.length) : null; };
   return {
     profile: { publicId, name: user.handle, avatarSeed: user.seed, pastel: user.pastel, revealed: null, joinedAt: null, isMe: userId === "u1" },
     stats: {

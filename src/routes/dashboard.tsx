@@ -7,7 +7,7 @@ import { InsightsView } from "@/components/dashboard/insights-view";
 import { WaitingRoomView } from "@/components/dashboard/waiting-room";
 import { FeedbackPulse } from "@/components/feedback-pulse";
 import { SettingsView } from "@/components/dashboard/settings";
-import { ShareModal } from "@/components/dashboard/share-story";
+import { ShareModal, type StoryPreset } from "@/components/dashboard/share-story";
 import { RightRail } from "@/components/dashboard/global-widgets";
 import { Preloader } from "@/components/preloader";
 import { LogoutDialog } from "@/components/dashboard/confirm-dialogs";
@@ -28,8 +28,12 @@ export const Route = createFileRoute("/dashboard")({
     ],
   }),
   // ?view= opens a view; Insights also keeps its period and filters here, so a view can be shared.
-  validateSearch: (search: Record<string, unknown>): { view?: View } & InsightSearch => ({
+  // ?share=1&company=<slug>&outcome=<id> opens "Share a story" prefilled (Spotlight, share links).
+  validateSearch: (search: Record<string, unknown>): { view?: View; share?: 1; company?: string; outcome?: string } & InsightSearch => ({
     ...(VIEWS.includes(search["view"] as View) && { view: search["view"] as View }),
+    ...((search["share"] === 1 || search["share"] === "1") && { share: 1 as const }),
+    ...(typeof search["company"] === "string" && /^[a-z0-9-]{2,60}$/.test(search["company"]) && { company: search["company"] }),
+    ...(typeof search["outcome"] === "string" && ["ghosted", "rejected", "offer", "offer_revoked", "ghost_job"].includes(search["outcome"]) && { outcome: search["outcome"] }),
     ...insightSearch(search),
   }),
   component: DashboardPage,
@@ -49,6 +53,13 @@ function DashboardPage() {
   useEffect(() => { if (search.view) setView(search.view); }, [search.view]);
   const [query, setQuery] = useState("");
   const [share, setShare] = useState(false);
+  // A share deep link opens the popup with what it names filled in, then tidies the URL.
+  const [linkPreset, setLinkPreset] = useState<StoryPreset | null>(null);
+  useEffect(() => {
+    if (!search.share) return;
+    setLinkPreset({ ...(search.company && { company: search.company }), ...(search.outcome && { outcome: search.outcome }) });
+    void navigate({ to: "/dashboard", search: { ...(search.view && { view: search.view }) }, replace: true });
+  }, [search.share, search.company, search.outcome, search.view, navigate]);
   // Companies open their own page (/c/<slug>) instead of a popup.
   const setCompany = (c: Company) => navigate({ to: "/c/$slug", params: { slug: c.id } });
   const [saved, toggleSave] = useSaved();
@@ -87,6 +98,7 @@ function DashboardPage() {
       </div>
     </main>
     <ShareModal open={share} onOpenChange={setShare} />
+    <ShareModal open={!!linkPreset} onOpenChange={(v) => { if (!v) setLinkPreset(null); }} preset={linkPreset} />
     <LogoutDialog open={confirmLogout} onOpenChange={setConfirmLogout} onConfirm={async () => { await logout(); setConfirmLogout(false); leave(); }} />
     {/* Every so often (never in your first days, backing off when dismissed), a one-tap check-in. */}
     <FeedbackPulse />

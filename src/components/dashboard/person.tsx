@@ -162,7 +162,7 @@ export function PersonRail({ stats, name, layout = "column" }: { stats: PersonSt
   // Short axis labels so five bars fit a narrow card; the tooltip shows the full name.
   const SHORT: Record<string, string> = { ghosted: "Ghosted", rejected: "Rejected", offer: "Offer", offer_revoked: "Revoked", ghost_job: "Fake job" };
   const outcomes = stats.outcomes.map((o) => ({ ...o, label: SHORT[o.outcome] ?? OUTCOME_LABEL[o.outcome] ?? o.outcome }));
-  const ratings = stats.ratings ? (Object.entries({ Hiring: stats.ratings.hiring, Communication: stats.ratings.communication, Culture: stats.ratings.culture, Pay: stats.ratings.pay, Growth: stats.ratings.growth }) as [string, number | null][]) : [];
+  const ratings = stats.ratings ? (Object.entries({ Hiring: stats.ratings.hiring, Communication: stats.ratings.communication, Culture: stats.ratings.culture, Pay: stats.ratings.pay, Growth: stats.ratings.growth }) as [string, number | null][]).filter(([, v]) => v != null) : []; // areas none of their stories rated are hidden
   const totalReactions = weekly.reduce((n, w) => n + w.relatable + w.flags, 0);
 
   const box = (extra?: string) => cn(card, "p-5", strip && "flex flex-col", extra);

@@ -1,11 +1,12 @@
 import { handleFromSeed } from "@/lib/handles";
 
+// Null = no story has rated that area yet (not every journey rates all five).
 export type Scores = {
-  hiring: number;
-  communication: number;
-  culture: number;
-  pay: number;
-  growth: number;
+  hiring: number | null;
+  communication: number | null;
+  culture: number | null;
+  pay: number | null;
+  growth: number | null;
 };
 
 export type Company = {
@@ -20,6 +21,8 @@ export type Company = {
   salary: [number, number];
   // Real listings (API) also carry these; sample companies don't.
   storyCount?: number;
+  // How many stories rated each area ("based on N stories").
+  scoreCounts?: Record<keyof Scores, number>;
   avgDaysWaited?: number | null;
   logoUrl?: string | null;
   website?: string | null;

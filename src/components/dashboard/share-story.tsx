@@ -1,16 +1,17 @@
-// "Share a story": a four-step flow that's meant to feel good to finish.
-//   1. Where    company, stage, role
-//   2. What     how it ended, a title, and the story itself (Markdown, with a toolbar and preview)
-//   3. Rate     five star ratings with a live Flag Score, plus optional salary and waiting time
-//   4. Post     a preview exactly as it'll look in the feed, the human check, and Post
-// Drafts save themselves in this browser, so closing it (or a flaky connection) loses nothing.
-// The API validates everything again (backend/src/routes/stories.ts).
+// "Share a story": four steps, and the first choice decides everything after it.
+//   1. What happened   how it ended (and, for an offer, whether you joined), the company, the role
+//   2. The details     only what fits that journey: the stage and wait for people who were never
+//                      hired, pay for offers, culture and growth only for people who joined
+//   3. In your words   a title written from your taps, prompts that fit, or skip it entirely and
+//                      post a quick story built from the taps
+//   4. Review and post exactly how it'll look in the feed, the human check, and Post
+// Drafts save themselves in this browser. The API checks the same rules (backend/src/score.ts).
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
 import {
   ArrowLeft, ArrowRight, Bold, Briefcase, Building2, Check, ClipboardCheck, Code, Eye, SquareCode, FileSearch, Ghost, Heading, Italic, List, ListOrdered,
-  Loader2, MessageSquareQuote, PartyPopper, PenLine, Plus, Sparkles, Star, Strikethrough, Undo2, Wand2, XCircle, type LucideIcon,
+  Loader2, MessageSquareQuote, PartyPopper, PenLine, Plus, Sparkles, Star, Strikethrough, Undo2, Wand2, XCircle, Zap, IndianRupee, ChevronDown, type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Avatar, CompanyMark, FlagScore } from "@/components/ghosted";
@@ -25,75 +26,144 @@ import { api, ApiRequestError, apiEnabled } from "@/lib/api";
 import { liveNudge } from "@/lib/live";
 import { displayName, isPublic, useMe, useTone, voice } from "@/lib/session";
 import { useCompanyIndex, type StoryModel } from "@/lib/stories";
+import { journey, storyScore, type Dimension, type Outcome } from "@/lib/score";
 import { cn } from "@/lib/utils";
 import { ListCompanyDialog } from "./list-company";
 import { popup, popupBody, scoreTone } from "./ui-kit";
-import { journey, type Outcome } from "@/lib/score";
 
 // ---------- options ----------
 
-const STAGES: { id: string; label: string; icon: LucideIcon }[] = [
-  { id: "application", label: "Applied", icon: FileSearch },
-  { id: "screening", label: "Screening call", icon: MessageSquareQuote },
-  { id: "technical", label: "Technical round", icon: Briefcase },
-  { id: "final", label: "Final round", icon: Building2 },
-  { id: "offer", label: "Offer stage", icon: ClipboardCheck },
+const STAGES: { id: string; label: string; word: string; icon: LucideIcon }[] = [
+  { id: "application", label: "Applied", word: "application", icon: FileSearch },
+  { id: "screening", label: "Screening call", word: "screening call", icon: MessageSquareQuote },
+  { id: "technical", label: "Technical round", word: "technical round", icon: Briefcase },
+  { id: "final", label: "Final round", word: "final round", icon: Building2 },
+  { id: "offer", label: "Offer stage", word: "offer stage", icon: ClipboardCheck },
 ];
 
-const OUTCOMES: { id: string; label: string; icon: LucideIcon; blurb: string; tone: string }[] = [
-  { id: "ghosted", label: "Ghosted", icon: Ghost, blurb: "They just… stopped replying", tone: "text-flag-red" },
+const OUTCOMES: { id: Outcome; label: string; icon: LucideIcon; blurb: string; tone: string }[] = [
+  { id: "ghosted", label: "Ghosted", icon: Ghost, blurb: "They stopped replying", tone: "text-flag-red" },
   { id: "rejected", label: "Rejected", icon: XCircle, blurb: "A no, at least", tone: "text-flag-amber" },
-  { id: "offer", label: "Got an offer", icon: PartyPopper, blurb: "The rare happy ending", tone: "text-flag-green" },
-  { id: "offer_revoked", label: "Offer revoked", icon: Undo2, blurb: "Offered, then un-offered", tone: "text-flag-red" },
   { id: "ghost_job", label: "Ghost job", icon: FileSearch, blurb: "The role never really existed", tone: "text-flag-red" },
+  { id: "offer_revoked", label: "Offer revoked", icon: Undo2, blurb: "Offered, then un-offered", tone: "text-flag-red" },
+  { id: "offer", label: "Got an offer", icon: PartyPopper, blurb: "The rare happy ending", tone: "text-flag-green" },
 ];
 
-const RATINGS = [
-  { key: "hiring", label: "Hiring process", hint: "Clear, fair, well organised?" },
-  { key: "communication", label: "Communication", hint: "Did they reply, and on time?" },
-  { key: "culture", label: "Work culture", hint: "Respectful? Would you want to work there?" },
-  { key: "pay", label: "Pay transparency", hint: "Was the salary discussed honestly?" },
-  { key: "growth", label: "Growth", hint: "Did the role sound like it went somewhere?" },
-] as const;
-type RatingKey = (typeof RATINGS)[number]["key"];
+const RATING_INFO: Record<Dimension, { label: string; hint: string }> = {
+  hiring: { label: "Hiring process", hint: "Clear, fair, well organised?" },
+  communication: { label: "Communication", hint: "Did they reply, and on time?" },
+  pay: { label: "Pay transparency", hint: "Was the salary discussed honestly?" },
+  culture: { label: "Work culture", hint: "Respectful? Good to work in?" },
+  growth: { label: "Growth", hint: "Is the role going somewhere?" },
+};
 const STAR_WORD = ["", "Awful", "Poor", "Okay", "Good", "Great"];
 const STAR_TONE = ["", "text-flag-red", "text-flag-red", "text-flag-amber", "text-flag-green", "text-flag-green"];
 
+// Wait chips map to these day counts; the exact number can be typed instead.
+const WAITS = [{ label: "Under a week", days: 5 }, { label: "1 to 2 weeks", days: 10 }, { label: "2 to 4 weeks", days: 21 }, { label: "1 to 2 months", days: 45 }, { label: "2+ months", days: 75 }];
+const waitPhrase = (days: number) => (days < 7 ? "under a week" : days <= 14 ? "1 to 2 weeks" : days <= 30 ? "2 to 4 weeks" : days <= 60 ? "1 to 2 months" : "over 2 months");
+
 const STEPS = [
-  { id: "where", label: "Where" },
   { id: "what", label: "What happened" },
-  { id: "rate", label: "Rate it" },
-  { id: "post", label: "Post" },
+  { id: "details", label: "The details" },
+  { id: "words", label: "In your words" },
+  { id: "post", label: "Review and post" },
 ] as const;
 
 const ROLE_MAX = 140;
+const tap = "min-h-11"; // 44px tap targets
 
 // ---------- draft ----------
 
 type Draft = {
-  company: string; stage: string; role: string; outcome: string; title: string; body: string;
-  ratings: Record<RatingKey, number>; min: string; max: string; days: string;
+  company: string; stage: string; role: string; outcome: Outcome | ""; joined: "" | "yes" | "no";
+  title: string; titleTouched: boolean; body: string; quick: boolean;
+  ratings: Record<Dimension, number>; min: string; max: string; days: string; showSalary: boolean;
 };
-const EMPTY: Draft = { company: "", stage: "", role: "", outcome: "", title: "", body: "", ratings: { hiring: 0, communication: 0, culture: 0, pay: 0, growth: 0 }, min: "", max: "", days: "" };
-// Only the ratings (and salary) this journey allows go to the API (src/lib/score.ts, the same rule
-// the API enforces). Until the adaptive form lands, offers are sent without "joined".
-const fitRatings = (d: Draft) => Object.fromEntries(journey((d.outcome || "ghosted") as Outcome, null).ratings.map((k) => [k, d.ratings[k]]));
-const allowsSalary = (d: Draft) => journey((d.outcome || "ghosted") as Outcome, null).salary;
+const EMPTY: Draft = { company: "", stage: "", role: "", outcome: "", joined: "", title: "", titleTouched: false, body: "", quick: false, ratings: { hiring: 0, communication: 0, culture: 0, pay: 0, growth: 0 }, min: "", max: "", days: "", showSalary: false };
 
-const DRAFT_KEY = "ghosted.storyDraft";
-const loadDraft = (): Draft | null => { try { const d = JSON.parse(localStorage.getItem(DRAFT_KEY) ?? "null") as Draft | null; return d && typeof d === "object" ? { ...EMPTY, ...d, ratings: { ...EMPTY.ratings, ...d.ratings } } : null; } catch { return null; } };
+const DRAFT_KEY = "ghosted.storyDraft.v2";
+const OLD_DRAFT_KEY = "ghosted.storyDraft";
+const loadDraft = (): Draft | null => {
+  try {
+    const d = JSON.parse(localStorage.getItem(DRAFT_KEY) ?? "null") as Partial<Draft> | null;
+    if (d && typeof d === "object") return { ...EMPTY, ...d, ratings: { ...EMPTY.ratings, ...d.ratings } };
+    // A draft from the old four-step form: keep what still fits (it never asked about joining).
+    const old = JSON.parse(localStorage.getItem(OLD_DRAFT_KEY) ?? "null") as (Partial<Draft> & { outcome?: string }) | null;
+    localStorage.removeItem(OLD_DRAFT_KEY);
+    if (!old || typeof old !== "object") return null;
+    const migrated: Draft = { ...EMPTY, company: old.company ?? "", stage: old.stage ?? "", role: old.role ?? "", outcome: (OUTCOMES.some((o) => o.id === old.outcome) ? old.outcome : "") as Draft["outcome"], title: old.title ?? "", titleTouched: !!old.title, body: old.body ?? "", ratings: { ...EMPTY.ratings, ...old.ratings }, min: old.min ?? "", max: old.max ?? "", days: old.days ?? "", showSalary: !!(old.min || old.max) };
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(migrated));
+    return migrated;
+  } catch { return null; }
+};
 const saveDraft = (d: Draft) => { try { localStorage.setItem(DRAFT_KEY, JSON.stringify(d)); } catch { /* storage blocked */ } };
-const clearDraft = () => { try { localStorage.removeItem(DRAFT_KEY); } catch { /* storage blocked */ } };
+const clearDraft = () => { try { localStorage.removeItem(DRAFT_KEY); localStorage.removeItem(OLD_DRAFT_KEY); } catch { /* storage blocked */ } };
 const isBlank = (d: Draft) => JSON.stringify(d) === JSON.stringify(EMPTY);
 
-const TEMPLATE = "### What happened\n\n\n### How long it took\n\n\n### Tip for the next candidate\n";
+// ---------- the journey ----------
+
+const offerish = (o: Draft["outcome"]) => o === "offer" || o === "offer_revoked";
+const neverHired = (o: Draft["outcome"]) => o === "ghosted" || o === "rejected" || o === "ghost_job";
+const journeyOf = (d: Draft) => journey((d.outcome || "ghosted") as Outcome, d.joined === "yes");
+const stageOf = (d: Draft) => (offerish(d.outcome) ? "offer" : d.stage);
+const stageWord = (d: Draft) => STAGES.find((s) => s.id === stageOf(d))?.word ?? "process";
+const daysOf = (d: Draft) => (d.days === "" ? null : Number(d.days));
+
+// A title written from the taps; nothing invented.
+function autoTitle(d: Draft): string {
+  const days = daysOf(d);
+  const wait = days != null && neverHired(d.outcome) ? `, waited ${waitPhrase(days)}` : "";
+  switch (d.outcome) {
+    case "ghosted": return `Ghosted after the ${stageWord(d)}${wait}`;
+    case "rejected": return `Rejected after the ${stageWord(d)}${wait}`;
+    case "ghost_job": return `Applied to a ghost job${wait}`;
+    case "offer_revoked": return "Got an offer, then it was revoked";
+    case "offer": return d.joined === "yes" ? "Got the offer and joined" : "Got an offer, didn't join";
+    default: return "";
+  }
+}
+
+// The quick story: a plain body from the taps (company, stage, wait, ratings). No names, nothing made up.
+function autoBody(d: Draft, companyName: string): string {
+  const days = daysOf(d);
+  const wait = days != null ? waitPhrase(days) : null;
+  const lines: string[] = [];
+  if (d.outcome === "ghosted") lines.push(`Ghosted after the ${stageWord(d)} at ${companyName}.${wait ? ` I waited ${wait} and never heard back.` : " I never heard back."}`);
+  if (d.outcome === "rejected") lines.push(`Rejected after the ${stageWord(d)} at ${companyName}.${wait ? ` It took ${wait} to hear back.` : ""}`);
+  if (d.outcome === "ghost_job") lines.push(`Applied to a role at ${companyName} that turned out to be a ghost job.${wait ? ` No reply after ${wait}.` : ""}`);
+  if (d.outcome === "offer_revoked") lines.push(`Got an offer from ${companyName}, then it was revoked.`);
+  if (d.outcome === "offer") lines.push(`Got an offer from ${companyName} and ${d.joined === "yes" ? "joined" : "didn't join"}.`);
+  if (d.role.trim()) lines.push(`Role: ${d.role.trim()}.`);
+  const rated = journeyOf(d).ratings.filter((k) => d.ratings[k] > 0).map((k) => `${RATING_INFO[k].label}: ${d.ratings[k]} of 5.`);
+  if (rated.length) lines.push(rated.join(" "));
+  lines.push("Shared as a quick story.");
+  return lines.join("\n\n");
+}
+
+const PLACEHOLDER: Record<Outcome, [string, string]> = {
+  ghosted: ["Where did it go quiet? What was the last thing they said, and how did you follow up? No names of individuals.", "Where did it go quiet, what was the last message, and did you follow up? Please don't name individuals."],
+  rejected: ["How many rounds, what did they ask, and did they give a reason? No names of individuals.", "How many rounds, what they asked, and whether they gave a reason. Please don't name individuals."],
+  ghost_job: ["Where did you see the post, and what made it feel fake? No names of individuals.", "Where you saw the role, and what suggested it wasn't real. Please don't name individuals."],
+  offer_revoked: ["What was offered, how did they take it back, and what reason did they give? No names of individuals.", "What the offer was, how it was withdrawn, and the reason given. Please don't name individuals."],
+  offer: ["How did the process go, and what should the next candidate know? No names of individuals.", "How the process went and what the next candidate should know. Please don't name individuals."],
+};
+const PROMPTS: Record<Outcome, string[]> = {
+  ghosted: ["What they said last", "How many rounds", "How you followed up", "What would have helped"],
+  rejected: ["How many rounds", "What they asked", "The reason they gave", "What would have helped"],
+  ghost_job: ["Where you saw the post", "Signs it wasn't real", "What would have helped"],
+  offer_revoked: ["What the offer was", "How they took it back", "The reason they gave", "What would have helped"],
+  offer: ["How many rounds", "What they asked", "What would have helped"],
+};
+const JOINED_PROMPTS = ["How many rounds", "What it's like now", "Tip for the next candidate"];
+const promptsFor = (d: Draft) => (d.outcome === "offer" && d.joined === "yes" ? JOINED_PROMPTS : d.outcome ? PROMPTS[d.outcome] : []);
+const templateFor = (d: Draft) => promptsFor(d).map((p) => `### ${p}\n\n`).join("\n");
 
 // ---------- markdown editor ----------
 
 function MarkdownEditor({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const [tab, setTab] = useState<"write" | "preview">("write");
-  // Wraps the selection (or inserts at the caret) and puts the selection back where it makes sense.
   const wrap = (before: string, after = before, fallback = "text") => {
     const el = ref.current; if (!el) return;
     const { selectionStart: s, selectionEnd: e } = el;
@@ -101,13 +171,12 @@ function MarkdownEditor({ value, onChange, placeholder }: { value: string; onCha
     onChange(value.slice(0, s) + before + picked + after + value.slice(e));
     requestAnimationFrame(() => { el.focus(); el.setSelectionRange(s + before.length, s + before.length + picked.length); });
   };
-  // Adds a prefix to every selected line (lists, quotes, headings).
   const lines = (prefix: (i: number) => string) => {
     const el = ref.current; if (!el) return;
     const s = value.lastIndexOf("\n", el.selectionStart - 1) + 1;
     const e = el.selectionEnd;
     const block = value.slice(s, e) || "";
-    const next = (block || "").split("\n").map((l, i) => prefix(i) + l.replace(/^(#{1,6}\s|>\s|[-*]\s|\d+\.\s)/, "")).join("\n");
+    const next = block.split("\n").map((l, i) => prefix(i) + l.replace(/^(#{1,6}\s|>\s|[-*]\s|\d+\.\s)/, "")).join("\n");
     onChange(value.slice(0, s) + next + value.slice(e));
     requestAnimationFrame(() => { el.focus(); el.setSelectionRange(s + next.length, s + next.length); });
   };
@@ -129,9 +198,6 @@ function MarkdownEditor({ value, onChange, placeholder }: { value: string; onCha
   };
   return <div className="overflow-hidden rounded-lg border-2 border-foreground bg-background focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2 focus-within:ring-offset-card">
     <div className="flex flex-wrap items-center gap-1 border-b-2 border-foreground bg-muted/60 px-1.5 py-1">
-      {/* One pill slides between the two equal-width tabs. It only moves sideways inside this box
-          (x: 0 ↔ 100% of its own width), so the popup re-centring when the height changes can't
-          make it jump. Same spring as the log-in / sign-up switch. */}
       <div className="relative mr-1 grid grid-cols-2 rounded-full border-2 border-foreground bg-card p-0.5 text-xs font-bold">
         <motion.span aria-hidden="true" className="absolute inset-y-0.5 left-0.5 w-[calc(50%-2px)] rounded-full bg-primary" initial={false} animate={{ x: tab === "write" ? "0%" : "100%" }} transition={{ type: "spring", stiffness: 420, damping: 34 }} />
         {(["write", "preview"] as const).map((t) => <button key={t} type="button" onClick={() => setTab(t)} aria-pressed={tab === t} className={cn("relative z-10 inline-flex items-center justify-center gap-1 rounded-full px-2.5 py-1 capitalize transition-colors duration-200", tab === t ? "text-primary-foreground" : "text-foreground hover:text-primary")}>
@@ -171,11 +237,16 @@ function Label({ children, hint }: { children: ReactNode; hint?: ReactNode }) {
   return <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-x-3"><span className="text-sm font-bold">{children}</span>{hint && <span className="text-xs text-muted-foreground">{hint}</span>}</div>;
 }
 
+function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; children: ReactNode }) {
+  return <motion.button type="button" onClick={onClick} aria-pressed={on} whileTap={{ scale: 0.96 }}
+    className={cn(tap, "rounded-full border-2 border-foreground px-3.5 text-sm font-bold transition-colors", on ? "bg-primary text-primary-foreground shadow-hard-sm" : "bg-card hover:bg-muted")}>{children}</motion.button>;
+}
+
 function Stars({ value, onChange, label }: { value: number; onChange: (n: number) => void; label: string }) {
   const [hover, setHover] = useState(0);
   const shown = hover || value;
-  return <div className="flex items-center gap-2" onMouseLeave={() => setHover(0)}>
-    <div className="flex" role="radiogroup" aria-label={label}>{[1, 2, 3, 4, 5].map((n) => <button key={n} type="button" role="radio" aria-checked={value === n} aria-label={`${n} of 5: ${STAR_WORD[n]}`} onMouseEnter={() => setHover(n)} onFocus={() => setHover(n)} onBlur={() => setHover(0)} onClick={() => onChange(n)} className="p-0.5 sm:p-1">
+  return <div className="flex items-center gap-1" onMouseLeave={() => setHover(0)}>
+    <div className="flex" role="radiogroup" aria-label={label}>{[1, 2, 3, 4, 5].map((n) => <button key={n} type="button" role="radio" aria-checked={value === n} aria-label={`${n} of 5: ${STAR_WORD[n]}`} onMouseEnter={() => setHover(n)} onFocus={() => setHover(n)} onBlur={() => setHover(0)} onClick={() => onChange(n)} className="grid size-11 place-items-center sm:size-10">
       <motion.span className="block" animate={{ scale: n <= shown ? 1.12 : 1 }} transition={{ type: "spring", stiffness: 500, damping: 20 }}>
         <Star className={cn("size-6 transition-colors sm:size-7", n <= shown ? "fill-flag-amber text-foreground" : "text-muted-foreground")} strokeWidth={n <= shown ? 1.5 : 2} />
       </motion.span>
@@ -188,15 +259,17 @@ function Stars({ value, onChange, label }: { value: number; onChange: (n: number
 
 // A story being edited → the draft it starts from (the company can't change).
 const draftFrom = (s: StoryModel): Draft => ({
-  company: s.company.id, stage: s.stage ?? "", role: s.role ?? "", outcome: s.outcome, title: s.title ?? "", body: s.body,
+  ...EMPTY,
+  company: s.company.id, stage: s.stage ?? "", role: s.role ?? "", outcome: s.outcome as Outcome, title: s.title ?? "", titleTouched: true, body: s.body,
+  joined: s.outcome === "offer" ? (s.joined === true ? "yes" : s.joined === false ? "no" : s.ratings?.culture != null ? "yes" : "no") : "",
   ratings: s.ratings ? { hiring: s.ratings.hiring ?? 0, communication: s.ratings.communication ?? 0, culture: s.ratings.culture ?? 0, pay: s.ratings.pay ?? 0, growth: s.ratings.growth ?? 0 } : EMPTY.ratings,
-  min: s.salary ? String(s.salary[0]) : "", max: s.salary ? String(s.salary[1]) : "", days: s.daysWaited != null ? String(s.daysWaited) : "",
+  min: s.salary ? String(s.salary[0]) : "", max: s.salary ? String(s.salary[1]) : "", showSalary: !!s.salary, days: s.daysWaited != null ? String(s.daysWaited) : "", quick: !!s.quick,
 });
 
-// `editing`: open the same flow pre-filled to edit one of your stories (saves with PATCH, no draft).
-// `presetCompany`: opened from a company's page, so that company is picked already.
-// `preset`: opened from the Waiting Room, so the company, round, role, outcome and wait are filled
-// in (a fresh draft, not your saved one). `onPublished` hears back with the new story's id.
+// `editing`: the same flow pre-filled to edit one of your stories (saves with PATCH, no draft).
+// `presetCompany`: opened from a company's page. `preset`: opened from the Waiting Room or a deep
+// link (/dashboard?share=1&company=…&outcome=…), so what's known is filled in and the flow starts
+// at the first step that still needs an answer. `onPublished` hears back with the new story's id.
 export type StoryPreset = { company?: string; stage?: string; role?: string; outcome?: string; days?: number };
 export function ShareModal({ open, onOpenChange, editing = null, presetCompany = null, preset = null, onPublished }: { open: boolean; onOpenChange: (v: boolean) => void; editing?: StoryModel | null; presetCompany?: string | null; preset?: StoryPreset | null; onPublished?: (storyPublicId: string | null) => void }) {
   const qc = useQueryClient();
@@ -214,53 +287,89 @@ export function ShareModal({ open, onOpenChange, editing = null, presetCompany =
   const [listing, setListing] = useState(false);
   const [restored, setRestored] = useState(false);
 
-  // Bring back an unfinished draft when the flow opens.
-  useEffect(() => {
-    if (!open) return;
-    if (editing) { setD(draftFrom(editing)); setRestored(false); setReached(STEPS.length - 1); }
-    else if (preset) {
-      setD({ ...EMPTY, company: preset.company ?? "", stage: preset.stage ?? "", role: preset.role ?? "", outcome: preset.outcome ?? "", days: preset.days != null ? String(Math.min(730, preset.days)) : "" });
-      setRestored(false); setReached(0);
-    } else {
-      const saved = loadDraft();
-      if (saved && !isBlank(saved)) { setD({ ...saved, ...(presetCompany && { company: presetCompany }) }); setRestored(true); }
-      else if (presetCompany) setD({ ...EMPTY, company: presetCompany });
-      setReached(0);
-    }
-    setStep(0); setDone(false); setTried(false);
-  }, [open, editing, presetCompany, preset]);
-  // A Waiting Room story never overwrites the draft you had going.
-  useEffect(() => { if (open && !editing && !preset && !done && !isBlank(d)) saveDraft(d); }, [d, open, done, editing, preset]);
-
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((s) => ({ ...s, [k]: v }));
   const company = index.get(d.company);
+  const j = journeyOf(d);
 
   // What's missing on each step (shown once they try to move on).
-  const problems = useMemo(() => {
-    const min = d.min === "" ? null : Number(d.min), max = d.max === "" ? null : Number(d.max);
+  const problemsOf = (x: Draft): string[][] => {
+    const min = x.min === "" ? null : Number(x.min), max = x.max === "" ? null : Number(x.max);
+    const jj = journeyOf(x);
     return [
-      [!d.company && "Pick the company", !d.stage && "Pick how far you got"].filter(Boolean) as string[],
-      [!d.outcome && "Pick how it ended",
-        d.title.trim().length < 5 && "Give it a title (at least 5 characters)",
-        d.body.trim().length < 40 && `Tell the story (${Math.max(0, 40 - d.body.trim().length)} more characters)`].filter(Boolean) as string[],
-      [Object.values(d.ratings).some((r) => r === 0) && "Rate all five areas so the Flag Score is fair",
-        (min === null) !== (max === null) && "Add both salary numbers, or neither",
-        min !== null && max !== null && max < min && "Salary max should be at least the min",
-        min !== null && (min > 1000 || (max ?? 0) > 1000) && "That salary looks off (in LPA)",
-        d.days !== "" && (Number(d.days) < 0 || Number(d.days) > 730) && "Days waited should be 0 to 730"].filter(Boolean) as string[],
+      [!x.outcome && "Pick how it ended", x.outcome === "offer" && !x.joined && "Tell us whether you joined", !x.company && "Pick the company"].filter(Boolean) as string[],
+      [neverHired(x.outcome) && !x.stage && "Pick how far you got",
+        ...jj.ratings.filter((k) => !x.ratings[k]).map((k) => `Rate the ${RATING_INFO[k].label.toLowerCase()}`),
+        jj.salary && (min === null) !== (max === null) && "Add both pay numbers, or neither",
+        jj.salary && min !== null && max !== null && max < min && "The max should be at least the min",
+        jj.salary && min !== null && (min > 1000 || (max ?? 0) > 1000) && "That pay looks off (in LPA)",
+        x.days !== "" && (Number(x.days) < 0 || Number(x.days) > 730) && "Days waited should be 0 to 730"].filter(Boolean) as string[],
+      [x.title.trim().length < 5 && "Give it a title (at least 5 characters)",
+        x.body.trim().length < 40 && `Tell the story (${Math.max(0, 40 - x.body.trim().length)} more characters), or post a quick story`].filter(Boolean) as string[],
       [],
     ];
-  }, [d]);
+  };
+  const problems = useMemo(() => problemsOf(d), [d]);
+  // Presets and deep links skip ahead to the first step that still needs an answer (never past 3).
+  const firstOpen = (x: Draft) => { const p = problemsOf(x); const i = p.findIndex((s) => s.length > 0); return i < 0 ? 2 : Math.min(i, 2); };
+
+  // Bring back an unfinished draft (or the preset) when the flow opens.
+  useEffect(() => {
+    if (!open) return;
+    let start = EMPTY, first = 0;
+    if (editing) { start = draftFrom(editing); setRestored(false); setReached(STEPS.length - 1); }
+    else if (preset) {
+      const outcome = (OUTCOMES.some((o) => o.id === preset.outcome) ? preset.outcome : "") as Draft["outcome"];
+      start = { ...EMPTY, company: preset.company ?? "", stage: preset.stage ?? (outcome === "ghost_job" ? "application" : ""), role: preset.role ?? "", outcome, days: preset.days != null ? String(Math.min(730, preset.days)) : "" };
+      first = firstOpen(start); setRestored(false); setReached(first);
+    } else {
+      const saved = loadDraft();
+      if (saved && !isBlank(saved)) { start = { ...saved, ...(presetCompany && { company: presetCompany }) }; setRestored(true); }
+      else if (presetCompany) start = { ...EMPTY, company: presetCompany };
+      setReached(0);
+    }
+    setD(start); setStep(first); setDone(false); setTried(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, editing, presetCompany, preset]);
+  useEffect(() => { if (open && !editing && !preset && !done && !isBlank(d)) saveDraft(d); }, [d, open, done, editing, preset]);
+  // The title follows the taps until you edit it yourself.
+  useEffect(() => { if (!d.titleTouched && d.outcome) { const t = autoTitle(d); if (t !== d.title) set("title", t); } }, [d.outcome, d.joined, d.stage, d.days, d.titleTouched]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const pickOutcome = (o: Outcome) => setD((s) => ({ ...s, outcome: o, joined: o === "offer" ? s.joined : "", stage: o === "ghost_job" && !s.stage ? "application" : s.stage }));
 
   const go = (to: number) => {
     if (to > step && problems[step]!.length) { setTried(true); return; }
     setTried(false); setDir(to > step ? 1 : -1); setStep(to); setReached((r) => Math.max(r, to));
   };
-  const flagScore = Object.values(d.ratings).every((r) => r > 0) ? Math.round((Object.values(d.ratings).reduce((a, b) => a + b, 0) - 5) * 5) : null;
+  // Live Flag Score from only the ratings this journey shows.
+  const flagScore = storyScore(Object.fromEntries(j.ratings.filter((k) => d.ratings[k] > 0).map((k) => [k, d.ratings[k]])));
+  const allRated = j.ratings.every((k) => d.ratings[k] > 0);
+
+  // Skip the writing: a title and plain body from the taps, then straight to review.
+  const quickStory = () => {
+    if (problems[0]!.length || problems[1]!.length) { setTried(true); return; }
+    setD((s) => ({ ...s, title: s.titleTouched && s.title.trim().length >= 5 ? s.title : autoTitle(s), body: autoBody(s, company?.name ?? "the company"), quick: true }));
+    setTried(false); setDir(1); setStep(3); setReached(3);
+  };
+
+  const payload = () => {
+    const min = d.min === "" ? null : Number(d.min), max = d.max === "" ? null : Number(d.max);
+    return {
+      outcome: d.outcome, stage: stageOf(d), title: d.title.trim(), body: d.body.trim(), ...(d.role.trim() && { role: d.role.trim() }),
+      ratings: Object.fromEntries(j.ratings.map((k) => [k, d.ratings[k]])),
+      ...(d.outcome === "offer" && { joined: d.joined === "yes" }),
+      quick: d.quick,
+      salary: j.salary && min !== null && max !== null ? { min, max } : null,
+      daysWaited: neverHired(d.outcome) && d.days !== "" ? Number(d.days) : null,
+    };
+  };
 
   const refresh = () => {
     for (const key of [["feed"], ["my-stories"], ["person"], ["insights"], ["story"]]) void qc.invalidateQueries({ queryKey: key });
     liveNudge();
+  };
+  const showError = (err: unknown, fallback: string) => {
+    if (err instanceof ApiRequestError && err.message.startsWith("Goofy: ")) speak(err.message, "error");
+    else toast.error(err instanceof ApiRequestError ? (err.fields ? Object.values(err.fields)[0] ?? err.message : err.message) : fallback);
   };
 
   const saveEdit = async () => {
@@ -268,20 +377,15 @@ export function ShareModal({ open, onOpenChange, editing = null, presetCompany =
     if (!apiEnabled) { toast.success("Changes saved. (Preview mode: they aren't stored.)"); return close(false); }
     setBusy(true);
     try {
-      const min = d.min === "" ? null : Number(d.min), max = d.max === "" ? null : Number(d.max);
-      const r = await api<{ pending?: boolean; message?: string | null }>(`/v1/stories/${editing.id}`, { method: "PATCH", body: {
-        outcome: d.outcome, stage: d.stage, title: d.title.trim(), body: d.body.trim(), ...(d.role.trim() && { role: d.role.trim() }),
-        ratings: fitRatings(d), salary: min !== null && max !== null && allowsSalary(d) ? { min, max } : null, daysWaited: d.days === "" ? null : Number(d.days),
-      } });
-      // Held by the automatic review: saved, goes back up after a quick check.
+      const p = payload();
+      // Offers keep whatever wait the story had; the form doesn't ask for it.
+      const body = neverHired(d.outcome) ? p : (({ daysWaited: _omit, ...rest }) => rest)(p);
+      const r = await api<{ pending?: boolean; message?: string | null }>(`/v1/stories/${editing.id}`, { method: "PATCH", body });
       if (r.pending) speak(r.message ?? "Saved. Your story will be back up after a quick check.");
       else toast.success(voice(tone, "Story updated. The record has been set straight.", "Your changes have been saved."));
       refresh();
       close(false);
-    } catch (err) {
-      if (err instanceof ApiRequestError && err.message.startsWith("Goofy: ")) speak(err.message, "error");
-      else toast.error(err instanceof ApiRequestError ? (err.fields ? Object.values(err.fields)[0] ?? err.message : err.message) : "Couldn't save your changes. Try again.");
-    } finally { setBusy(false); }
+    } catch (err) { showError(err, "Couldn't save your changes. Try again."); } finally { setBusy(false); }
   };
 
   const post = async () => {
@@ -290,22 +394,14 @@ export function ShareModal({ open, onOpenChange, editing = null, presetCompany =
     setBusy(true);
     let escalated = false;
     try {
-      const min = d.min === "" ? null : Number(d.min), max = d.max === "" ? null : Number(d.max);
+      const { salary, daysWaited, ...p } = payload();
       const r = await api<{ story?: { publicId?: string }; pending?: boolean; publicId?: string; message?: string | null }>("/v1/stories", { method: "POST", body: {
-        companySlug: d.company, outcome: d.outcome, stage: d.stage, title: d.title.trim(), body: d.body.trim(),
-        ...(d.role.trim() && { role: d.role.trim() }),
-        ratings: fitRatings(d),
-        ...(min !== null && max !== null && allowsSalary(d) && { salary: { min, max } }),
-        ...(d.days !== "" && { daysWaited: Number(d.days) }),
-        captchaToken: shield.getToken(),
+        companySlug: d.company, ...p, ...(salary && { salary }), ...(daysWaited != null && { daysWaited }), captchaToken: shield.getToken(),
       } });
       if (!preset) clearDraft();
       if (r.pending) {
-        // Saved but held by the automatic review (a named person, an accusation stated as fact…).
         speak(r.message ?? "Saved. Your story goes up after a quick check.");
-        onPublished?.(r.publicId ?? null);
-        refresh();
-        close(false);
+        onPublished?.(r.publicId ?? null); refresh(); close(false);
         return;
       }
       setDone(true);
@@ -313,91 +409,124 @@ export function ShareModal({ open, onOpenChange, editing = null, presetCompany =
       refresh();
     } catch (err) {
       if (err instanceof ApiRequestError && err.code === "captcha_escalate") { escalated = true; shield.escalate(); }
-      // Goofy's refusals speak in his voice (with his face); everything else is a normal error.
-      if (err instanceof ApiRequestError && err.message.startsWith("Goofy: ")) speak(err.message, "error");
-      else toast.error(err instanceof ApiRequestError ? (err.fields ? Object.values(err.fields)[0] ?? err.message : err.message) : "Couldn't share right now. Your draft is saved; try again.");
+      showError(err, "Couldn't share right now. Your draft is saved; try again.");
     } finally { if (!escalated) shield.reset(); setBusy(false); }
   };
 
   const close = (v: boolean) => {
     onOpenChange(v);
-    if (!v) { if (done) { setD(EMPTY); } setRestored(false); }
+    if (!v) { if (done) setD(EMPTY); setRestored(false); }
   };
   const startOver = () => { clearDraft(); setD(EMPTY); setRestored(false); setStep(0); setReached(0); setTried(false); };
 
   const outcome = OUTCOMES.find((o) => o.id === d.outcome);
-  const stage = STAGES.find((s) => s.id === d.stage);
+  const stage = STAGES.find((s) => s.id === stageOf(d));
+  const days = daysOf(d);
+  const quietLabel = d.outcome === "rejected" ? "Where were you rejected?" : d.outcome === "ghost_job" ? "How far did you get?" : "Where did they go quiet?";
+  const outcomeLine = outcome ? (d.outcome === "offer" ? (d.joined === "yes" ? "Got an offer, joined" : d.joined === "no" ? "Got an offer, didn't join" : outcome.label) : outcome.label) : "";
 
   // ---------- steps ----------
 
   const steps: ReactNode[] = [
-    // 1. Where
-    <div key="where" className="space-y-5">
+    // 1. What happened
+    <div key="what" className="space-y-5">
+      <div>
+        <Label>How did it end?</Label>
+        <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:grid-cols-3">{OUTCOMES.map(({ id, label, icon: Icon, blurb, tone: t }) => <motion.button key={id} type="button" onClick={() => pickOutcome(id)} aria-pressed={d.outcome === id} whileTap={{ scale: 0.97 }}
+          className={cn("flex min-h-14 items-start gap-2.5 rounded-lg border-2 border-foreground p-3 text-left transition-colors", d.outcome === id ? "bg-primary text-primary-foreground shadow-hard-sm" : "bg-card hover:bg-muted")}>
+          <Icon className={cn("mt-0.5 size-5 shrink-0", d.outcome !== id && t)} />
+          <span className="min-w-0"><span className="block text-sm font-bold">{label}</span><span className={cn("block text-xs", d.outcome === id ? "opacity-85" : "text-muted-foreground")}>{blurb}</span></span>
+        </motion.button>)}</div>
+      </div>
+      <AnimatePresence initial={false}>{d.outcome === "offer" && <motion.div key="joined" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+        <Label>Did you join?</Label>
+        <div className="flex flex-wrap gap-2">
+          <Chip on={d.joined === "yes"} onClick={() => set("joined", "yes")}>Yes, I joined</Chip>
+          <Chip on={d.joined === "no"} onClick={() => set("joined", "no")}>No, I declined or didn't join</Chip>
+        </div>
+      </motion.div>}</AnimatePresence>
       <div>
         <Label hint={editing ? "Can't be changed on an existing story" : <button type="button" onClick={() => setListing(true)} className="font-bold text-primary hover:underline">Not listed? List it</button>}>Which company?</Label>
         <CompanyPicker value={d.company} onChange={(v) => set("company", v)} companies={companyList} disabled={!!editing} placeholder="Choose the company"
           footer={(close, q) => <button type="button" onClick={() => { close(); setListing(true); }} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm font-bold text-primary hover:bg-muted"><Plus className="size-4" />{q ? `List “${q}” on Ghosted` : "Not listed? List it"}</button>} />
       </div>
       <div>
-        <Label>How far did you get?</Label>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">{STAGES.map(({ id, label, icon: Icon }, i) => <motion.button key={id} type="button" onClick={() => set("stage", id)} aria-pressed={d.stage === id} whileTap={{ scale: 0.96 }}
-          className={cn("flex flex-col items-center gap-1.5 rounded-lg border-2 border-foreground px-2 py-3 text-center text-xs font-bold transition-colors", d.stage === id ? "bg-primary text-primary-foreground shadow-hard-sm" : "bg-card hover:bg-muted", i === 4 && "col-span-2 sm:col-span-1")}>
-          <Icon className="size-5" />{label}
-        </motion.button>)}</div>
-      </div>
-      <div>
         <Label hint={<span>Optional · <span className="tabular-nums">{d.role.length}/{ROLE_MAX}</span></span>}>Your role</Label>
-        <Input value={d.role} onChange={(e) => set("role", e.target.value)} maxLength={ROLE_MAX} placeholder="e.g. Senior SAP S/4HANA Sales and Distribution Consultant" className="h-11 border-2 border-foreground" />
+        <Input value={d.role} onChange={(e) => set("role", e.target.value)} maxLength={ROLE_MAX} placeholder="e.g. Frontend Engineer" className="h-11 border-2 border-foreground" />
       </div>
     </div>,
 
-    // 2. What happened
-    <div key="what" className="space-y-5">
-      <div>
-        <Label>How did it end?</Label>
-        <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:grid-cols-3">{OUTCOMES.map(({ id, label, icon: Icon, blurb, tone: t }) => <motion.button key={id} type="button" onClick={() => set("outcome", id)} aria-pressed={d.outcome === id} whileTap={{ scale: 0.97 }}
-          className={cn("flex items-start gap-2.5 rounded-lg border-2 border-foreground p-3 text-left transition-colors", d.outcome === id ? "bg-primary text-primary-foreground shadow-hard-sm" : "bg-card hover:bg-muted")}>
-          <Icon className={cn("mt-0.5 size-5 shrink-0", d.outcome !== id && t)} />
-          <span className="min-w-0"><span className="block text-sm font-bold">{label}</span><span className={cn("block text-xs", d.outcome === id ? "opacity-85" : "text-muted-foreground")}>{blurb}</span></span>
-        </motion.button>)}</div>
+    // 2. The details: only what this journey needs
+    <div key="details" className="space-y-5">
+      {neverHired(d.outcome) && <>
+        <div>
+          <Label>{quietLabel}</Label>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">{STAGES.map(({ id, label, icon: Icon }, i) => <motion.button key={id} type="button" onClick={() => set("stage", id)} aria-pressed={d.stage === id} whileTap={{ scale: 0.96 }}
+            className={cn("flex min-h-16 flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-foreground px-2 py-3 text-center text-xs font-bold transition-colors", d.stage === id ? "bg-primary text-primary-foreground shadow-hard-sm" : "bg-card hover:bg-muted", i === 4 && "col-span-2 sm:col-span-1")}>
+            <Icon className="size-5" />{label}
+          </motion.button>)}</div>
+        </div>
+        <div>
+          <Label hint="Optional">{d.outcome === "rejected" ? "How long until they told you?" : "How long did you wait?"}</Label>
+          <div className="flex flex-wrap gap-2">
+            {WAITS.map((w) => <Chip key={w.days} on={days === w.days} onClick={() => set("days", days === w.days ? "" : String(w.days))}>{w.label}</Chip>)}
+            <label className={cn(tap, "inline-flex items-center gap-2 rounded-full border-2 border-dashed border-foreground/50 px-3 text-sm font-semibold text-muted-foreground")}>
+              <span>Exact days</span>
+              <input inputMode="numeric" value={WAITS.some((w) => w.days === days) ? "" : d.days} onChange={(e) => set("days", e.target.value.replace(/\D/g, "").slice(0, 3))} placeholder="e.g. 18" aria-label="Exact days waited" className="w-14 bg-transparent text-foreground outline-none" />
+            </label>
+          </div>
+        </div>
+      </>}
+      {offerish(d.outcome) && <p className="rounded-lg border-2 border-foreground/20 bg-muted/50 px-3 py-2 text-sm"><b>{outcomeLine}</b> at the offer stage{company ? ` with ${company.name}` : ""}.</p>}
+
+      <div className="flex items-center gap-4 rounded-xl border-2 border-foreground bg-accent p-4">
+        <AnimatePresence mode="wait" initial={false}>{flagScore !== null && allRated
+          ? <motion.div key="score" initial={{ scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="shrink-0"><FlagScore score={flagScore} compact /></motion.div>
+          : <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid size-16 shrink-0 place-items-center rounded-full border-2 border-dashed border-foreground/40 font-display text-xl font-bold text-muted-foreground">?</motion.div>}</AnimatePresence>
+        <p className="text-sm">{flagScore === null || !allRated
+          ? voice(tone, `Rate ${j.ratings.length === 2 ? "both" : `all ${j.ratings.length}`} below and watch your Flag Score appear.`, `Rate ${j.ratings.length === 2 ? "both areas" : `all ${j.ratings.length} areas`} to see the Flag Score your story gives this company.`)
+          : <>Your story gives {company?.name ?? "them"} a <strong className={scoreTone(flagScore)}>{flagScore}</strong>. It's averaged with everyone else's.</>}</p>
       </div>
+      <div className="space-y-2">{j.ratings.map((key) => <div key={key} className={cn("flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-lg border-2 px-3 py-2 transition-colors", d.ratings[key] ? "border-foreground bg-card" : "border-foreground/20 bg-muted/50")}>
+        <span className="min-w-0"><span className="block text-sm font-bold">{RATING_INFO[key].label}</span><span className="block text-xs text-muted-foreground">{RATING_INFO[key].hint}</span></span>
+        <Stars label={RATING_INFO[key].label} value={d.ratings[key]} onChange={(n) => set("ratings", { ...d.ratings, [key]: n })} />
+      </div>)}</div>
+
+      {j.salary && (d.showSalary
+        ? <div>
+            <Label hint="Optional, but it helps the next person a lot">{d.joined === "yes" ? "Your pay range" : "The offered pay"}</Label>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="text-xs font-bold text-muted-foreground">Min (₹ LPA)<Input inputMode="decimal" value={d.min} onChange={(e) => set("min", e.target.value.replace(/[^\d.]/g, ""))} placeholder="12" className="mt-1 h-11 border-2 border-foreground text-foreground" /></label>
+              <label className="text-xs font-bold text-muted-foreground">Max (₹ LPA)<Input inputMode="decimal" value={d.max} onChange={(e) => set("max", e.target.value.replace(/[^\d.]/g, ""))} placeholder="18" className="mt-1 h-11 border-2 border-foreground text-foreground" /></label>
+            </div>
+          </div>
+        : <button type="button" onClick={() => set("showSalary", true)} className={cn(tap, "inline-flex items-center gap-2 rounded-lg border-2 border-dashed border-foreground/50 px-3 text-sm font-bold hover:border-foreground")}><IndianRupee className="size-4" />{d.joined === "yes" ? "Add your pay range" : "Add the offered pay"}<ChevronDown className="size-4" /></button>)}
+    </div>,
+
+    // 3. In your words
+    <div key="words" className="space-y-5">
+      <button type="button" onClick={quickStory} className={cn(tap, "flex w-full items-center gap-3 rounded-xl border-2 border-foreground bg-accent p-3 text-left shadow-hard-sm transition-transform hover:-translate-y-0.5")}>
+        <span className="grid size-10 shrink-0 place-items-center rounded-full border-2 border-foreground bg-card"><Zap className="size-5" /></span>
+        <span className="min-w-0"><span className="block font-bold">{voice(tone, "Skip the writing, post as a quick story", "Post as a quick story instead")}</span><span className="block text-xs text-muted-foreground">We'll write a short, plain story from your answers. No names, nothing added.</span></span>
+        <ArrowRight className="ml-auto size-4 shrink-0" />
+      </button>
       <div>
-        <Label hint={<span className="tabular-nums">{d.title.length}/90</span>}>Give it a title</Label>
-        <Input value={d.title} onChange={(e) => set("title", e.target.value)} maxLength={90} placeholder={voice(tone, "e.g. Four rounds, one take-home, zero replies", "e.g. No reply after the final round")} className="h-11 border-2 border-foreground font-semibold" />
+        <Label hint={<span className="tabular-nums">{d.title.length}/90</span>}>Title</Label>
+        <Input value={d.title} onChange={(e) => setD((s) => ({ ...s, title: e.target.value, titleTouched: true }))} maxLength={90} className="h-11 border-2 border-foreground font-semibold" />
       </div>
       <div>
         <Label hint={<span className="tabular-nums">{d.body.trim().length < 40 ? `${40 - d.body.trim().length} more to go` : `${d.body.length}/4000`}</span>}>Tell the story</Label>
-        <MarkdownEditor value={d.body} onChange={(v) => set("body", v)} placeholder={voice(tone, "Spill it. What happened, how long it took, and what the next candidate should know. No names of individuals.", "What happened, how long it took, and what the next candidate should know. Please don't name individuals.")} />
+        <div className="mb-2 flex flex-wrap gap-1.5">{promptsFor(d).map((p) => <button key={p} type="button" onClick={() => setD((s) => ({ ...s, quick: false, body: `${s.body.trimEnd()}${s.body.trim() ? "\n\n" : ""}### ${p}\n\n` }))}
+          className={cn(tap, "inline-flex items-center gap-1 rounded-full border-2 border-foreground/30 bg-card px-3 text-xs font-bold hover:border-foreground sm:min-h-9")}><Plus className="size-3.5" />{p}</button>)}</div>
+        <MarkdownEditor value={d.body} onChange={(v) => setD((s) => ({ ...s, body: v, quick: false }))} placeholder={d.outcome ? voice(tone, PLACEHOLDER[d.outcome][0], PLACEHOLDER[d.outcome][1]) : ""} />
         <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-          <span><strong className="text-foreground">Markdown works:</strong> # headings, **bold**, _italic_, - lists, &gt; quotes, `code` and ``` code blocks</span>
-          {!d.body.trim() && <button type="button" onClick={() => set("body", TEMPLATE)} className="inline-flex items-center gap-1 font-bold text-primary hover:underline"><Wand2 className="size-3.5" />Give me a structure</button>}
+          <span><strong className="text-foreground">Markdown works:</strong> # headings, **bold**, _italic_, - lists, &gt; quotes</span>
+          {!d.body.trim() && <button type="button" onClick={() => set("body", templateFor(d))} className="inline-flex items-center gap-1 font-bold text-primary hover:underline"><Wand2 className="size-3.5" />Give me a structure</button>}
         </div>
       </div>
     </div>,
 
-    // 3. Rate it
-    <div key="rate" className="space-y-5">
-      <div className="flex items-center gap-4 rounded-xl border-2 border-foreground bg-accent p-4">
-        <AnimatePresence mode="wait" initial={false}>{flagScore !== null
-          ? <motion.div key="score" initial={{ scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="shrink-0"><FlagScore score={flagScore} compact /></motion.div>
-          : <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid size-16 shrink-0 place-items-center rounded-full border-2 border-dashed border-foreground/40 font-display text-xl font-bold text-muted-foreground">?</motion.div>}</AnimatePresence>
-        <p className="text-sm">{flagScore === null ? voice(tone, "Rate all five and watch your Flag Score for this company appear. No pressure.", "Rate all five areas to see the Flag Score your story gives this company.") : <>Your story gives {company?.name ?? "them"} a <strong className={scoreTone(flagScore)}>{flagScore}</strong>. It's averaged with everyone else's.</>}</p>
-      </div>
-      <div className="space-y-2">{RATINGS.map(({ key, label, hint }) => <div key={key} className={cn("flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-lg border-2 px-3 py-2 transition-colors", d.ratings[key] ? "border-foreground bg-card" : "border-foreground/20 bg-muted/50")}>
-        <span className="min-w-0"><span className="block text-sm font-bold">{label}</span><span className="block text-xs text-muted-foreground">{hint}</span></span>
-        <Stars label={label} value={d.ratings[key]} onChange={(n) => set("ratings", { ...d.ratings, [key]: n })} />
-      </div>)}</div>
-      <div>
-        <Label hint="Optional, but it helps the next person a lot">Salary and waiting</Label>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <label className="text-xs font-bold text-muted-foreground">Min (₹ LPA)<Input inputMode="decimal" value={d.min} onChange={(e) => set("min", e.target.value.replace(/[^\d.]/g, ""))} placeholder="12" className="mt-1 border-2 border-foreground text-foreground" /></label>
-          <label className="text-xs font-bold text-muted-foreground">Max (₹ LPA)<Input inputMode="decimal" value={d.max} onChange={(e) => set("max", e.target.value.replace(/[^\d.]/g, ""))} placeholder="18" className="mt-1 border-2 border-foreground text-foreground" /></label>
-          <label className="col-span-2 text-xs font-bold text-muted-foreground sm:col-span-1">Days waited for a reply<Input inputMode="numeric" value={d.days} onChange={(e) => set("days", e.target.value.replace(/\D/g, "").slice(0, 3))} placeholder="21" className="mt-1 border-2 border-foreground text-foreground" /></label>
-        </div>
-      </div>
-    </div>,
-
-    // 4. Review and post
+    // 4. Review and post: only the fields that exist
     <div key="post" className="space-y-5">
       <p className="text-sm text-muted-foreground">{voice(tone, "Here's exactly how it'll look in the feed. Last chance to fix that typo.", "This is how your story will appear in the feed.")}</p>
       <article className="rounded-xl border-2 border-foreground bg-card p-5 shadow-hard-sm">
@@ -407,12 +536,12 @@ export function ShareModal({ open, onOpenChange, editing = null, presetCompany =
           {company && <CompanyMark company={company} size="sm" />}
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          {outcome && <span className="rounded-full border-2 border-foreground bg-accent px-2.5 py-0.5 text-[11px] font-bold uppercase">{outcome.label}</span>}
-          {[stage?.label, d.role.trim()].filter(Boolean).map((t) => <span key={t} className="text-xs font-semibold text-muted-foreground">{t}</span>)}
+          {outcome && <span className="rounded-full border-2 border-foreground bg-accent px-2.5 py-0.5 text-[11px] font-bold uppercase">{outcomeLine}</span>}
+          {[neverHired(d.outcome) ? stage?.label : null, d.role.trim()].filter(Boolean).map((t) => <span key={t} className="text-xs font-semibold text-muted-foreground">{t}</span>)}
         </div>
         <h3 className="mt-3 font-bold leading-snug">{d.title.trim()}</h3>
         <Markdown text={d.body} className="mt-1.5" />
-        {flagScore !== null && <p className="mt-4 border-t-2 border-dashed border-foreground/15 pt-3 text-xs font-semibold text-muted-foreground">Flag Score from this story: <span className={cn("font-display text-sm font-bold", scoreTone(flagScore))}>{flagScore}</span>{d.min && d.max ? ` · ₹${d.min}–${d.max} LPA` : ""}{d.days ? ` · waited ${d.days} days` : ""}</p>}
+        {flagScore !== null && <p className="mt-4 border-t-2 border-dashed border-foreground/15 pt-3 text-xs font-semibold text-muted-foreground">Flag Score from this story: <span className={cn("font-display text-sm font-bold", scoreTone(flagScore))}>{flagScore}</span>{j.salary && d.min && d.max ? ` · ₹${d.min} to ${d.max} LPA` : ""}{neverHired(d.outcome) && days != null ? ` · waited ${waitPhrase(days)}` : ""}</p>}
       </article>
       <div className="flex items-center gap-3 rounded-lg border-2 border-foreground bg-muted/50 p-3">
         <Avatar seed={me.avatarSeed} pastel={me.pastel} size="sm" label={displayName(me)} />
@@ -423,18 +552,17 @@ export function ShareModal({ open, onOpenChange, editing = null, presetCompany =
   ];
 
   const titles = [
-    { t: voice(tone, "Where did this happen?", "Where did this happen?"), s: voice(tone, "Name the company. We'll handle the judging.", "Choose the company and how far the process went.") },
-    { t: voice(tone, "Spill the tea", "What happened?"), s: voice(tone, "How it ended, and the receipts. Keep it factual, keep it useful.", "How it ended, and what the next candidate should know.") },
-    { t: voice(tone, "Now rate them", "Rate the experience"), s: voice(tone, "Honest stars only. Companies can't pay to change these.", "Your ratings feed the company's Flag Score.") },
+    { t: voice(tone, "What happened?", "What happened?"), s: voice(tone, "Start with how it ended. Everything after fits around it.", "Choose how it ended, then the company.") },
+    { t: voice(tone, "The details", "The details"), s: neverHired(d.outcome) ? voice(tone, "A few taps. Only what fits what happened to you.", "Only the questions that fit your experience.") : voice(tone, "Rate what you actually saw. Nothing you didn't.", "Only the questions that fit your experience.") },
+    { t: voice(tone, "In your words", "In your words"), s: voice(tone, "Write as much or as little as you like. Or skip it.", "Add your story, or post a quick one from your answers.") },
     editing
-      ? { t: voice(tone, "Looking sharper?", "Review your changes"), s: voice(tone, "Save it and your story gets a little Edited badge. Honesty looks good on you.", "Saving marks the story as edited.") }
+      ? { t: voice(tone, "Looking sharper?", "Review your changes"), s: voice(tone, "Save it and your story gets a little Edited badge.", "Saving marks the story as edited.") }
       : { t: voice(tone, "Looks good?", "Review and post"), s: voice(tone, "One quick look, then it's out there helping people.", "Check your story, then post it.") },
   ];
 
   return <Dialog open={open} onOpenChange={close}>
     <DialogContent className={cn(popup, "max-w-2xl")}>
       {done ? <div className={cn(popupBody, "grid place-items-center py-12 text-center")} data-lenis-prevent>
-        {/* Finished: a happy ghost, then back to the feed. */}
         <motion.div initial={{ scale: 0.4, rotate: -12, opacity: 0 }} animate={{ scale: 1, rotate: 0, opacity: 1 }} transition={{ type: "spring", stiffness: 260, damping: 14 }} className="relative">
           <img src="/ghosted-mark.png" alt="" className="size-28 object-contain" />
           {[...Array(8)].map((_, i) => <motion.span key={i} className="absolute left-1/2 top-1/2 size-2.5 rounded-full" style={{ background: ["#6D28D9", "#F59E0B", "#22C55E", "#EF4444"][i % 4] }}
@@ -465,14 +593,13 @@ export function ShareModal({ open, onOpenChange, editing = null, presetCompany =
             {problems[step]!.map((p) => <li key={p} className="flex items-center gap-1.5"><XCircle className="size-4 shrink-0" />{p}</li>)}
           </motion.ul>}</AnimatePresence>
         </div>
-        {/* Footer stays put while the step scrolls. */}
         <div className="flex items-center justify-between gap-2 border-t-2 border-foreground bg-card px-5 py-3 sm:px-7">
-          {step > 0 ? <Button variant="outline" onClick={() => go(step - 1)}><ArrowLeft />Back</Button> : <span className="text-xs text-muted-foreground">{editing ? "Editing your story" : isBlank(d) ? "" : "Draft saved"}</span>}
+          {step > 0 ? <Button variant="outline" className={tap} onClick={() => go(step - 1)}><ArrowLeft />Back</Button> : <span className="text-xs text-muted-foreground">{editing ? "Editing your story" : isBlank(d) ? "" : "Draft saved"}</span>}
           {step < STEPS.length - 1
-            ? <Button onClick={() => go(step + 1)}>{STEPS[step + 1]!.label}<ArrowRight /></Button>
+            ? <Button className={tap} onClick={() => go(step + 1)}>{STEPS[step + 1]!.label}<ArrowRight /></Button>
             : editing
-              ? <Button onClick={() => void post()} disabled={busy} className="min-w-36">{busy ? <Loader2 className="animate-spin" /> : <Check />}{busy ? "Saving…" : "Save changes"}</Button>
-              : <Button onClick={() => void post()} disabled={busy || shield.status !== "done"} className="min-w-36">{busy ? <Loader2 className="animate-spin" /> : <Sparkles />}{busy ? "Posting…" : shield.status !== "done" ? "Checking you're human…" : "Post story"}</Button>}
+              ? <Button onClick={() => void post()} disabled={busy} className={cn(tap, "min-w-36")}>{busy ? <Loader2 className="animate-spin" /> : <Check />}{busy ? "Saving…" : "Save changes"}</Button>
+              : <Button onClick={() => void post()} disabled={busy || shield.status !== "done"} className={cn(tap, "min-w-36")}>{busy ? <Loader2 className="animate-spin" /> : <Sparkles />}{busy ? "Posting…" : shield.status !== "done" ? "Checking you're human…" : "Post story"}</Button>}
         </div>
       </>}
       <ListCompanyDialog open={listing} onOpenChange={setListing} onListed={(co) => set("company", co.id)} />
