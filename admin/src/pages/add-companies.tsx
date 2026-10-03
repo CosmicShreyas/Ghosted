@@ -1,9 +1,11 @@
-// Listing companies by hand from the admin panel: one at a time with a form, or many at once by
-// pasting lines or a CSV (name, domain, industry, size, city, founded). Companies already on Ghosted
-// (same website or name) are skipped and reported, never duplicated.
+// Listing companies from the admin panel, the same way as on the main site: paste a website link and
+// everything (name, logo, about, industry, size, city, founded, careers page) is fetched from the
+// company's own site and Wikidata. One link, or a whole list: links are fetched in batches, shown
+// as an editable preview, then added together. Companies already on Ghosted are flagged and skipped.
 import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Building2, Check, FileUp, Loader2, Plus, Rows3, X } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { AlertTriangle, Building2, Check, Globe, Link2, Loader2, Plus, RotateCcw, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,95 +15,129 @@ import { cn } from "@/lib/utils";
 import { adminApi } from "../api";
 import { field, Modal, Segmented } from "../ui";
 
-const INDUSTRIES = ["software", "it_services", "fintech", "ecommerce", "edtech", "healthtech", "media", "consulting", "manufacturing", "bfsi", "telecom", "gaming", "logistics", "other"] as const;
-const SIZES = ["1-10", "11-50", "51-200", "201-1000", "1001-5000", "5000+"] as const;
-type Row = { name: string; domain?: string | undefined; industry?: string | undefined; size?: string | undefined; hqCity?: string | undefined; founded?: number | undefined; about?: string | undefined };
-type Result = { name: string; status: "listed" | "skipped"; slug?: string; reason?: string };
+type Draft = { name: string; domain: string; website: string; logoUrl?: string; about?: string; industry?: string; size?: string; hqCity?: string; founded?: number; careersUrl?: string };
+type Fetched = { input: string; ok: true; existing: { name: string; slug: string } | null; draft: Draft } | { input: string; ok: false; error: string };
+type Item = Fetched & { include: boolean; result?: { status: "listed" | "skipped"; reason?: string | undefined } };
+const BATCH = 5;
 
-// One company per line: "Name, domain, industry, size, city, founded". Only the name is required.
-// A header line (starting with "name") is ignored; quoted CSV values are supported.
-function parse(text: string): { rows: Row[]; errors: string[] } {
-  const rows: Row[] = [], errors: string[] = [];
-  const cells = (line: string) => (line.match(/("([^"]|"")*"|[^,]*)(,|$)/g) ?? []).map((c) => c.replace(/,$/, "").trim().replace(/^"|"$/g, "").replace(/""/g, '"')).filter((_, i, a) => i < a.length - 1 || a[i] !== "");
-  text.split(/\r?\n/).forEach((raw, i) => {
-    const line = raw.trim();
-    if (!line || (i === 0 && /^name\b/i.test(line))) return;
-    const [name = "", domain, industry, size, city, founded] = cells(line);
-    if (name.length < 2) { errors.push(`Line ${i + 1}: needs a company name`); return; }
-    const ind = industry?.toLowerCase().replace(/[\s-]+/g, "_");
-    rows.push({
-      name, ...(domain && { domain }),
-      ...(ind && (INDUSTRIES as readonly string[]).includes(ind) && { industry: ind }),
-      ...(size && (SIZES as readonly string[]).includes(size) && { size }),
-      ...(city && city.length >= 2 && { hqCity: city }),
-      ...(founded && /^\d{4}$/.test(founded) && { founded: Number(founded) }),
-    });
-  });
-  return { rows, errors };
+const clean = (d: Draft) => Object.fromEntries(Object.entries(d).filter(([, v]) => v !== undefined && v !== null && v !== ""));
+const links = (text: string) => [...new Set(text.split(/[\s,;]+/).map((s) => s.trim()).filter((s) => /[a-z0-9-]+\.[a-z]{2,}/i.test(s)))];
+
+function Logo({ d }: { d: Draft }) {
+  const [broken, setBroken] = useState(false);
+  return <span className="grid size-12 shrink-0 place-items-center overflow-hidden rounded-lg border-2 border-foreground bg-white">
+    {d.logoUrl && !broken ? <img src={d.logoUrl} alt="" className="size-[70%] object-contain" referrerPolicy="no-referrer" onError={() => setBroken(true)} /> : <span className="font-display text-lg font-bold text-black">{d.name.charAt(0)}</span>}
+  </span>;
 }
 
-function Results({ results }: { results: Result[] }) {
-  return <ul className="max-h-64 divide-y-2 divide-foreground/5 overflow-y-auto rounded-lg border-2 border-foreground/15" data-lenis-prevent>{results.map((r, i) => <li key={i} className="flex items-center gap-2 px-3 py-2 text-sm">
-    {r.status === "listed" ? <Check className="size-4 shrink-0 text-flag-green" /> : <X className="size-4 shrink-0 text-muted-foreground" />}
-    <span className="min-w-0 flex-1 truncate font-semibold">{r.name}</span>
-    <span className={cn("shrink-0 text-xs", r.status === "listed" ? "text-flag-green" : "text-muted-foreground")}>{r.status === "listed" ? "Listed" : r.reason}</span>
-  </li>)}</ul>;
+function PreviewCard({ item, onChange, single = false }: { item: Item; onChange: (i: Item) => void; single?: boolean }) {
+  if (!item.ok) return <div className="flex items-start gap-3 rounded-xl border-2 border-flag-red/40 bg-flag-red/5 p-3 text-sm">
+    <AlertTriangle className="mt-0.5 size-4 shrink-0 text-flag-red" /><span className="min-w-0"><span className="block break-all font-semibold">{item.input}</span><span className="text-muted-foreground">{item.error}</span></span>
+  </div>;
+  const d = item.draft;
+  const set = (patch: Partial<Draft>) => onChange({ ...item, draft: { ...d, ...patch } });
+  const facts = [d.industry?.replace(/_/g, " "), d.size && `${d.size} people`, d.hqCity, d.founded && `since ${d.founded}`].filter(Boolean).join(" · ");
+  return <div className={cn("rounded-xl border-2 p-3 transition-colors", item.existing ? "border-foreground/15 opacity-70" : item.include ? "border-foreground bg-card" : "border-foreground/15")}>
+    <div className="flex items-start gap-3">
+      {!single && !item.existing && <input type="checkbox" checked={item.include} onChange={(e) => onChange({ ...item, include: e.target.checked })} aria-label={`Add ${d.name}`} className="mt-4 size-4 shrink-0 accent-[var(--color-primary)]" />}
+      <Logo d={d} />
+      <div className="min-w-0 flex-1">
+        <Input value={d.name} onChange={(e) => set({ name: e.target.value })} aria-label="Company name" maxLength={80} className="h-9 border-2 border-foreground/20 font-bold" disabled={!!item.existing} />
+        <p className="mt-1 flex items-center gap-1 truncate text-xs text-muted-foreground"><Globe className="size-3" />{d.domain}{facts && ` · ${facts}`}</p>
+      </div>
+      {item.result ? <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-xs font-bold", item.result.status === "listed" ? "bg-flag-green text-primary-foreground" : "bg-muted")}>{item.result.status === "listed" ? "Added" : item.result.reason ?? "Skipped"}</span>
+        : item.existing && <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs font-bold">Already listed</span>}
+    </div>
+    {single && d.about && <p className="mt-3 line-clamp-4 text-sm text-muted-foreground">{d.about}</p>}
+  </div>;
+}
+
+async function fetchAll(list: string[], onProgress: (done: number, items: Item[]) => void) {
+  const out: Item[] = [];
+  for (let i = 0; i < list.length; i += BATCH) {
+    const r = await adminApi<{ items: Fetched[] }>("/companies/fetch", { method: "POST", body: { websites: list.slice(i, i + BATCH) } });
+    out.push(...r.items.map((it) => ({ ...it, include: it.ok && !it.existing })));
+    onProgress(Math.min(list.length, i + BATCH), [...out]);
+  }
+  return out;
 }
 
 export function AddCompanies() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"one" | "bulk">("one");
-  const [one, setOne] = useState<Row>({ name: "" });
+  const [url, setUrl] = useState("");
   const [text, setText] = useState("");
+  const [items, setItems] = useState<Item[]>([]);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [busy, setBusy] = useState(false);
-  const [results, setResults] = useState<Result[] | null>(null);
-  const parsed = useMemo(() => parse(text), [text]);
-  const done = () => void qc.invalidateQueries({ queryKey: ["admin", "companies"] });
-  const fail = (e: unknown) => toast.error(e instanceof ApiRequestError ? (e.fields ? Object.values(e.fields)[0] ?? e.message : e.message) : "Couldn't save that.");
+  const pasted = useMemo(() => links(text), [text]);
+  const chosen = items.filter((i) => i.ok && i.include && !i.existing && !i.result);
+  const reset = () => { setItems([]); setProgress(null); };
+  const fail = (e: unknown) => toast.error(e instanceof ApiRequestError ? e.message : "Something went wrong. Try again.");
 
-  const addOne = async () => {
+  const fetchLinks = async (list: string[]) => {
+    if (!list.length) return;
+    setBusy(true); setItems([]); setProgress({ done: 0, total: list.length });
+    try { await fetchAll(list, (done, got) => { setProgress({ done, total: list.length }); setItems(got); }); }
+    catch (e) { fail(e); } finally { setBusy(false); }
+  };
+
+  const add = async () => {
+    if (!chosen.length) return;
     setBusy(true);
     try {
-      const r = await adminApi<Result>("/companies", { method: "POST", body: { ...one, name: one.name.trim() } });
-      toast.success(`${r.name} is listed.`); setOne({ name: "" }); done();
+      if (mode === "one") {
+        const it = chosen[0]!; if (!it.ok) return;
+        const r = await adminApi<{ name: string; status: "listed" | "skipped"; reason?: string }>("/companies", { method: "POST", body: clean(it.draft) });
+        toast.success(`${r.name} is listed.`); setUrl(""); reset();
+      } else {
+        const r = await adminApi<{ listed: number; skipped: number; results: { name: string; status: "listed" | "skipped"; reason?: string }[] }>("/companies/bulk", { method: "POST", body: { companies: chosen.map((i) => (i.ok ? clean(i.draft) : {})) } });
+        // Match results back to the preview rows, in order.
+        let k = 0;
+        setItems((all) => all.map((i) => (i.ok && i.include && !i.existing && !i.result ? { ...i, result: r.results[k++] ?? { status: "skipped" as const } } : i)));
+        toast.success(`${r.listed} added${r.skipped ? `, ${r.skipped} skipped` : ""}.`);
+      }
+      void qc.invalidateQueries({ queryKey: ["admin", "companies"] });
     } catch (e) { if (e instanceof ApiRequestError && e.status === 409) toast.error(e.message); else fail(e); }
     finally { setBusy(false); }
   };
-  const addMany = async () => {
-    setBusy(true);
-    try {
-      const r = await adminApi<{ listed: number; skipped: number; results: Result[] }>("/companies/bulk", { method: "POST", body: { companies: parsed.rows } });
-      setResults(r.results); toast.success(`${r.listed} listed, ${r.skipped} skipped.`); done();
-    } catch (e) { fail(e); } finally { setBusy(false); }
-  };
-  const readFile = async (f: File | undefined) => { if (f) setText(await f.text()); };
+
+  const footer = items.length > 0 && chosen.length > 0
+    ? <><Button variant="ghost" onClick={reset}><RotateCcw />Start over</Button><span className="ml-auto" /><Button disabled={busy} onClick={() => void add()}>{busy ? <Loader2 className="animate-spin" /> : <Check />}{mode === "one" ? "Add company" : `Add ${chosen.length} ${chosen.length === 1 ? "company" : "companies"}`}</Button></>
+    : mode === "one"
+      ? <Button disabled={busy || url.trim().length < 4} onClick={() => void fetchLinks([url.trim()])}>{busy ? <Loader2 className="animate-spin" /> : <Sparkles />}Fetch details</Button>
+      : <Button disabled={busy || !pasted.length || pasted.length > 200} onClick={() => void fetchLinks(pasted)}>{busy ? <Loader2 className="animate-spin" /> : <Sparkles />}Fetch {pasted.length || ""} {pasted.length === 1 ? "website" : "websites"}</Button>;
 
   return <>
-    <Button onClick={() => { setOpen(true); setResults(null); }}><Plus />Add companies</Button>
-    <Modal open={open} onClose={() => setOpen(false)} size="lg" title="Add companies" subtitle="List one company, or many at once. Anything already on Ghosted is skipped."
-      footer={mode === "one"
-        ? <Button disabled={busy || one.name.trim().length < 2} onClick={() => void addOne()}>{busy ? <Loader2 className="animate-spin" /> : <Building2 />}List company</Button>
-        : <Button disabled={busy || !parsed.rows.length || parsed.rows.length > 500} onClick={() => void addMany()}>{busy ? <Loader2 className="animate-spin" /> : <Rows3 />}List {parsed.rows.length || ""} {parsed.rows.length === 1 ? "company" : "companies"}</Button>}>
-      <Segmented label="Mode" value={mode} onChange={(m) => { setMode(m); setResults(null); }} options={[{ id: "one", label: "One company" }, { id: "bulk", label: "Bulk" }]} />
-      {mode === "one" ? <div className="mt-5 grid gap-3 sm:grid-cols-2">
-        <label className="sm:col-span-2"><span className="mb-1 block text-sm font-bold">Name</span><Input value={one.name} onChange={(e) => setOne({ ...one, name: e.target.value })} className={field} maxLength={80} autoFocus /></label>
-        <label><span className="mb-1 block text-sm font-bold">Website <span className="font-normal text-muted-foreground">(for the logo)</span></span><Input value={one.domain ?? ""} onChange={(e) => setOne({ ...one, domain: e.target.value || undefined })} placeholder="example.com" className={field} /></label>
-        <label><span className="mb-1 block text-sm font-bold">City</span><Input value={one.hqCity ?? ""} onChange={(e) => setOne({ ...one, hqCity: e.target.value || undefined })} placeholder="Bengaluru" className={field} /></label>
-        <label><span className="mb-1 block text-sm font-bold">Industry</span><select value={one.industry ?? ""} onChange={(e) => setOne({ ...one, industry: e.target.value || undefined })} className={cn(field, "w-full px-3")}><option value="">Not set</option>{INDUSTRIES.map((i) => <option key={i} value={i}>{i.replace(/_/g, " ")}</option>)}</select></label>
-        <label><span className="mb-1 block text-sm font-bold">Size</span><select value={one.size ?? ""} onChange={(e) => setOne({ ...one, size: e.target.value || undefined })} className={cn(field, "w-full px-3")}><option value="">Not set</option>{SIZES.map((s) => <option key={s} value={s}>{s} people</option>)}</select></label>
-        <label><span className="mb-1 block text-sm font-bold">Founded</span><Input inputMode="numeric" value={one.founded ?? ""} onChange={(e) => { const v = e.target.value.replace(/\D/g, "").slice(0, 4); setOne({ ...one, founded: v.length === 4 ? Number(v) : undefined }); }} placeholder="2004" className={field} /></label>
-        <label className="sm:col-span-2"><span className="mb-1 block text-sm font-bold">About <span className="font-normal text-muted-foreground">(optional, 80 to 800 characters)</span></span><Textarea value={one.about ?? ""} onChange={(e) => setOne({ ...one, about: e.target.value || undefined })} maxLength={800} className="min-h-20 rounded-lg border-2 border-foreground bg-background" /></label>
-      </div> : <div className="mt-5 space-y-3">
-        <p className="text-sm text-muted-foreground">One company per line: <code className="rounded bg-muted px-1.5 font-mono text-xs">Name, domain, industry, size, city, founded</code>. Only the name is required. A header line is ignored, and CSV files work too.</p>
-        <Textarea value={text} onChange={(e) => { setText(e.target.value); setResults(null); }} placeholder={"Accenture, accenture.com, consulting, 5000+, Bengaluru, 1989\nRazorpay, razorpay.com, fintech, 1001-5000, Bengaluru, 2014\nZepto"} className="min-h-44 rounded-lg border-2 border-foreground bg-background font-mono text-sm" />
-        <div className="flex flex-wrap items-center gap-3 text-sm">
-          <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border-2 border-foreground px-3 py-1.5 font-bold hover:bg-muted"><FileUp className="size-4" />Load a CSV<input type="file" accept=".csv,text/csv,text/plain" className="sr-only" onChange={(e) => void readFile(e.target.files?.[0])} /></label>
-          <span className="text-muted-foreground">{parsed.rows.length} ready{parsed.rows.length > 500 && " (500 at most per batch)"}{parsed.errors.length > 0 && `, ${parsed.errors.length} with problems`}</span>
-        </div>
-        {parsed.errors.length > 0 && <ul className="rounded-lg border-2 border-flag-red bg-flag-red/5 p-3 text-xs text-flag-red">{parsed.errors.slice(0, 5).map((e) => <li key={e}>{e}</li>)}</ul>}
-        {results && <Results results={results} />}
+    <Button onClick={() => { setOpen(true); reset(); }}><Plus />Add companies</Button>
+    <Modal open={open} onClose={() => setOpen(false)} size="lg" title="Add companies" subtitle="Paste a website and everything is fetched from the company's own site, like listing on Ghosted." footer={footer}>
+      <Segmented label="Mode" value={mode} onChange={(m) => { setMode(m); reset(); }} options={[{ id: "one", label: "One company" }, { id: "bulk", label: "Many at once" }]} />
+
+      {mode === "one" ? <form className="mt-5" onSubmit={(e) => { e.preventDefault(); void fetchLinks([url.trim()]); }}>
+        <label className="block"><span className="mb-1 block text-sm font-bold">Company website</span>
+          <span className="flex items-center gap-2 rounded-lg border-2 border-foreground bg-background px-3"><Link2 className="size-4 text-muted-foreground" /><input value={url} onChange={(e) => { setUrl(e.target.value); reset(); }} placeholder="razorpay.com" autoFocus className="h-11 min-w-0 flex-1 bg-transparent outline-none" /></span></label>
+        <p className="mt-1.5 text-xs text-muted-foreground">The company's own domain. Name, logo, about, industry, size, city and founding year are filled in for you.</p>
+      </form> : <div className="mt-5">
+        <label className="block"><span className="mb-1 block text-sm font-bold">Company websites</span>
+          <Textarea value={text} onChange={(e) => { setText(e.target.value); reset(); }} placeholder={"razorpay.com\nfreshworks.com\nhttps://www.zoho.com\nzepto.com"} className="min-h-40 rounded-lg border-2 border-foreground bg-background font-mono text-sm" /></label>
+        <p className="mt-1.5 text-xs text-muted-foreground">One per line (commas or spaces work too). {pasted.length ? `${pasted.length} found${pasted.length > 200 ? ", 200 at most at a time" : ""}.` : "Fetched 5 at a time."}</p>
       </div>}
+
+      <AnimatePresence>{progress && <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="mt-5">
+        {busy && progress.done < progress.total && <div className="mb-3">
+          <p className="flex items-center gap-2 text-sm font-semibold"><Loader2 className="size-4 animate-spin" />Fetching {progress.done} of {progress.total}…</p>
+          <div className="mt-1.5 h-2 rounded-full border-2 border-foreground bg-muted"><div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${(progress.done / progress.total) * 100}%` }} /></div>
+        </div>}
+        {items.length > 0 && <>
+          {mode === "bulk" && <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-sm">
+            <span className="font-bold">Preview</span>
+            <span className="text-muted-foreground">{items.filter((i) => i.ok && !i.existing).length} new · {items.filter((i) => i.ok && i.existing).length} already listed · {items.filter((i) => !i.ok).length} couldn't be read</span>
+          </div>}
+          <div className="max-h-[22rem] space-y-2 overflow-y-auto pr-1" data-lenis-prevent>{items.map((it, i) => <PreviewCard key={`${it.input}-${i}`} single={mode === "one"} item={it} onChange={(n) => setItems((all) => all.map((x, j) => (j === i ? n : x)))} />)}</div>
+          {!busy && items.every((i) => !i.ok || i.existing || i.result) && <p className="mt-3 flex items-center gap-2 text-sm text-muted-foreground"><Building2 className="size-4" />{items.some((i) => i.result?.status === "listed") ? "Done. The new companies are live on Ghosted." : "Nothing new to add from these."}</p>}
+        </>}
+      </motion.div>}</AnimatePresence>
     </Modal>
   </>;
 }

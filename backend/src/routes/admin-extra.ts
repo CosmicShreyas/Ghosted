@@ -20,6 +20,8 @@ import { DEFAULTS, GOOFY_DEFAULTS, goofyControls, ipBans, platform, type GoofyCo
 import { limitBy } from "../security.js";
 import { admin as db } from "../supabase.js";
 import { validate } from "../validate.js";
+import { inspectWebsite, SiteCheckError } from "../lib/site-check.js";
+import { gatherFacts } from "../lib/company-facts.js";
 
 const DAY = 86400_000;
 const pid = z.string().regex(/^\d{15}$/);
@@ -83,7 +85,11 @@ const companyInput = z.object({
   size: z.enum(SIZES).optional(),
   hqCity: z.string().trim().min(2).max(60).optional(),
   founded: z.number().int().min(1800).max(2100).optional(),
-  about: z.string().trim().max(800).optional(),
+  about: z.string().trim().max(2000).optional(),
+  // From the website fetch (same checks as listing on the main site).
+  website: z.string().trim().url().startsWith("https://").max(300).optional(),
+  logoUrl: z.string().trim().url().startsWith("https://").max(600).optional(),
+  careersUrl: z.string().trim().url().startsWith("https://").max(300).optional(),
 });
 type CompanyInput = z.infer<typeof companyInput>;
 const slugify = (name: string) => name.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60);
@@ -98,11 +104,14 @@ async function listCompany(c: CompanyInput, by: string): Promise<{ name: string;
   if (base.length < 2) return { name: c.name, status: "skipped", reason: "The name needs letters or numbers" };
   let slug = base;
   for (let i = 2; i < 20; i++) { const { data } = await db().from("companies").select("id").eq("slug", slug).maybeSingle(); if (!data) break; slug = `${base.slice(0, 56)}-${i}`; }
-  const about = c.about && c.about.length >= 80 ? c.about : null;
+  // About must be 80 to 800 characters: longer ones are trimmed at a sentence, shorter ones left out.
+  const trimmed = c.about && c.about.length > 800 ? c.about.slice(0, 800).replace(/[^.!?]*$/, "").trim() || c.about.slice(0, 797) + "…" : c.about;
+  const about = trimmed && trimmed.length >= 80 ? trimmed : null;
   const { error } = await db().from("companies").insert({
     slug, name: c.name, color: PALETTE[Math.floor(Math.random() * PALETTE.length)], domain: c.domain ?? null,
-    website: c.domain ? `https://${c.domain}` : null, logo_url: c.domain ? `https://unavatar.io/${c.domain}?fallback=false` : null,
-    about, industry: c.industry ?? null, size: c.size ?? null, hq_city: c.hqCity ?? null, founded: c.founded ?? null, status: "listed",
+    website: c.website ?? (c.domain ? `https://${c.domain}` : null), logo_url: c.logoUrl ?? (c.domain ? `https://unavatar.io/${c.domain}?fallback=false` : null),
+    about, summary: about ? about.slice(0, 157).replace(/\s+\S*$/, "") + (about.length > 157 ? "…" : "") : null,
+    industry: c.industry ?? null, size: c.size ?? null, hq_city: c.hqCity ?? null, founded: c.founded ?? null, careers_url: c.careersUrl ?? null, status: "listed",
   });
   if (error) return { name: c.name, status: "skipped", reason: error.message.includes("duplicate") ? "Already listed" : "Couldn't save this one" };
   void by;
@@ -150,6 +159,30 @@ export const adminExtraRoutes = new Hono<AdminEnv>()
       daysLeft: perDay > 0 ? Math.round(remaining / (bytesPerStory * perDay)) : null,
       tables: tables.slice(0, 20),
     });
+  })
+  // Paste website links: each is checked and read exactly like listing on the main site (the site
+  // must exist over HTTPS; name, logo, about, industry, size, city, founded and careers page are
+  // gathered from it and Wikidata). Up to 10 per call; the panel sends batches and shows a preview.
+  .post("/companies/fetch", validate("json", z.object({ websites: z.array(z.string().trim().min(3).max(200)).min(1).max(10) }).strict()), async (c) => {
+    const one = async (input: string) => {
+      try {
+        const site = await inspectWebsite(input);
+        const [{ data: dupe }, facts] = await Promise.all([db().from("companies").select("name, slug").eq("domain", site.domain).maybeSingle(), gatherFacts(site)]);
+        const enumOr = <T extends readonly string[]>(list: T, v: string | null) => (v && (list as readonly string[]).includes(v) ? v : undefined);
+        return {
+          input, ok: true as const, existing: (dupe as { name: string; slug: string } | null) ?? null,
+          draft: {
+            name: (facts.name ?? site.siteName ?? site.title ?? site.domain.split(".")[0]!).trim().slice(0, 80),
+            domain: site.domain, website: site.homepage, logoUrl: site.iconUrl ?? undefined,
+            about: facts.about ?? site.description ?? undefined, industry: enumOr(INDUSTRIES, facts.industry), size: enumOr(SIZES, facts.size),
+            hqCity: facts.hqCity ?? undefined, founded: facts.founded ?? undefined, careersUrl: facts.careersUrl ?? undefined,
+          },
+        };
+      } catch (e) {
+        return { input, ok: false as const, error: e instanceof SiteCheckError ? e.message : "Couldn't reach that website." };
+      }
+    };
+    return c.json({ items: await Promise.all(c.req.valid("json").websites.map(one)) });
   })
   .post("/companies", validate("json", companyInput), async (c) => {
     const r = await listCompany(c.req.valid("json"), c.get("admin").name);
