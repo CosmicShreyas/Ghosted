@@ -5,7 +5,6 @@ import { animate, motion, useInView, useMotionValue, useReducedMotion, useSpring
 import { useQuery } from "@tanstack/react-query";
 import { useLandingStats } from "@/lib/stats";
 import { useAuthGuard } from "@/lib/session";
-import { FoundingProgress } from "@/lib/founding";
 import { FlairRing } from "@/lib/invite";
 import { organizationLd, pageHead, websiteLd } from "@/lib/meta";
 import { api, apiEnabled } from "@/lib/api";
@@ -142,8 +141,6 @@ function LandingPage() {
         <div className="hero-float-slow absolute bottom-4 right-7 z-40"><Avatar {...getUser("u7")} size="lg" /></div>
         <div className="hero-float-reverse absolute right-8 top-52 z-10 rounded-lg border-2 border-foreground bg-primary px-4 py-3 text-primary-foreground shadow-hard-sm"><p className="text-[10px] font-bold uppercase opacity-80">{heroScene.activity}</p><p className="font-display text-xl font-bold">{heroScene.activityValue}</p></div>
       </div></div>
-      {/* Full width under both columns, with the context of what the milestone means. */}
-      <FoundingProgress className="lg:col-span-2" />
     </section>
     <Marquee />
     <StatsStrip />
@@ -172,7 +169,7 @@ function LandingPage() {
       {apiEnabled && !loved.length && !warned.length
         ? <div className="mt-10 grid gap-5 rounded-xl border-2 border-foreground bg-card p-6 shadow-hard-sm sm:p-8 md:grid-cols-[1fr_auto] md:items-center">
             <div><p className="font-display text-2xl font-bold">Put the first company on the board.</p><p className="mt-2 max-w-md text-muted-foreground">Every company's Flag Score comes from candidates' experiences. Yours takes about 30 seconds, and you could be one of Ghosted's first 50 voices.</p></div>
-            <div className="grid gap-3"><FoundingProgress compact /><Button asChild><Link to="/auth" search={{ intent: "share" }}><PenLine />Share my experience</Link></Button></div>
+            <div className="grid gap-3"><Button asChild><Link to="/auth" search={{ intent: "share" }}><PenLine />Share my experience</Link></Button></div>
           </div>
         : <div className="mt-10 grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-2 [&>*]:min-w-0">{([["Actually decent", loved, "text-flag-green"], ["Proceed with snacks", warned, "text-flag-red"]] as const).map(([title, group, tone]) => <div key={title}><h3 className={`mb-4 text-xl font-bold ${tone}`}>{title}</h3><div className="space-y-3">
             {group.length === 0 && <p className="rounded-xl border-2 border-dashed border-foreground/40 p-4 text-sm text-muted-foreground">Nobody here yet.</p>}
