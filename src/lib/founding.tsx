@@ -20,6 +20,9 @@ export function milestone(n: number) {
   return { next, prev };
 }
 
+// 950 → "950", 2500 → "2.5k", 3000 → "3k", 1250000 → "1.3M"
+export const short = (n: number) => (n < 1000 ? String(n) : n < 1_000_000 ? `${+(n / 1000).toFixed(n < 10_000 ? 1 : 0)}k` : `${+(n / 1_000_000).toFixed(1)}M`);
+
 export function FoundingProgress({ className, compact = false }: { className?: string; compact?: boolean }) {
   const f = useFounding();
   if (!f) return null;
@@ -28,10 +31,10 @@ export function FoundingProgress({ className, compact = false }: { className?: s
   const founding = next === f.limit;
   // From the last milestone to the next one, so the bar always has room to move.
   const pct = Math.min(100, ((n - prev) / (next - prev)) * 100);
-  const title = founding ? `Founding 50: ${n} of 50 voices` : `${n.toLocaleString("en-IN")} voices · next milestone ${next.toLocaleString("en-IN")}`;
+  const title = founding ? `Founding 50: ${n} of 50 voices` : `${short(n)} voices · next milestone ${short(next)}`;
   const context = founding
     ? "The first 50 people to share a hiring experience get a founding contributor badge on their profile and stories, for good."
-    : `Founding 50 complete, and the badges stay. Every experience shared makes Ghosted more useful for the next candidate. ${(next - n).toLocaleString("en-IN")} to go to ${next.toLocaleString("en-IN")}.`;
+    : `Founding 50 complete, and the badges stay. Every experience shared makes Ghosted more useful for the next candidate. ${short(next - n)} to go to ${short(next)}.`;
   return <div className={cn("rounded-xl border-2 border-foreground bg-card p-3 shadow-hard-sm sm:p-4", className)}>
     <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
       <p className="flex items-center gap-1.5 text-sm font-bold"><Award className="size-4 text-primary" />{title}</p>
@@ -41,7 +44,7 @@ export function FoundingProgress({ className, compact = false }: { className?: s
       <motion.div className="h-full rounded-full bg-primary" initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ type: "spring", stiffness: 120, damping: 20 }} />
       <span aria-hidden="true" className="absolute top-1/2 size-3.5 -translate-y-1/2 rounded-full border-2 border-foreground bg-card" style={{ left: `calc(${pct}% - 7px)` }} />
     </div>
-    <div className="mt-1 flex justify-between text-[10px] font-semibold tabular-nums text-muted-foreground"><span>{prev.toLocaleString("en-IN")}</span><span>{next.toLocaleString("en-IN")}</span></div>
+    <div className="mt-1 flex justify-between text-[10px] font-semibold tabular-nums text-muted-foreground"><span>{short(prev)}</span><span>{short(next)}</span></div>
     {!compact && <p className="mt-1 text-xs text-muted-foreground">{context}</p>}
   </div>;
 }
