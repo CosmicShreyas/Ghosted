@@ -45,6 +45,8 @@ app.use(secureHeaders({
   contentSecurityPolicy: { defaultSrc: ["'none'"], frameAncestors: ["'none'"] },
   strictTransportSecurity: "max-age=63072000; includeSubDomains; preload",
   referrerPolicy: "no-referrer",
+  // JSON and images only: no browser feature is ever needed.
+  permissionsPolicy: { camera: [], microphone: [], geolocation: [], payment: [], usb: [], fullscreen: [] },
   // Set per response below instead, so a route (company logos) can allow cross-site embedding.
   crossOriginResourcePolicy: false,
 }));
