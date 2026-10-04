@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { api, ApiRequestError, apiEnabled, authApi, UNAUTHORIZED_EVENT } from "@/lib/api";
@@ -140,6 +140,17 @@ export function useAuthGuard(page: "public-only" | "private" | "optional", { ret
 // Only a story or company page can be a return address after signing in (no open redirects).
 export const safeReturnTo = (p: string | null | undefined) => (p && (/^\/(s|c)\/[A-Za-z0-9-]{1,60}$/.test(p) || p === "/dashboard?share=1") ? p : null);
 
+// "Signing you out…": a tiny store the root layout listens to, so the splash appears the instant
+// logout starts, whatever page you're on.
+const signingOutListeners = new Set<() => void>();
+let signingOutNow = false;
+export const signingOut = {
+  start() { signingOutNow = true; signingOutListeners.forEach((l) => l()); },
+  subscribe(l: () => void) { signingOutListeners.add(l); return () => { signingOutListeners.delete(l); }; },
+  get: () => signingOutNow,
+};
+export function useSigningOut() { return useSyncExternalStore(signingOut.subscribe, signingOut.get, () => false); }
+
 export function useAccountActions() {
   const qc = useQueryClient();
   return {
@@ -160,14 +171,25 @@ export function useAccountActions() {
       qc.setQueryData(["me"], profile);
       return profile;
     },
+    // Signing out: a full-screen splash covers the page at once, the server ends the session, then
+    // the sign-in page loads fresh. The page you were on never re-renders without a session (which
+    // used to flash "This page didn't load" while its data refetched), and nothing private is left
+    // in memory afterwards.
     async logout() {
+      signingOut.start();
+      void qc.cancelQueries();
       await authApi.logout();
-      qc.setQueryData(["me"], null);
+      if (typeof window !== "undefined") window.location.replace("/auth");
+      else qc.setQueryData(["me"], null);
     },
     async deleteAccount(captchaToken: string | undefined) {
       if (apiEnabled) await api("/v1/me", { method: "DELETE", body: { confirm: "DELETE", captchaToken } });
+      // Same clean exit as logging out: splash, end the session, load the sign-in page fresh.
+      signingOut.start();
+      void qc.cancelQueries();
       await authApi.logout();
-      qc.setQueryData(["me"], null);
+      if (typeof window !== "undefined") window.location.replace("/auth");
+      else qc.setQueryData(["me"], null);
     },
     // After log-in or sign-up the cookies are set; fetch the fresh profile before navigating.
     refresh: () => qc.fetchQuery({ queryKey: ["me"], queryFn: fetchMe }),

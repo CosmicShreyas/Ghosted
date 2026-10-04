@@ -11,6 +11,8 @@ import { useEffect, type ReactNode } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { CookieConsent } from "@/components/cookie-consent";
 import { IosInstallHint } from "@/components/ios-install";
+import { Preloader } from "@/components/preloader";
+import { useSigningOut, useTone } from "@/lib/session";
 import { AnnouncementBar } from "@/components/announcement";
 import { SmoothScroll } from "@/components/smooth-scroll";
 import { MotionConfig } from "motion/react";
@@ -154,6 +156,15 @@ function MotionPrefs({ children }: { children: ReactNode }) {
   return <MotionConfig reducedMotion={reduceMotion ? "always" : "user"}>{children}</MotionConfig>;
 }
 
+// Covers the whole screen from the moment logout starts until the sign-in page loads, so the old page
+// is never seen half-signed-out.
+function SigningOutSplash() {
+  const on = useSigningOut();
+  const tone = useTone();
+  if (!on) return null;
+  return <div className="fixed inset-0 z-[200] bg-background"><Preloader message={tone === "calm" ? "Signing you out…" : "Signing you out. Ghosting goes both ways…"} /></div>;
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
@@ -170,6 +181,7 @@ function RootComponent() {
       {/* Asked once; any choice is remembered for a year. Footer → Cookie settings reopens it. */}
       <CookieConsent />
       <IosInstallHint />
+      <SigningOutSplash />
     </QueryClientProvider>
   );
 }

@@ -7,11 +7,13 @@ const CALM_LINES = ["Loading…", "Signing you in…", "Getting things ready…"
 
 // Full-screen splash with a bobbing ghost and a new line every 1.6 s (sassy or calm, per Settings).
 // Starts on the first line (so server and client HTML match), then jumps to a random one.
-export function Preloader() {
+// `message`: one fixed line instead of the rotating ones (e.g. "Signing you out…").
+export function Preloader({ message }: { message?: string } = {}) {
   const tone = useTone();
-  const lines: readonly string[] = tone === "calm" ? CALM_LINES : loadingLines;
+  const lines: readonly string[] = message ? [message] : tone === "calm" ? CALM_LINES : loadingLines;
   const [i, setI] = useState(0);
   useEffect(() => {
+    if (lines.length < 2) return;
     setI(Math.floor(Math.random() * lines.length));
     const t = window.setInterval(() => setI((n) => (n + 1 + Math.floor(Math.random() * (lines.length - 1))) % lines.length), 1600);
     return () => window.clearInterval(t);
