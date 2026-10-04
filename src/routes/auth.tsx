@@ -126,6 +126,9 @@ function AuthPage() {
   const [looks, setLooks] = useState<Look[]>(initialLooks);
   const [chosen, setChosen] = useState(0);
   const [handle, setHandle] = useState(() => handleFromSeed("new-signup"));
+  // A fresh random name each time the profile step opens (picked once there, not on every render);
+  // the seeded one above only keeps the server and first browser render identical.
+  useEffect(() => { if (step === "account") setHandle(randomHandle()); }, [step]);
   const [agreed, setAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [cooldown, setCooldown] = useState(0);

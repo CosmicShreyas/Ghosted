@@ -69,16 +69,30 @@ function hash(text: string) {
   return h >>> 0;
 }
 
+// Robot-sounding words ("Ultra Asteroid", "Turbo Router") are never handed out any more. They stay
+// in the lists above only so members who already have one keep a valid handle.
+const ROBOTIC = new Set<string>([
+  "Glitchy", "Pixelated", "Offline", "Electric", "Neon", "Retro", "Turbo", "Mega", "Ultra", "Hyper", "Micro", "Nano",
+  "Lunar", "Solar", "Cosmic", "Granite", "Copper", "Cobalt", "Marble",
+  "Comet", "Meteor", "Nebula", "Quasar", "Pulsar", "Nova", "Orbit", "Rocket", "Satellite", "Asteroid",
+  "Kettle", "Teacup", "Notebook", "Stapler", "Keyboard", "Mouse", "Monitor", "Router", "Pager", "Lanyard", "Specter", "Wraith",
+]);
+const friendlyPrefixes = handlePrefixes.filter((w) => !ROBOTIC.has(w));
+const friendlySuffixes = handleSuffixes.filter((w) => !ROBOTIC.has(w));
+
 export function handleFromSeed(seed: string) {
   const h = hash(seed);
-  return `${pick(handlePrefixes, h)} ${pick(handleSuffixes, Math.floor(h / 160))}`;
+  // Stable per seed, and desi-leaning like rerolls: most seeds land on the funny food-and-chai names.
+  const prefixes = h % 10 < 7 ? desiPrefixes : friendlyPrefixes;
+  const suffixes = Math.floor(h / 10) % 10 < 8 ? desiSuffixes : friendlySuffixes;
+  return `${pick(prefixes, Math.floor(h / 100))} ${pick(suffixes, Math.floor(h / 7919))}`;
 }
 
 export function randomHandle() {
   const r = () => Math.floor(Math.random() * 1e9);
-  // Rerolls lean desi and silly, while the complete original pool remains available.
-  const prefixPool = Math.random() < 0.7 ? desiPrefixes : handlePrefixes;
-  const suffixPool = Math.random() < 0.8 ? desiSuffixes : handleSuffixes;
+  // Funny desi names first; the rest of the pool (minus the robotic words) now and then for variety.
+  const prefixPool = Math.random() < 0.85 ? desiPrefixes : friendlyPrefixes;
+  const suffixPool = Math.random() < 0.9 ? desiSuffixes : friendlySuffixes;
   return `${pick(prefixPool, r())} ${pick(suffixPool, r())}`;
 }
 
