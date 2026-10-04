@@ -135,7 +135,7 @@ export function RepVerifyDialog({ open, onOpenChange, slug, name }: { open: bool
     <DialogContent className={cn(popup, "max-w-lg")}>
       <div className={popupBody} data-lenis-prevent>
         <DialogHeader className="pr-8 text-left">
-          <DialogTitle className="flex items-center gap-2 font-display text-2xl"><ShieldCheck className="size-6 text-sky-700 dark:text-sky-400" />Right of Reply</DialogTitle>
+          <DialogTitle className="flex items-start gap-2 font-display text-xl leading-tight sm:text-2xl"><ShieldCheck className="mt-0.5 size-5 shrink-0 text-sky-700 sm:size-6 dark:text-sky-400" />Right of Reply</DialogTitle>
           <DialogDescription>Work at {name}? Reply to stories about it, free.</DialogDescription>
         </DialogHeader>
         <ul className="mt-4 space-y-1.5 text-sm">
@@ -165,7 +165,7 @@ export function RepVerifyDialog({ open, onOpenChange, slug, name }: { open: bool
 // ---------- Removal and factual-error requests ----------
 
 const RELATIONSHIPS: { id: Relationship; label: string }[] = [
-  { id: "subject", label: "It's about me" }, { id: "company", label: "I represent the company" }, { id: "author", label: "I wrote it" }, { id: "other", label: "Something else" },
+  { id: "subject", label: "It's about me" }, { id: "company", label: "I'm the company" }, { id: "author", label: "I wrote it" }, { id: "other", label: "Something else" },
 ];
 
 export function ContentRequestDialog({ open, onOpenChange, targetUrl = "" }: { open: boolean; onOpenChange: (v: boolean) => void; targetUrl?: string }) {
@@ -191,24 +191,26 @@ export function ContentRequestDialog({ open, onOpenChange, targetUrl = "" }: { o
     <DialogContent className={cn(popup, "max-w-lg")}>
       <div className={popupBody} data-lenis-prevent>
         <DialogHeader className="pr-8 text-left">
-          <DialogTitle className="flex items-center gap-2 font-display text-2xl"><FileWarning className="size-6 text-primary" />Request a removal or correction</DialogTitle>
-          <DialogDescription>A moderator reviews every request. We don't remove honest experiences just because they're negative.</DialogDescription>
+          <DialogTitle className="flex items-start gap-2 font-display text-xl leading-tight sm:text-2xl"><FileWarning className="mt-0.5 size-5 shrink-0 text-primary sm:size-6" /><span className="min-w-0">Request a removal or correction</span></DialogTitle>
+          <DialogDescription className="text-sm">A moderator reviews every request. Honest experiences aren't removed just for being negative.</DialogDescription>
         </DialogHeader>
         {/* The response-time promise, up front. */}
-        <p className="mt-4 flex items-start gap-2 rounded-lg border-2 border-foreground bg-accent p-3 text-sm font-semibold"><Clock className="mt-0.5 size-4 shrink-0" />We acknowledge every request within 24 hours and give a decision within 15 days.</p>
+        <p className="mt-4 flex items-start gap-2 rounded-lg border-2 border-foreground bg-accent p-3 text-sm font-semibold"><Clock className="mt-0.5 size-4 shrink-0" /><span>Acknowledged within <b>24 hours</b>, decided within <b>15 days</b>.</span></p>
         {done ? <div className="mt-5 rounded-lg border-2 border-flag-green bg-flag-green/10 p-4 text-sm">
             <p className="flex items-center gap-2 font-bold"><CheckCircle2 className="size-4 text-flag-green" />Request received.</p>
             <p className="mt-1">{done === "PREVIEW" ? "Preview mode: requests aren't sent here." : <>Your reference is <b className="tabular-nums">{done}</b>. We'll email {email} within 24 hours to acknowledge it.</>}</p>
             <Button className="mt-3" size="sm" onClick={() => close(false)}>Done</Button>
           </div>
           : <form className="mt-5 space-y-4" onSubmit={(e) => { e.preventDefault(); if (valid) void submit(); }}>
-            <div role="radiogroup" aria-label="What do you need?" className="grid grid-cols-2 gap-2">
-              {([["factual_error", "Correct a factual error"], ["removal", "Remove content"]] as const).map(([id, label]) => <button key={id} type="button" role="radio" aria-checked={kind === id} onClick={() => setKind(id)}
-                className={cn("min-h-11 rounded-lg border-2 border-foreground px-3 text-sm font-bold transition-colors", kind === id ? "bg-primary text-primary-foreground" : "bg-card hover:bg-muted")}>{label}</button>)}
+            {/* Stacked on narrow phones, side by side from 400px: labels never wrap inside a button. */}
+            <div role="radiogroup" aria-label="What do you need?" className="grid grid-cols-1 gap-2 min-[400px]:grid-cols-2">
+              {([["factual_error", "Fix a factual error"], ["removal", "Remove content"]] as const).map(([id, label]) => <button key={id} type="button" role="radio" aria-checked={kind === id} onClick={() => setKind(id)}
+                className={cn("min-h-11 whitespace-nowrap rounded-lg border-2 border-foreground px-3 text-sm font-bold transition-colors", kind === id ? "bg-primary text-primary-foreground" : "bg-card hover:bg-muted")}>{label}</button>)}
             </div>
             <label className="block text-sm font-bold">Link to the story, chitchat or page<Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://…" inputMode="url" className="mt-1 h-11 border-2 border-foreground font-normal" required /></label>
             <div><p className="text-sm font-bold">Your connection to it</p>
-              <div className="mt-1.5 flex flex-wrap gap-2">{RELATIONSHIPS.map((r) => <button key={r.id} type="button" aria-pressed={rel === r.id} onClick={() => setRel(r.id)} className={cn("min-h-10 rounded-full border-2 border-foreground px-3 text-xs font-bold", rel === r.id ? "bg-foreground text-background" : "bg-card hover:bg-muted")}>{r.label}</button>)}</div>
+              {/* An even 2-column grid on phones (no ragged wrapping), one row on wider screens. */}
+              <div className="mt-1.5 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">{RELATIONSHIPS.map((r) => <button key={r.id} type="button" aria-pressed={rel === r.id} onClick={() => setRel(r.id)} className={cn("min-h-10 rounded-full border-2 border-foreground px-3 text-xs font-bold leading-tight", rel === r.id ? "bg-foreground text-background" : "bg-card hover:bg-muted")}>{r.label}</button>)}</div>
             </div>
             <label className="block text-sm font-bold">{kind === "factual_error" ? "What's wrong, and what's correct?" : "Why should it come down?"}
               <Textarea value={details} onChange={(e) => setDetails(e.target.value)} maxLength={3000} rows={4} placeholder={kind === "factual_error" ? "Quote the part that's wrong and explain what actually happened. Evidence helps." : "Which rule or law it breaks, for example it names a private person or shares confidential information."} className="mt-1 border-2 border-foreground font-normal" required />
