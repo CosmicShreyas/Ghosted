@@ -19,8 +19,29 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - run: npm test
       - run: npm run build
       - run: npm run admin:build
+
+  e2e:
+    name: Smoke tests (Playwright)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      # Sample data only: playwright.config.ts starts the site with VITE_API_URL empty.
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-traces
+          path: test-results/
+          retention-days: 7
 
   api:
     name: API typecheck

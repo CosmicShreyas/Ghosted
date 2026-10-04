@@ -7,7 +7,6 @@ import { fromApi, isRated, OUTCOME_LABEL, sampleModels, samplePublicId, useCompa
 import { change, useInsights } from "@/lib/insights";
 import { useCompanyList } from "@/lib/companies";
 import { ListCompanyDialog } from "./list-company";
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { ArrowUpDown, Bookmark, ChevronRight, Flame, PenLine, Plus, ShieldCheck, Sparkles, UserRound } from "lucide-react";
 import { Avatar, CompanyMark, FlagScore, ScoreMeters } from "@/components/ghosted";
 import { Button } from "@/components/ui/button";

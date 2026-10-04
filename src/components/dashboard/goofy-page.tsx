@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { motion } from "motion/react";
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Charts } from "@/components/lazy-charts";
 import {
   Archive, BadgeCheck, Bot, CalendarDays, CheckCircle2, EyeOff, Flag, Ghost, Hourglass, Loader2, PartyPopper, PauseCircle, PenLine, RefreshCw, RotateCcw, ShieldCheck,
   ShieldX, Siren, Sparkles, Trash2, TriangleAlert, UserCheck, UserPlus, Users, type LucideIcon,
@@ -141,17 +141,17 @@ export function GoofyRail({ stats, layout = "column" }: { stats: GoofyStats; lay
       <h3 className="font-bold">His week, every week</h3>
       <p className="text-xs text-muted-foreground">Removed, held and reported, last 8 weeks</p>
       {/* Fixed height in the swipe strip too: stretching to the tallest card made the chart a tower. */}
-      <div className="mt-3 h-40"><ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
-        <BarChart data={weekly} margin={{ left: 0, right: 4, top: 4, bottom: 0 }}>
-          <CartesianGrid {...grid} />
-          <XAxis dataKey="label" {...axis} tick={{ ...axis.tick, fontSize: 9 }} interval="preserveStartEnd" />
-          <YAxis {...axis} allowDecimals={false} width={28} />
-          <Tooltip cursor={barCursor} content={<ChartTooltip />} />
-          <Bar dataKey="removed" name="Removed" stackId="a" fill="var(--flag-red)" />
-          <Bar dataKey="held" name="Held" stackId="a" fill="var(--flag-amber)" />
-          <Bar dataKey="reported" name="Reported" stackId="a" fill="var(--chart-violet)" radius={[4, 4, 0, 0]} />
-        </BarChart>
-      </ResponsiveContainer></div>
+      <div className="mt-3 h-40"><Charts>{(R) => <R.ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
+        <R.BarChart data={weekly} margin={{ left: 0, right: 4, top: 4, bottom: 0 }}>
+          <R.CartesianGrid {...grid} />
+          <R.XAxis dataKey="label" {...axis} tick={{ ...axis.tick, fontSize: 9 }} interval="preserveStartEnd" />
+          <R.YAxis {...axis} allowDecimals={false} width={28} />
+          <R.Tooltip cursor={barCursor} content={<ChartTooltip />} />
+          <R.Bar dataKey="removed" name="Removed" stackId="a" fill="var(--flag-red)" />
+          <R.Bar dataKey="held" name="Held" stackId="a" fill="var(--flag-amber)" />
+          <R.Bar dataKey="reported" name="Reported" stackId="a" fill="var(--chart-violet)" radius={[4, 4, 0, 0]} />
+        </R.BarChart>
+      </R.ResponsiveContainer>}</Charts></div>
       <div className="mt-2 flex flex-wrap gap-3 text-[11px] font-semibold text-muted-foreground">{[["Removed", "var(--flag-red)"], ["Held", "var(--flag-amber)"], ["Reported", "var(--chart-violet)"]].map(([l, c]) => <span key={l} className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm border border-foreground" style={{ background: c }} />{l}</span>)}</div>
     </div>
 

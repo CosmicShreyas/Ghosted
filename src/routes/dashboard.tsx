@@ -1,12 +1,14 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { Sidebar, Topbar, type View } from "@/components/dashboard/shell";
 import { CompaniesView, HomeView, MineView, SavedView } from "@/components/dashboard/views";
-import { InsightsView } from "@/components/dashboard/insights-view";
-import { WaitingRoomView } from "@/components/dashboard/waiting-room";
 import { FeedbackPulse } from "@/components/feedback-pulse";
-import { SettingsView } from "@/components/dashboard/settings";
+// Views opened less often load on demand (Home, the default, stays in the first download).
+const InsightsView = lazy(() => import("@/components/dashboard/insights-view").then((m) => ({ default: m.InsightsView })));
+const WaitingRoomView = lazy(() => import("@/components/dashboard/waiting-room").then((m) => ({ default: m.WaitingRoomView })));
+const SettingsView = lazy(() => import("@/components/dashboard/settings").then((m) => ({ default: m.SettingsView })));
+const ViewLoading = () => <div className="space-y-4" aria-busy="true">{[0, 1, 2].map((i) => <div key={i} className="skeleton h-32 rounded-xl border-2 border-foreground/20" />)}</div>;
 import { PlayView } from "@/components/dashboard/play-view";
 import { PendingCompanyListing } from "@/components/dashboard/list-company";
 import { ShareModal, type StoryPreset } from "@/components/dashboard/share-story";
@@ -98,13 +100,15 @@ function DashboardPage() {
         <motion.div key={view} className="min-w-0" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22, ease: "easeOut" }}>
           {view === "home" && <HomeView me={me} {...common} />}
           {view === "mine" && <MineView {...common} />}
-          {view === "waiting" && <WaitingRoomView />}
           {view === "companies" && <CompaniesView {...common} />}
           {view === "saved" && <SavedView {...common} goHome={() => changeView("home")} />}
-          {view === "insights" && <InsightsView openCompany={setCompany} query={query} filters={filtersFromSearch(search)} onFilters={(f) => void navigate({ to: "/dashboard", search: { view: "insights", ...searchFromFilters(f) }, replace: true, resetScroll: false })} />}
           {view === "play" && <PlayView />}
+          <Suspense fallback={<ViewLoading />}>
+            {view === "waiting" && <WaitingRoomView />}
+            {view === "insights" && <InsightsView openCompany={setCompany} query={query} filters={filtersFromSearch(search)} onFilters={(f) => void navigate({ to: "/dashboard", search: { view: "insights", ...searchFromFilters(f) }, replace: true, resetScroll: false })} />}
+            {view === "settings" && <SettingsView me={me} onLoggedOut={leave} onRequestLogout={() => setConfirmLogout(true)} />}
+          </Suspense>
           <PendingCompanyListing onListed={setCompany} />
-          {view === "settings" && <SettingsView me={me} onLoggedOut={leave} onRequestLogout={() => setConfirmLogout(true)} />}
         </motion.div>
         {/* Wide screens only; on smaller ones Home shows the same cards as a swipeable strip. */}
         {/* Pinned below the top bar while the feed scrolls. If it's taller than the screen, it

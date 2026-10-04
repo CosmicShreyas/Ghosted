@@ -1,7 +1,7 @@
 // The landing page's first screen. It leads with what a visitor can get right now (look a company
 // up, no account needed) and only then asks for a story. Searching is a smaller step than posting,
 // and it gets people inside the product.
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowRight, Building2, Hourglass, Loader2, PenLine, Search, ShieldCheck } from "lucide-react";
@@ -9,7 +9,8 @@ import { CompanyMark, FlagScore } from "@/components/ghosted";
 import { Button } from "@/components/ui/button";
 import { apiEnabled, track } from "@/lib/api";
 import { useT } from "@/lib/i18n";
-import { ListCompanyDialog } from "@/components/dashboard/list-company";
+// The list-company form only loads when someone taps "Request it".
+const ListCompanyDialog = lazy(() => import("@/components/dashboard/list-company").then((m) => ({ default: m.ListCompanyDialog })));
 import { useSearch } from "@/lib/search";
 import { isRated, useCompanyIndex } from "@/lib/stories";
 import { cn, formatCount } from "@/lib/utils";
@@ -60,7 +61,7 @@ export function CompanySearch({ size = "lg", autoFocus = false, className }: { s
     </motion.div>}</AnimatePresence>
     {popular.length > 0 && <div className="mt-3 flex flex-wrap items-center gap-2 text-sm"><span className="text-muted-foreground">{t("search.try")}</span>{popular.map((c) => <Link key={c.id} to="/c/$slug" params={{ slug: c.id }} className="inline-flex min-h-9 items-center rounded-full border-2 border-foreground/20 bg-card px-3 font-semibold hover:border-foreground">{c.name}</Link>)}</div>}
     {/* "Request it": the list-company flow, usable signed out until the final step. */}
-    <ListCompanyDialog open={requesting !== null} onOpenChange={(v) => { if (!v) setRequesting(null); }} requestName={requesting ?? ""} onListed={go} />
+    {requesting !== null && <Suspense fallback={null}><ListCompanyDialog open onOpenChange={(v) => { if (!v) setRequesting(null); }} requestName={requesting} onListed={go} /></Suspense>}
   </div>;
 }
 

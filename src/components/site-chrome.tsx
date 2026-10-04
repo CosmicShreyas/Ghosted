@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Github, LayoutDashboard } from "lucide-react";
 import { useMe } from "@/lib/session";
@@ -14,7 +15,12 @@ export function Brand() {
 
 // Section links use "/#id" so they also work from the legal pages.
 export function SiteHeader() {
-  const { signedIn } = useMe();
+  const { signedIn: known } = useMe();
+  // The server always renders the signed-out header; the first browser render must match it, so
+  // "Go to dashboard" only appears after mount (it used to make React re-render the whole page).
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const signedIn = mounted && known;
   return <header className="sticky top-0 z-40 border-b-2 border-foreground bg-background/95 backdrop-blur"><div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6"><Brand /><nav className="hidden items-center gap-7 text-sm font-semibold md:flex"><a href="/#how">How it works</a><a href="/#ghost-o-meter">Ghost-o-meter</a><a href="/#companies">Companies</a><a href="/#gauntlet">The gauntlet</a><a href="/#stories">Stories</a></nav><div className="flex items-center gap-1.5 sm:gap-3"><ThemeToggle className="size-9 sm:size-10" />{signedIn
     // Signed in (e.g. opening /invite or the policy pages from the dashboard): one way back in.
     ? <Button size="sm" className="px-3 sm:h-10 sm:px-4" asChild><Link to="/dashboard"><LayoutDashboard className="size-4" /><span className="sm:hidden">Dashboard</span><span className="hidden sm:inline">Go to dashboard</span></Link></Button>

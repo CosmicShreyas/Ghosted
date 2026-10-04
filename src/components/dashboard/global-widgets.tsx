@@ -3,7 +3,7 @@
 // GET /v1/companies/:slug); mock mode uses sample data in the same shapes.
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Charts } from "@/components/lazy-charts";
 import { Briefcase, CalendarDays, ExternalLink, Flag, Globe, MapPin, TrendingDown, Users, Wallet } from "lucide-react";
 import { CompanyMark, FlagScore, ScoreMeters } from "@/components/ghosted";
 import { plainText } from "@/components/markdown";
@@ -93,13 +93,13 @@ export function RedFlagsDialog({ open, onOpenChange, onOpenCompany, data }: { op
         </div></DialogHeader>
         <div className="mt-5 grid grid-cols-3 gap-2">{tiles.map(([l, n, s]) => <div key={l} className="min-w-0 rounded-lg border-2 border-foreground bg-background p-2 sm:p-3"><p className="text-[9px] font-bold uppercase leading-tight text-muted-foreground sm:text-[10px]">{l}</p><p className="mt-1 truncate font-display text-xl font-bold text-flag-red sm:text-2xl">{n}</p><p className="truncate text-[10px] text-muted-foreground sm:text-[11px]">{s}</p></div>)}</div>
         <div className="mt-6"><h3 className="font-bold">Ghosting reports per day</h3>
-          <div className="mt-2 h-40"><ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
-            <BarChart data={data.daily} margin={{ left: -24, right: 4, top: 16, bottom: 0 }}>
-              <CartesianGrid {...grid} /><XAxis dataKey="day" {...axis} interval={0} /><YAxis {...axis} axisLine={false} allowDecimals={false} />
-              <Tooltip cursor={barCursor} content={<ChartTooltip unit=" reports" />} />
-              <Bar dataKey="reports" name="Reports" fill={SERIES.primary} radius={[4, 4, 0, 0]} maxBarSize={36} label={{ position: "top", fontSize: 11, fill: INK, fontWeight: 700 }} activeBar={{ fill: SERIES.primary, stroke: INK, strokeWidth: 2 }} />
-            </BarChart>
-          </ResponsiveContainer></div>
+          <div className="mt-2 h-40"><Charts>{(R) => <R.ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
+            <R.BarChart data={data.daily} margin={{ left: -24, right: 4, top: 16, bottom: 0 }}>
+              <R.CartesianGrid {...grid} /><R.XAxis dataKey="day" {...axis} interval={0} /><R.YAxis {...axis} axisLine={false} allowDecimals={false} />
+              <R.Tooltip cursor={barCursor} content={<ChartTooltip unit=" reports" />} />
+              <R.Bar dataKey="reports" name="Reports" fill={SERIES.primary} radius={[4, 4, 0, 0]} maxBarSize={36} label={{ position: "top", fontSize: 11, fill: INK, fontWeight: 700 }} activeBar={{ fill: SERIES.primary, stroke: INK, strokeWidth: 2 }} />
+            </R.BarChart>
+          </R.ResponsiveContainer>}</Charts></div>
         </div>
         <div className="mt-6"><h3 className="font-bold">Most flagged companies this week</h3>
           {data.flags.topCompanies.length ? <div className="mt-3 space-y-2">{data.flags.topCompanies.map((f) => {
@@ -154,14 +154,14 @@ export function RightRail({ onOpenCompany, layout = "column" }: { onOpenCompany:
       {data && <div className={box()}>
         <div className="flex items-baseline justify-between gap-2"><h3 className="font-bold">Ghosting this week</h3>{data.peakDay && <span className="text-xs font-bold text-flag-red">peaks {data.peakDay}</span>}</div>
         <p className="text-xs text-muted-foreground">New reports per day</p>
-        <div className={cn("mt-3", strip ? "min-h-24 flex-1" : "h-24")}><ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
-          <AreaChart data={data.daily} margin={{ left: 0, right: 4, top: 6, bottom: 0 }}>
+        <div className={cn("mt-3", strip ? "min-h-24 flex-1" : "h-24")}><Charts>{(R) => <R.ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
+          <R.AreaChart data={data.daily} margin={{ left: 0, right: 4, top: 6, bottom: 0 }}>
             <defs><linearGradient id="ghost-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={SERIES.primary} stopOpacity={0.35} /><stop offset="100%" stopColor={SERIES.primary} stopOpacity={0.02} /></linearGradient></defs>
-            <XAxis dataKey="day" {...axis} tick={{ ...axis.tick, fontSize: 10 }} interval={0} padding={{ left: 12, right: 12 }} />
-            <Tooltip cursor={lineCursor} content={<ChartTooltip unit=" reports" />} />
-            <Area type="monotone" dataKey="reports" name="Reports" stroke={SERIES.primary} strokeWidth={2} fill="url(#ghost-fill)" dot={false} activeDot={activeDot} />
-          </AreaChart>
-        </ResponsiveContainer></div>
+            <R.XAxis dataKey="day" {...axis} tick={{ ...axis.tick, fontSize: 10 }} interval={0} padding={{ left: 12, right: 12 }} />
+            <R.Tooltip cursor={lineCursor} content={<ChartTooltip unit=" reports" />} />
+            <R.Area type="monotone" dataKey="reports" name="Reports" stroke={SERIES.primary} strokeWidth={2} fill="url(#ghost-fill)" dot={false} activeDot={activeDot} />
+          </R.AreaChart>
+        </R.ResponsiveContainer>}</Charts></div>
       </div>}
 
       <div className={box()}>
@@ -182,26 +182,26 @@ export function RightRail({ onOpenCompany, layout = "column" }: { onOpenCompany:
       <div className={box()}>
         <h3 className="font-bold">Slowest to reply</h3>
         <p className="text-xs text-muted-foreground">Average days candidates waited</p>
-        {slowest.length ? <div className={cn("mt-3", strip ? "min-h-44 flex-1" : "h-44")}><ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
-          <BarChart data={slowest} layout="vertical" margin={{ left: 0, right: 28, top: 0, bottom: 0 }} barCategoryGap={6}>
-            <XAxis type="number" hide /><YAxis type="category" dataKey="company" width={78} {...axis} axisLine={false} tick={{ ...axis.tick, fill: INK, fontWeight: 600 }} />
-            <Tooltip cursor={barCursor} content={<ChartTooltip unit=" days" />} />
-            <Bar dataKey="days" name="Days" fill={SERIES.primary} radius={[0, 4, 4, 0]} maxBarSize={18} label={{ position: "right", fontSize: 11, fill: INK, fontWeight: 700, formatter: (v: number) => `${v}d` }} activeBar={{ fill: SERIES.primary, stroke: INK, strokeWidth: 2 }} />
-          </BarChart>
-        </ResponsiveContainer></div> : <NotYet copy="Appears once stories report how long people waited." />}
+        {slowest.length ? <div className={cn("mt-3", strip ? "min-h-44 flex-1" : "h-44")}><Charts>{(R) => <R.ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
+          <R.BarChart data={slowest} layout="vertical" margin={{ left: 0, right: 28, top: 0, bottom: 0 }} barCategoryGap={6}>
+            <R.XAxis type="number" hide /><R.YAxis type="category" dataKey="company" width={78} {...axis} axisLine={false} tick={{ ...axis.tick, fill: INK, fontWeight: 600 }} />
+            <R.Tooltip cursor={barCursor} content={<ChartTooltip unit=" days" />} />
+            <R.Bar dataKey="days" name="Days" fill={SERIES.primary} radius={[0, 4, 4, 0]} maxBarSize={18} label={{ position: "right", fontSize: 11, fill: INK, fontWeight: 700, formatter: (v: number) => `${v}d` }} activeBar={{ fill: SERIES.primary, stroke: INK, strokeWidth: 2 }} />
+          </R.BarChart>
+        </R.ResponsiveContainer>}</Charts></div> : <NotYet copy="Appears once stories report how long people waited." />}
       </div>
 
       <div className={box()}>
         <h3 className="font-bold">Typical interview maze</h3>
         <p className="text-xs text-muted-foreground">Days since applying, by round</p>
-        {maze.length >= 2 ? <div className={cn("mt-3", strip ? "min-h-48 flex-1" : "h-48")}><ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
-          <AreaChart data={maze} margin={{ left: -24, right: 6, top: 8, bottom: 0 }}>
+        {maze.length >= 2 ? <div className={cn("mt-3", strip ? "min-h-48 flex-1" : "h-48")}><Charts>{(R) => <R.ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
+          <R.AreaChart data={maze} margin={{ left: -24, right: 6, top: 8, bottom: 0 }}>
             <defs><linearGradient id="maze-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={SERIES.primary} stopOpacity={0.3} /><stop offset="100%" stopColor={SERIES.primary} stopOpacity={0.03} /></linearGradient></defs>
-            <CartesianGrid {...grid} /><XAxis dataKey="round" {...axis} tick={{ ...axis.tick, fontSize: 10 }} interval={0} padding={{ left: 14, right: 14 }} /><YAxis {...axis} axisLine={false} tick={{ ...axis.tick, fontSize: 10 }} />
-            <Tooltip cursor={lineCursor} content={<ChartTooltip unit=" days" labelFormat={(l) => `After: ${l}`} />} />
-            <Area type="monotone" dataKey="days" name="Days" stroke={SERIES.primary} strokeWidth={2} fill="url(#maze-fill)" dot={{ r: 3, fill: SERIES.primary, strokeWidth: 0 }} activeDot={activeDot} />
-          </AreaChart>
-        </ResponsiveContainer></div> : <NotYet copy="Builds up as stories report the stage they reached." />}
+            <R.CartesianGrid {...grid} /><R.XAxis dataKey="round" {...axis} tick={{ ...axis.tick, fontSize: 10 }} interval={0} padding={{ left: 14, right: 14 }} /><R.YAxis {...axis} axisLine={false} tick={{ ...axis.tick, fontSize: 10 }} />
+            <R.Tooltip cursor={lineCursor} content={<ChartTooltip unit=" days" labelFormat={(l) => `After: ${l}`} />} />
+            <R.Area type="monotone" dataKey="days" name="Days" stroke={SERIES.primary} strokeWidth={2} fill="url(#maze-fill)" dot={{ r: 3, fill: SERIES.primary, strokeWidth: 0 }} activeDot={activeDot} />
+          </R.AreaChart>
+        </R.ResponsiveContainer>}</Charts></div> : <NotYet copy="Builds up as stories report the stage they reached." />}
       </div>
     </aside>
   </>;

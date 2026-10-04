@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { DateRange } from "react-day-picker";
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Charts } from "@/components/lazy-charts";
 import { ArrowDownRight, ArrowUpRight, CalendarDays, ChevronRight, Download, Flame, Link2, RotateCcw, Search, Timer, Turtle, X, Zap } from "lucide-react";
 import { apiEnabled } from "@/lib/api";
 import { change, DEFAULT_FILTERS, useInsights, type Group, type InsightFilters, type Insights, type RangePreset } from "@/lib/insights";
@@ -415,16 +415,16 @@ export function InsightsView({ openCompany, filters = DEFAULT_FILTERS, onFilters
             <span className="flex items-center gap-1.5"><span className="h-0.5 w-4 rounded border-t-2 border-dashed" style={{ borderColor: SERIES.offers }} />Offers</span>
             {p.direction && <span className="ml-auto font-semibold">Ghosting {p.direction.ghosted === "flat" ? "holding steady" : p.direction.ghosted}, offers {p.direction.offers === "flat" ? "holding steady" : p.direction.offers}</span>}
           </div>
-          <div className="mt-3 h-56 sm:h-64"><ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
-            <LineChart data={p.trend} margin={{ left: 0, right: 8, top: 8 }}>
-              <CartesianGrid {...grid} />
-              <XAxis dataKey="start" {...axis} tickFormatter={trendLabel} minTickGap={24} />
-              <YAxis {...axis} axisLine={false} width={32} allowDecimals={false} />
-              <Tooltip cursor={lineCursor} content={<ChartTooltip unit="" labelFormat={(l) => (p.bucket === "day" ? fmtDay(String(l), true) : p.bucket === "week" ? `Week of ${fmtDay(String(l))}` : trendLabel(String(l)))} />} />
-              <Line type="monotone" dataKey="ghosted" name="Ghosted" stroke={SERIES.ghosted} strokeWidth={2.5} dot={false} activeDot={activeDot} />
-              <Line type="monotone" dataKey="offers" name="Offers" stroke={SERIES.offers} strokeWidth={2.5} strokeDasharray="6 4" dot={false} activeDot={activeDot} />
-            </LineChart>
-          </ResponsiveContainer></div>
+          <div className="mt-3 h-56 sm:h-64"><Charts>{(R) => <R.ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
+            <R.LineChart data={p.trend} margin={{ left: 0, right: 8, top: 8 }}>
+              <R.CartesianGrid {...grid} />
+              <R.XAxis dataKey="start" {...axis} tickFormatter={trendLabel} minTickGap={24} />
+              <R.YAxis {...axis} axisLine={false} width={32} allowDecimals={false} />
+              <R.Tooltip cursor={lineCursor} content={<ChartTooltip unit="" labelFormat={(l) => (p.bucket === "day" ? fmtDay(String(l), true) : p.bucket === "week" ? `Week of ${fmtDay(String(l))}` : trendLabel(String(l)))} />} />
+              <R.Line type="monotone" dataKey="ghosted" name="Ghosted" stroke={SERIES.ghosted} strokeWidth={2.5} dot={false} activeDot={activeDot} />
+              <R.Line type="monotone" dataKey="offers" name="Offers" stroke={SERIES.offers} strokeWidth={2.5} strokeDasharray="6 4" dot={false} activeDot={activeDot} />
+            </R.LineChart>
+          </R.ResponsiveContainer>}</Charts></div>
         </Panel>
 
         <Panel className="xl:col-span-2" title="Wait after each round" note="Median days before hearing back">

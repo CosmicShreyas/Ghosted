@@ -4,7 +4,7 @@
 import { useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { motion } from "motion/react";
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Charts } from "@/components/lazy-charts";
 import { Bell, BellOff, BellRing, BriefcaseBusiness, Gift, CalendarDays, Clock, HeartHandshake, Linkedin, Loader2, MapPin, MessageCircle, MoreHorizontal, PenLine, ShieldAlert, Sparkles, UserCheck, UserPlus, Users, Volume2, VolumeX } from "lucide-react";
 import { toast } from "sonner";
 import { Avatar, Banner } from "@/components/ghosted";
@@ -174,30 +174,30 @@ export function PersonRail({ stats, name, layout = "column" }: { stats: PersonSt
       <h3 className="font-bold">Their impact</h3>
       <p className="text-xs text-muted-foreground">Reactions their stories got, last 8 weeks</p>
       <p className="mt-2 font-display text-3xl font-bold tabular-nums">{nf(totalReactions)}</p>
-      <div className="mt-2 h-28 max-h-28 min-h-28 shrink-0"><ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
-        <AreaChart data={weekly} margin={{ left: 0, right: 4, top: 6, bottom: 0 }}>
+      <div className="mt-2 h-28 max-h-28 min-h-28 shrink-0"><Charts>{(R) => <R.ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
+        <R.AreaChart data={weekly} margin={{ left: 0, right: 4, top: 6, bottom: 0 }}>
           <defs><linearGradient id="person-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={SERIES.primary} stopOpacity={0.35} /><stop offset="100%" stopColor={SERIES.primary} stopOpacity={0.02} /></linearGradient></defs>
-          <XAxis dataKey="label" {...axis} tick={{ ...axis.tick, fontSize: 10 }} interval="preserveStartEnd" />
-          <Tooltip cursor={lineCursor} content={<ChartTooltip />} />
-          <Area type="monotone" dataKey="relatable" name="Relatable" stroke={SERIES.primary} strokeWidth={2} fill="url(#person-fill)" dot={false} activeDot={activeDot} />
-          <Area type="monotone" dataKey="flags" name="Other reactions" stroke={SERIES.secondary} strokeWidth={2} fill="transparent" dot={false} activeDot={activeDot} />
-        </AreaChart>
-      </ResponsiveContainer></div>
+          <R.XAxis dataKey="label" {...axis} tick={{ ...axis.tick, fontSize: 10 }} interval="preserveStartEnd" />
+          <R.Tooltip cursor={lineCursor} content={<ChartTooltip />} />
+          <R.Area type="monotone" dataKey="relatable" name="Relatable" stroke={SERIES.primary} strokeWidth={2} fill="url(#person-fill)" dot={false} activeDot={activeDot} />
+          <R.Area type="monotone" dataKey="flags" name="Other reactions" stroke={SERIES.secondary} strokeWidth={2} fill="transparent" dot={false} activeDot={activeDot} />
+        </R.AreaChart>
+      </R.ResponsiveContainer>}</Charts></div>
       <div className="mt-2 flex gap-4 text-[11px] font-semibold text-muted-foreground"><span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm border border-foreground" style={{ background: SERIES.primary }} />Relatable</span><span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm border border-foreground" style={{ background: SERIES.secondary }} />Other reactions</span></div>
     </div>
 
     <div className={box()}>
       <h3 className="font-bold">How their stories end</h3>
       <p className="text-xs text-muted-foreground">{stats.stories} {stats.stories === 1 ? "story" : "stories"} by outcome</p>
-      <div className="mt-3 h-36 max-h-36 min-h-36 shrink-0"><ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
-        <BarChart data={outcomes} margin={{ left: -24, right: 4, top: 4, bottom: 0 }}>
-          <CartesianGrid {...grid} />
-          <XAxis dataKey="label" {...axis} tick={{ ...axis.tick, fontSize: 9 }} interval={0} />
-          <YAxis {...axis} allowDecimals={false} width={40} />
-          <Tooltip cursor={barCursor} content={<ChartTooltip unit=" stories" />} />
-          <Bar dataKey="count" name="Stories" radius={[5, 5, 0, 0]} stroke={INK} strokeWidth={1.5} shape={(props: { x?: number; y?: number; width?: number; height?: number; payload?: { outcome: string } }) => <rect x={props.x} y={props.y} width={props.width} height={props.height} rx={5} fill={OUTCOME_TONE[props.payload?.outcome ?? ""] ?? SERIES.primary} stroke={INK} strokeWidth={1.5} />} />
-        </BarChart>
-      </ResponsiveContainer></div>
+      <div className="mt-3 h-36 max-h-36 min-h-36 shrink-0"><Charts>{(R) => <R.ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
+        <R.BarChart data={outcomes} margin={{ left: -24, right: 4, top: 4, bottom: 0 }}>
+          <R.CartesianGrid {...grid} />
+          <R.XAxis dataKey="label" {...axis} tick={{ ...axis.tick, fontSize: 9 }} interval={0} />
+          <R.YAxis {...axis} allowDecimals={false} width={40} />
+          <R.Tooltip cursor={barCursor} content={<ChartTooltip unit=" stories" />} />
+          <R.Bar dataKey="count" name="Stories" radius={[5, 5, 0, 0]} stroke={INK} strokeWidth={1.5} shape={(props: { x?: number; y?: number; width?: number; height?: number; payload?: { outcome: string } }) => <rect x={props.x} y={props.y} width={props.width} height={props.height} rx={5} fill={OUTCOME_TONE[props.payload?.outcome ?? ""] ?? SERIES.primary} stroke={INK} strokeWidth={1.5} />} />
+        </R.BarChart>
+      </R.ResponsiveContainer>}</Charts></div>
     </div>
 
     {ratings.length > 0 && <div className={box()}>

@@ -4,7 +4,7 @@
 // keyboard-friendly and in the site's design system.
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { Crosshair, Keyboard, Pause, Play, RotateCcw, Share2, Trophy } from "lucide-react";
+import { Crosshair, Keyboard, Pause, Play, RotateCcw, Share2, Trophy, X } from "lucide-react";
 import { toast } from "sonner";
 import { shareRun } from "@/game/share-card";
 import { Button } from "@/components/ui/button";
@@ -21,7 +21,8 @@ function Key({ children }: { children: string }) {
   return <kbd className="inline-grid min-w-7 place-items-center rounded-md border-2 border-background/70 bg-background/10 px-1.5 py-0.5 font-mono text-[11px] font-bold">{children}</kbd>;
 }
 
-export function GhostBlastersGame({ compact = false, className }: { compact?: boolean; className?: string }) {
+// `onClose`: shown as a close button in the game's top bar (used when the game is in a popup).
+export function GhostBlastersGame({ compact = false, className, onClose }: { compact?: boolean; className?: string; onClose?: () => void }) {
   const prefs = usePrefs();
   const tone = useTone();
   const reduced = useReducedMotion();
@@ -119,15 +120,19 @@ export function GhostBlastersGame({ compact = false, className }: { compact?: bo
     {/* touch-none: taps and drags steer the game instead of scrolling the page. */}
     <canvas ref={canvas} className="absolute inset-0 size-full touch-none" />
 
-    {/* Live numbers while you play. */}
-    {(state === "playing" || state === "paused") && <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-3">
-      <div className="flex flex-wrap gap-2 text-xs font-bold">
-        <span className="rounded-full border-2 border-foreground bg-primary px-3 py-1 text-primary-foreground shadow-hard-sm">Experience <span className="tabular-nums">{hud.xp.toLocaleString("en-IN")}</span></span>
-        <span className="rounded-full border-2 border-foreground bg-accent px-3 py-1 text-foreground shadow-hard-sm">Level {hud.level}</span>
+    {/* Top bar: live numbers while you play; pause; close (in a popup). Safe-area padding keeps it
+        clear of phone notches when the game fills the screen. */}
+    <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-2 p-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
+      {(state === "playing" || state === "paused") ? <div className="flex min-w-0 flex-wrap gap-1.5 text-[11px] font-bold sm:gap-2 sm:text-xs">
+        <span className="rounded-full border-2 border-foreground bg-primary px-2.5 py-1 text-primary-foreground shadow-hard-sm sm:px-3">XP <span className="tabular-nums">{hud.xp.toLocaleString("en-IN")}</span></span>
+        <span className="rounded-full border-2 border-foreground bg-accent px-2.5 py-1 text-foreground shadow-hard-sm sm:px-3">Level {hud.level}</span>
         {best > 0 && <span className="hidden rounded-full border-2 border-background/30 px-3 py-1 sm:inline">Best <span className="tabular-nums">{best.toLocaleString("en-IN")}</span></span>}
+      </div> : <span />}
+      <div className="flex shrink-0 gap-2">
+        {(state === "playing" || state === "paused") && <button type="button" onClick={togglePause} aria-label={state === "paused" ? "Resume" : "Pause"} className="pointer-events-auto grid size-10 place-items-center rounded-full border-2 border-foreground bg-card text-foreground shadow-hard-sm">{state === "paused" ? <Play className="size-4" /> : <Pause className="size-4" />}</button>}
+        {onClose && <button type="button" onClick={onClose} aria-label="Close game" className="pointer-events-auto grid size-10 place-items-center rounded-full border-2 border-foreground bg-card text-foreground shadow-hard-sm"><X className="size-4" /></button>}
       </div>
-      <button type="button" onClick={togglePause} aria-label={state === "paused" ? "Resume" : "Pause"} className="pointer-events-auto grid size-10 place-items-center rounded-full border-2 border-foreground bg-card text-foreground shadow-hard-sm">{state === "paused" ? <Play className="size-4" /> : <Pause className="size-4" />}</button>
-    </div>}
+    </div>
 
     {/* Touch screens: a short reminder of the controls at the start of each run. */}
     <AnimatePresence>{touch && state === "playing" && hint && <motion.p key="hint" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
@@ -136,7 +141,7 @@ export function GhostBlastersGame({ compact = false, className }: { compact?: bo
     </motion.p>}</AnimatePresence>
 
     <AnimatePresence>
-      {state === "ready" && <motion.div key="ready" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 flex flex-col items-center justify-between p-5 text-center sm:p-7">
+      {state === "ready" && <motion.div key="ready" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className={cn("absolute inset-0 flex flex-col items-center justify-between p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-center sm:p-7", onClose && "pt-16 sm:pt-7")}>
         <div>
           <p className="text-xs font-bold text-[#9F7AEA]">Hiring Process: Haunted</p>
           <h2 className={cn("font-display font-bold leading-none", compact ? "text-4xl" : "text-5xl sm:text-6xl")}>Ghost Blasters</h2>
@@ -161,16 +166,16 @@ export function GhostBlastersGame({ compact = false, className }: { compact?: bo
       </motion.div>}
 
       {state === "over" && result && <motion.div key="over" initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 grid place-items-center bg-[#16111D]/75 p-5 backdrop-blur-sm">
-        <div className="w-full max-w-sm rounded-xl border-2 border-foreground bg-card p-5 text-center text-foreground shadow-hard sm:p-6">
+        <div className="max-h-full w-full max-w-sm overflow-y-auto rounded-xl border-2 border-foreground bg-card p-4 text-center text-foreground shadow-hard sm:p-6">
           <p className="text-xs font-bold text-flag-red">Taken out by {ENEMY_INFO[result.killer].name}</p>
-          <p className="mt-1 font-display text-lg font-bold leading-snug">“{result.line}”</p>
-          <p className="mt-4 font-display text-5xl font-bold tabular-nums text-primary">{result.xp.toLocaleString("en-IN")}</p>
+          <p className="mt-1 font-display text-base font-bold leading-snug sm:text-lg">“{result.line}”</p>
+          <p className="mt-3 font-display text-4xl font-bold tabular-nums text-primary sm:mt-4 sm:text-5xl">{result.xp.toLocaleString("en-IN")}</p>
           <p className="text-xs font-bold text-muted-foreground">Experience · Level {result.level} · {result.offers} {result.offers === 1 ? "offer" : "offers"} · {result.seconds}s</p>
           {result.best ? <p className="mx-auto mt-3 inline-flex items-center gap-1.5 rounded-full border-2 border-foreground bg-accent px-3 py-1 text-xs font-bold"><Trophy className="size-3.5" />New best Experience</p>
             : best > 0 && <p className="mt-3 text-xs text-muted-foreground">Your best: {best.toLocaleString("en-IN")}</p>}
           {board?.newBest && <p className="mt-2 text-xs font-bold text-primary">On the leaderboard with {board.counted.toLocaleString("en-IN")} Experience.</p>}
           {apiEnabled && !signedIn && result.xp > 0 && <p className="mt-2 text-xs text-muted-foreground">Sign in to put your runs on the leaderboard.</p>}
-          <div className="mt-5 grid grid-cols-2 gap-2">
+          <div className="mt-4 grid grid-cols-1 gap-2 min-[400px]:grid-cols-2 sm:mt-5">
             <Button variant="outline" disabled={sharing || result.xp === 0} onClick={() => void share(result)}><Share2 />{sharing ? "Making card…" : "Share score"}</Button>
             <Button onClick={start}><RotateCcw />{voice(tone, "Apply again", "Play again")}</Button>
           </div>

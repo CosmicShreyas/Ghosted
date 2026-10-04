@@ -4,7 +4,7 @@
 import { useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { motion } from "motion/react";
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Charts } from "@/components/lazy-charts";
 import { ArrowRight, Bell, BellRing, Briefcase, CalendarDays, Check, ExternalLink, Flag, Globe, HeartHandshake, Loader2, MapPin, MessageCircle, MoreHorizontal, PenLine, ShieldAlert, ThumbsDown, ThumbsUp, UserCheck, UserPlus, Users, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { CompanyMark, FlagScore, ScoreMeters } from "@/components/ghosted";
@@ -223,38 +223,38 @@ export function CompanyRail({ page, layout = "column" }: { page: CompanyPage; la
 
     <div className={box}>
       <h3 className="font-bold">Stories per week</h3><p className="text-xs text-muted-foreground">Last 8 weeks, by how they went</p>
-      <div className={cn("mt-3", strip ? "min-h-32 flex-1" : "h-32")}><ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
-        <AreaChart data={weekly} margin={{ left: 0, right: 4, top: 6, bottom: 0 }}>
-          <XAxis dataKey="label" {...axis} tick={{ ...axis.tick, fontSize: 10 }} interval="preserveStartEnd" />
-          <Tooltip cursor={lineCursor} content={<ChartTooltip unit=" stories" />} />
-          <Area type="monotone" dataKey="critical" name="Critical" stackId="s" stroke="var(--flag-red)" fill="var(--flag-red)" fillOpacity={0.25} strokeWidth={2} activeDot={activeDot} />
-          <Area type="monotone" dataKey="mixed" name="Mixed" stackId="s" stroke="var(--flag-amber)" fill="var(--flag-amber)" fillOpacity={0.25} strokeWidth={2} activeDot={activeDot} />
-          <Area type="monotone" dataKey="positive" name="Positive" stackId="s" stroke="var(--flag-green)" fill="var(--flag-green)" fillOpacity={0.25} strokeWidth={2} activeDot={activeDot} />
-        </AreaChart>
-      </ResponsiveContainer></div>
+      <div className={cn("mt-3", strip ? "min-h-32 flex-1" : "h-32")}><Charts>{(R) => <R.ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
+        <R.AreaChart data={weekly} margin={{ left: 0, right: 4, top: 6, bottom: 0 }}>
+          <R.XAxis dataKey="label" {...axis} tick={{ ...axis.tick, fontSize: 10 }} interval="preserveStartEnd" />
+          <R.Tooltip cursor={lineCursor} content={<ChartTooltip unit=" stories" />} />
+          <R.Area type="monotone" dataKey="critical" name="Critical" stackId="s" stroke="var(--flag-red)" fill="var(--flag-red)" fillOpacity={0.25} strokeWidth={2} activeDot={activeDot} />
+          <R.Area type="monotone" dataKey="mixed" name="Mixed" stackId="s" stroke="var(--flag-amber)" fill="var(--flag-amber)" fillOpacity={0.25} strokeWidth={2} activeDot={activeDot} />
+          <R.Area type="monotone" dataKey="positive" name="Positive" stackId="s" stroke="var(--flag-green)" fill="var(--flag-green)" fillOpacity={0.25} strokeWidth={2} activeDot={activeDot} />
+        </R.AreaChart>
+      </R.ResponsiveContainer>}</Charts></div>
     </div>
 
     <div className={box}>
       <h3 className="font-bold">How stories end</h3><p className="text-xs text-muted-foreground">{stats.stories} {stats.stories === 1 ? "story" : "stories"} by outcome</p>
-      {stats.stories ? <div className={cn("mt-3", strip ? "min-h-36 flex-1" : "h-36")}><ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
-        <BarChart data={outcomes} margin={{ left: -24, right: 4, top: 4, bottom: 0 }}>
-          <CartesianGrid {...grid} /><XAxis dataKey="label" {...axis} tick={{ ...axis.tick, fontSize: 9 }} interval={0} /><YAxis {...axis} allowDecimals={false} width={40} />
-          <Tooltip cursor={barCursor} content={<ChartTooltip unit=" stories" />} />
-          <Bar dataKey="count" name="Stories" shape={(p: { x?: number; y?: number; width?: number; height?: number; payload?: { outcome: string } }) => <rect x={p.x} y={p.y} width={p.width} height={p.height} rx={5} fill={OUTCOME_TONE[p.payload?.outcome ?? ""] ?? "var(--chart-violet)"} stroke={INK} strokeWidth={1.5} />} />
-        </BarChart>
-      </ResponsiveContainer></div> : empty("No stories yet. Be the first.")}
+      {stats.stories ? <div className={cn("mt-3", strip ? "min-h-36 flex-1" : "h-36")}><Charts>{(R) => <R.ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
+        <R.BarChart data={outcomes} margin={{ left: -24, right: 4, top: 4, bottom: 0 }}>
+          <R.CartesianGrid {...grid} /><R.XAxis dataKey="label" {...axis} tick={{ ...axis.tick, fontSize: 9 }} interval={0} /><R.YAxis {...axis} allowDecimals={false} width={40} />
+          <R.Tooltip cursor={barCursor} content={<ChartTooltip unit=" stories" />} />
+          <R.Bar dataKey="count" name="Stories" shape={(p: { x?: number; y?: number; width?: number; height?: number; payload?: { outcome: string } }) => <rect x={p.x} y={p.y} width={p.width} height={p.height} rx={5} fill={OUTCOME_TONE[p.payload?.outcome ?? ""] ?? "var(--chart-violet)"} stroke={INK} strokeWidth={1.5} />} />
+        </R.BarChart>
+      </R.ResponsiveContainer>}</Charts></div> : empty("No stories yet. Be the first.")}
     </div>
 
     <div className={box}>
       <h3 className="font-bold">How long they take</h3><p className="text-xs text-muted-foreground">Days since applying, by round</p>
-      {maze.length >= 2 ? <div className={cn("mt-3", strip ? "min-h-40 flex-1" : "h-40")}><ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
-        <AreaChart data={maze} margin={{ left: -24, right: 6, top: 8, bottom: 0 }}>
+      {maze.length >= 2 ? <div className={cn("mt-3", strip ? "min-h-40 flex-1" : "h-40")}><Charts>{(R) => <R.ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
+        <R.AreaChart data={maze} margin={{ left: -24, right: 6, top: 8, bottom: 0 }}>
           <defs><linearGradient id="co-maze" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--chart-violet)" stopOpacity={0.3} /><stop offset="100%" stopColor="var(--chart-violet)" stopOpacity={0.03} /></linearGradient></defs>
-          <CartesianGrid {...grid} /><XAxis dataKey="round" {...axis} tick={{ ...axis.tick, fontSize: 10 }} interval={0} padding={{ left: 12, right: 12 }} /><YAxis {...axis} axisLine={false} tick={{ ...axis.tick, fontSize: 10 }} />
-          <Tooltip cursor={lineCursor} content={<ChartTooltip unit=" days" labelFormat={(l) => `After: ${l}`} />} />
-          <Area type="monotone" dataKey="days" name="Days" stroke="var(--chart-violet)" strokeWidth={2} fill="url(#co-maze)" dot={{ r: 3, fill: "var(--chart-violet)", strokeWidth: 0 }} activeDot={activeDot} />
-        </AreaChart>
-      </ResponsiveContainer></div> : empty("Builds up as stories report how long each round took.")}
+          <R.CartesianGrid {...grid} /><R.XAxis dataKey="round" {...axis} tick={{ ...axis.tick, fontSize: 10 }} interval={0} padding={{ left: 12, right: 12 }} /><R.YAxis {...axis} axisLine={false} tick={{ ...axis.tick, fontSize: 10 }} />
+          <R.Tooltip cursor={lineCursor} content={<ChartTooltip unit=" days" labelFormat={(l) => `After: ${l}`} />} />
+          <R.Area type="monotone" dataKey="days" name="Days" stroke="var(--chart-violet)" strokeWidth={2} fill="url(#co-maze)" dot={{ r: 3, fill: "var(--chart-violet)", strokeWidth: 0 }} activeDot={activeDot} />
+        </R.AreaChart>
+      </R.ResponsiveContainer>}</Charts></div> : empty("Builds up as stories report how long each round took.")}
     </div>
 
     <div className={box}>
