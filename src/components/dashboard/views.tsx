@@ -310,8 +310,8 @@ export function CompaniesView(c: Common) {
       {/* Reaching this marker (600 px early) loads the next page. */}
       <div ref={sentinel} aria-hidden="true" />
       {!companies.hasMore && list.length > 6 && <p className="text-center text-sm text-muted-foreground">That's every company so far. Missing one? <button type="button" onClick={() => setListing(true)} className="font-bold text-primary hover:underline">List it</button></p>}
-    </> : <Empty title={c.query ? "No company by that name" : "No companies yet"} copy={c.query ? "It may not be listed yet. You can list it in a minute." : "Be the first to list one. It takes a minute."} action={<Button onClick={() => setListing(true)}><Plus />List a company</Button>} />}
-    <ListCompanyDialog open={listing} onOpenChange={setListing} onListed={(co) => c.openCompany(co)} />
+    </> : <Empty title={c.query ? "Not listed yet? Request it" : "No companies yet"} copy={c.query ? `No company called “${c.query}” yet. Add its website and we'll fill in the rest.` : "Be the first to list one. It takes a minute."} action={<Button onClick={() => setListing(true)}><Plus />{c.query ? `Request “${c.query}”` : "List a company"}</Button>} />}
+    <ListCompanyDialog open={listing} onOpenChange={setListing} onListed={(co) => c.openCompany(co)} {...(c.query && list.length === 0 && { requestName: c.query })} />
   </div>;
 }
 

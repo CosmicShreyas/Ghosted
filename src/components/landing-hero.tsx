@@ -9,6 +9,7 @@ import { CompanyMark, FlagScore } from "@/components/ghosted";
 import { Button } from "@/components/ui/button";
 import { apiEnabled, track } from "@/lib/api";
 import { useT } from "@/lib/i18n";
+import { ListCompanyDialog } from "@/components/dashboard/list-company";
 import { useSearch } from "@/lib/search";
 import { isRated, useCompanyIndex } from "@/lib/stories";
 import { cn, formatCount } from "@/lib/utils";
@@ -23,6 +24,7 @@ export function CompanySearch({ size = "lg", autoFocus = false, className }: { s
   const t = useT();
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
+  const [requesting, setRequesting] = useState<string | null>(null);
   const box = useRef<HTMLDivElement>(null);
   const search = useSearch(q);
   const { list } = useCompanyIndex();
@@ -54,9 +56,11 @@ export function CompanySearch({ size = "lg", autoFocus = false, className }: { s
         <span className="min-w-0 flex-1"><span className="block truncate font-bold">{c.name}</span><span className="block text-xs text-muted-foreground">{isRated(c) ? `${formatCount(c.storyCount ?? 0)} ${(c.storyCount ?? 0) === 1 ? "story" : "stories"}` : "No stories yet. Be the first."}</span></span>
         {isRated(c) && <FlagScore score={c.score} compact />}
       </button></li>)}</ul>
-        : !loading && <div className="p-4 text-sm"><p className="font-bold">No company called “{q.trim()}” yet.</p><p className="mt-1 text-muted-foreground">Been through their hiring? Add it and share what happened.</p><Button size="sm" className="mt-3 min-h-10" asChild><Link to="/auth" search={{ intent: "share" }}><PenLine />Add it anonymously</Link></Button></div>}
+        : !loading && <div className="p-4 text-sm"><p className="font-bold">Not listed yet? Request it.</p><p className="mt-1 text-muted-foreground">No company called “{q.trim()}” on Ghosted yet. Add its website and we'll fill in the rest.</p><Button size="sm" className="mt-3 min-h-10" onClick={() => { setRequesting(q.trim()); setOpen(false); }}><Building2 />Request “{q.trim()}”</Button></div>}
     </motion.div>}</AnimatePresence>
     {popular.length > 0 && <div className="mt-3 flex flex-wrap items-center gap-2 text-sm"><span className="text-muted-foreground">{t("search.try")}</span>{popular.map((c) => <Link key={c.id} to="/c/$slug" params={{ slug: c.id }} className="inline-flex min-h-9 items-center rounded-full border-2 border-foreground/20 bg-card px-3 font-semibold hover:border-foreground">{c.name}</Link>)}</div>}
+    {/* "Request it": the list-company flow, usable signed out until the final step. */}
+    <ListCompanyDialog open={requesting !== null} onOpenChange={(v) => { if (!v) setRequesting(null); }} requestName={requesting ?? ""} onListed={go} />
   </div>;
 }
 

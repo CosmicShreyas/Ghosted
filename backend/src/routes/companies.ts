@@ -3,7 +3,8 @@ import { z } from "zod";
 import { dbFail, notFound } from "../errors.js";
 import { companyDto, type CompanyScoreRow, type StoryRow } from "../dto.js";
 import { hydrate, publishedStories } from "../stories.js";
-import { me, optionalAuth, rateLimit, requireAuth, type AppEnv, type Profile } from "../security.js";
+import { ipKey, limitBy, me, optionalAuth, rateLimit, requireAuth, type AppEnv, type Profile } from "../security.js";
+import { addNotification } from "../notify.js";
 import { admin } from "../supabase.js";
 import { clean } from "../security.js";
 import { optionalText, validate } from "../validate.js";
@@ -103,10 +104,14 @@ export const companyRoutes = new Hono<AppEnv>()
   // (its own site, then Wikidata) to fill the form in. Also says if it's already listed, so people
   // add stories there instead of a duplicate. Registered before "/:slug", or that route would treat
   // "preview" as a company name and answer "Company not found".
-  .get("/preview", requireAuth, rateLimit({ name: "company-preview", max: 30, windowSeconds: 600, by: "user" }), validate("query", z.object({ website: z.string().trim().min(3).max(200) })), async (c) => {
+  // Signed out works too ("Request it" from a search), so people can see what they'd list before
+  // joining; those checks are limited per connection, and there's no quota to report.
+  .get("/preview", optionalAuth, rateLimit({ name: "company-preview", max: 30, windowSeconds: 600, by: "user" }), validate("query", z.object({ website: z.string().trim().min(3).max(200) })), async (c) => {
+    const viewer = c.get("profile");
+    if (!viewer) await limitBy(`company-preview-anon:${ipKey(c)}`, 12, 600, "Too many website checks. Sign in to keep going, or try again in a few minutes.");
     try {
       const site = await inspectWebsite(c.req.valid("query").website);
-      const [existing, facts, quota] = await Promise.all([byDomain(site.domain), gatherFacts(site), listingQuota(me(c).id)]);
+      const [existing, facts, quota] = await Promise.all([byDomain(site.domain), gatherFacts(site), viewer ? listingQuota(viewer.id) : Promise.resolve(null)]);
       return c.json({ site, existing: existing ? companyDto(existing) : null, facts, quota });
     } catch (err) {
       if (err instanceof SiteCheckError) throw new ApiError(422, "website_invalid", err.message, { website: err.message });
@@ -196,6 +201,21 @@ export const companyRoutes = new Hono<AppEnv>()
     return c.json({ relationship: await companyRelationship(me(c).id, id) });
   })
 
+  // "Not listed yet? Request it" for someone who can't list it right now (listing limit reached, or
+  // a brand-new account). The website is checked the same way; an already-listed company is
+  // returned instead. You're notified once when anyone lists it (see notifyRequesters).
+  .post("/requests", requireAuth, rateLimit({ name: "company-request", max: 15, windowSeconds: 86400, by: "user" }), validate("json", z.object({ website: z.string().trim().min(3).max(200), name: z.string().trim().max(80).optional() }).strict()), async (c) => {
+    const b = c.req.valid("json");
+    let site;
+    try { site = await inspectWebsite(b.website); }
+    catch (err) { if (err instanceof SiteCheckError) throw new ApiError(422, "website_invalid", err.message, { website: err.message }); throw err; }
+    const existing = await byDomain(site.domain);
+    if (existing) return c.json({ requested: false, existing: companyDto(existing) });
+    const { error } = await admin().from("company_requests").upsert({ user_id: me(c).id, domain: site.domain, name: b.name ? clean(b.name) : null, notified_at: null }, { onConflict: "user_id,domain" });
+    if (error) dbFail("company request (run the Company requests section of init_database.sql)", error);
+    return c.json({ requested: true, domain: site.domain });
+  })
+
   // Step 2: list it. Everything is re-checked here (the page's preview is only a convenience).
   .post("/", requireAuth,
     // Attempts (including ones that fail validation): generous, just stops hammering.
@@ -240,6 +260,7 @@ export const companyRoutes = new Hono<AppEnv>()
     const { data, error: rErr } = await admin().from("company_scores").select("*").eq("slug", slug).single();
     if (rErr) dbFail("read company", rErr);
     later(bump({ shared: ["companies"] }));
+    later(notifyRequesters(site.domain, body.name, me(c).id));
     if (goofy.enabled && goofy.fileReports && review.decision === "review") later(reportAs("company", (data as { id: string }).id, review.reasons.map((r) => r.code), review.reasons[0]?.detail ?? "needs a second look", { companySlug: slug }));
     return c.json({ company: companyDto(data as CompanyScoreRow) }, 201);
   })
@@ -363,6 +384,19 @@ async function listingQuota(userId: string) {
       ? `You've listed ${LISTING_LIMITS.week} companies this week, the most allowed. You can list more in about ${Math.ceil(wait / 24)} day${Math.ceil(wait / 24) === 1 ? "" : "s"}.`
       : `You've listed ${LISTING_LIMITS.day} companies today, the most allowed. You can list another in about ${wait} hour${wait === 1 ? "" : "s"}.`,
   };
+}
+
+// A company just went live: everyone who requested its domain hears about it once (not the person
+// who listed it). Best effort; a missing table (SQL not run yet) just skips it.
+async function notifyRequesters(domain: string, name: string, listerId: string) {
+  try {
+    const { data, error } = await admin().from("company_requests").update({ notified_at: new Date().toISOString() }).eq("domain", domain).is("notified_at", null).select("user_id");
+    if (error) return;
+    for (const r of (data ?? []) as { user_id: string }[]) {
+      if (r.user_id === listerId) continue;
+      await addNotification(r.user_id, "company", `${name} is now on Ghosted, the company you asked for. Search for it to share your story or follow it for new ones.`);
+    }
+  } catch (e) { console.error("[company-request] notify", (e as Error).message); }
 }
 
 async function byDomain(domain: string) {

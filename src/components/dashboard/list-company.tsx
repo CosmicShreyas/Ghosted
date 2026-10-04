@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
-import { AlertCircle, Building2, CheckCircle2, ExternalLink, Globe, Loader2, Wand2 } from "lucide-react";
+import { AlertCircle, Bell, Building2, CheckCircle2, ExternalLink, Globe, Loader2, Wand2 } from "lucide-react";
 import { toast } from "sonner";
 import { CompanyMark } from "@/components/ghosted";
 import { HumanCheck, useHumanCheck } from "@/components/human-check";
@@ -15,11 +15,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { api, ApiRequestError, apiEnabled } from "@/lib/api";
+import { api, ApiRequestError, apiEnabled, askToJoin } from "@/lib/api";
 import { liveNudge } from "@/lib/live";
 import { companyFromApi, type CompanyDto } from "@/lib/stories";
 import { cn } from "@/lib/utils";
-import { useTone, voice } from "@/lib/session";
+import { useMe, useTone, voice } from "@/lib/session";
 import type { Company } from "@/mock/data";
 import { INDUSTRY_LABEL } from "./global-widgets";
 import { popup, popupBody } from "./ui-kit";
@@ -91,10 +91,28 @@ function Field({ label, hint, error, children, id }: { label: ReactNode; hint?: 
 
 const blank = { website: "", name: "", about: "", industry: "", size: "", hqCity: "", founded: "", careersUrl: "", confirm: false };
 
-export function ListCompanyDialog({ open, onOpenChange, onListed }: { open: boolean; onOpenChange: (v: boolean) => void; onListed?: (c: Company) => void }) {
+// A draft kept while a signed-out visitor joins; the form reopens with it afterwards
+// (PendingCompanyListing below, mounted on the dashboard).
+const PENDING_KEY = "ghosted.pendingCompany";
+type Draft = typeof blank;
+const readPending = (): Draft | null => { try { const d = JSON.parse(localStorage.getItem(PENDING_KEY) ?? "null") as Draft | null; return d && typeof d.website === "string" ? { ...blank, ...d, confirm: false } : null; } catch { return null; } };
+const clearPending = () => { try { localStorage.removeItem(PENDING_KEY); } catch { /* storage blocked */ } };
+
+// `requestName`: opened from an empty search ("Not listed yet? Request it"), shown in the title.
+// `initial`: a saved draft to start from.
+export function ListCompanyDialog({ open, onOpenChange, onListed, requestName, initial }: { open: boolean; onOpenChange: (v: boolean) => void; onListed?: (c: Company) => void; requestName?: string; initial?: Draft | null }) {
   const qc = useQueryClient();
   const shield = useHumanCheck();
+  const { signedOut } = useMe();
   const [f, setF] = useState(blank);
+  const [requested, setRequested] = useState(false);
+  const [tooNew, setTooNew] = useState<string | null>(null);
+  // A restored draft counts as typed by the person, so auto-fill never overwrites it.
+  useEffect(() => {
+    if (!open || !initial) return;
+    setF(initial);
+    for (const [k, v] of Object.entries(initial)) if (k !== "website" && v) edited.current.add(k);
+  }, [open, initial]);
   const [check, setCheck] = useState<Check>({ state: "idle" });
   const [touched, setTouched] = useState<Set<string>>(new Set());
   const [serverErrors, setServerErrors] = useState<Partial<Record<keyof typeof blank, string>>>({});
@@ -172,8 +190,10 @@ export function ListCompanyDialog({ open, onOpenChange, onListed }: { open: bool
   const show = (k: keyof typeof errors) => (touched.has(k) || touched.has("submit") ? errors[k] : null);
   const valid = !!site && Object.values(errors).every((e) => !e);
 
-  const reset = () => { setF(blank); setCheck({ state: "idle" }); setTouched(new Set()); setServerErrors({}); edited.current = new Set(); setAutofilled(null); setQuota(null); };
+  const reset = () => { setF(blank); setCheck({ state: "idle" }); setTouched(new Set()); setServerErrors({}); edited.current = new Set(); setAutofilled(null); setQuota(null); setRequested(false); setTooNew(null); };
   const limitReached = quota?.remaining === 0;
+  // Can't list it right now (limit reached or a brand-new account): ask for it instead.
+  const blocked = limitReached || !!tooNew;
 
   // How much auto-fill managed, in the person's tone.
   const fillNote = (() => {
@@ -188,9 +208,29 @@ export function ListCompanyDialog({ open, onOpenChange, onListed }: { open: bool
   const auto = (k: FillKey) => autofilled?.keys.has(k) ? <span className="ml-1.5 inline-flex items-center gap-1 rounded-full border border-primary bg-primary/10 px-1.5 py-px align-middle text-[10px] font-bold uppercase text-primary"><Wand2 className="size-2.5" />Auto-filled</span> : null;
   const close = (v: boolean) => { onOpenChange(v); if (!v) reset(); };
 
+  // Signed out: everything up to here works; listing needs an account. The draft waits for them.
+  const joinToList = () => {
+    try { localStorage.setItem(PENDING_KEY, JSON.stringify({ ...f, confirm: false })); } catch { /* storage blocked */ }
+    close(false);
+    askToJoin();
+  };
+
+  const request = async () => {
+    if (!site) return;
+    setBusy(true);
+    try {
+      const r = await api<{ requested: boolean; existing?: CompanyDto }>("/v1/companies/requests", { method: "POST", body: { website: site.homepage, ...(f.name.trim() && { name: f.name.trim() }) } });
+      if (r.existing) { setCheck({ state: "exists", company: r.existing, site }); return; }
+      setRequested(true);
+      toast.success(voice(tone, `Requested. We'll ping you the second ${f.name.trim() || site.domain} shows up.`, `Requested. We'll notify you when ${f.name.trim() || site.domain} is listed.`));
+    } catch (err) { toast.error(err instanceof ApiRequestError ? err.message : "Couldn't save the request. Try again."); }
+    finally { setBusy(false); }
+  };
+
   const submit = async () => {
     touch("submit");
     if (!valid || !site) return void toast.error("A few things need fixing first.");
+    if (signedOut) return joinToList();
     if (!apiEnabled) { toast.success(`${f.name} listed. (Preview mode: it isn't saved.)`); return close(false); }
     setBusy(true);
     let escalated = false;
@@ -209,6 +249,7 @@ export function ListCompanyDialog({ open, onOpenChange, onListed }: { open: bool
       if (err instanceof ApiRequestError) {
         if (err.code === "captcha_escalate") { escalated = true; shield.escalate(); }
         if (err.code === "listing_limit") setQuota((q) => ({ ...(q ?? { dayLeft: 0, weekLeft: 0, limits: { day: 3, week: 10 }, resetsAt: null }), remaining: 0, message: err.message }));
+        if (err.code === "account_too_new") setTooNew(err.message);
         const fields = (err.fields ?? {}) as Partial<Record<keyof typeof blank, string>>;
         setServerErrors(fields);
         if (fields.website) setCheck({ state: "error", message: fields.website });
@@ -224,7 +265,7 @@ export function ListCompanyDialog({ open, onOpenChange, onListed }: { open: bool
         <DialogHeader className="pr-8 text-left">
           <div className="flex items-center gap-3">
             <span className="grid size-10 shrink-0 place-items-center rounded-lg border-2 border-foreground bg-primary text-primary-foreground sm:size-12"><Building2 className="size-5" /></span>
-            <div className="min-w-0"><DialogTitle className="font-display text-xl sm:text-2xl">List a company</DialogTitle><DialogDescription>Real companies only. We check the website before anything goes live.</DialogDescription></div>
+            <div className="min-w-0"><DialogTitle className="font-display text-xl sm:text-2xl">{requestName ? `Request “${requestName}”` : "List a company"}</DialogTitle><DialogDescription>{requestName ? "Not listed yet. Add its website and we'll fill in what we can. Real companies only." : "Real companies only. We check the website before anything goes live."}</DialogDescription></div>
           </div>
         </DialogHeader>
 
@@ -257,9 +298,13 @@ export function ListCompanyDialog({ open, onOpenChange, onListed }: { open: bool
           </AnimatePresence>
 
           {/* At the listing limit: say so up front (with when it frees up), before any typing. */}
-          {limitReached && quota?.message && <p className="-mt-2 flex items-start gap-2 rounded-lg border-2 border-flag-red bg-flag-red/10 p-3 text-sm font-semibold">
-            <AlertCircle className="mt-0.5 size-4 shrink-0 text-flag-red" />{voice(tone, `${quota.message} Even we have to pace ourselves.`, quota.message)}
-          </p>}
+          {blocked && <div className="-mt-2 rounded-lg border-2 border-flag-red bg-flag-red/10 p-3 text-sm font-semibold">
+            <p className="flex items-start gap-2"><AlertCircle className="mt-0.5 size-4 shrink-0 text-flag-red" />{tooNew ?? (quota?.message ? voice(tone, `${quota.message} Even we have to pace ourselves.`, quota.message) : "")}</p>
+            {/* Can't list it yourself right now: request it, and hear when anyone lists it. */}
+            {site && (requested
+              ? <p className="mt-2 flex items-center gap-1.5 text-flag-green"><CheckCircle2 className="size-4" />Requested. You'll get a notification when it's listed.</p>
+              : <Button size="sm" variant="outline" className="mt-2 min-h-10 bg-card" disabled={busy} onClick={() => void request()}><Bell />Request it instead</Button>)}
+          </div>}
 
           {/* How much auto-fill found, in the person's tone (sassy or calm). */}
           {fillNote && <motion.p key={fillNote.text} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className={cn("-mt-2 flex items-start gap-2 rounded-lg border-2 p-3 text-sm font-semibold", fillNote.tone === "ok" ? "border-primary bg-primary/10 text-foreground" : "border-flag-amber bg-flag-amber/15 text-foreground")}>
@@ -309,20 +354,30 @@ export function ListCompanyDialog({ open, onOpenChange, onListed }: { open: bool
               <Checkbox checked={f.confirm} onCheckedChange={(v) => { set("confirm")(v === true); touch("confirm"); }} className="mt-0.5 border-2 border-foreground" aria-required="true" />
               <span>I confirm this is a real company, the website is its own, and the details are accurate. Fake or misleading listings are removed and can get accounts suspended.</span>
             </label>
-            <HumanCheck shield={shield} />
+            {!signedOut && <HumanCheck shield={shield} />}
           </fieldset>
 
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-xs text-muted-foreground">{quota && !limitReached
+            <p className="text-xs text-muted-foreground">{signedOut ? "Listing needs a free account. Your details are kept while you join." : quota && !limitReached
               ? <>You can list <strong className="text-foreground">{quota.remaining} more</strong> {quota.remaining === 1 ? "company" : "companies"} today ({quota.weekLeft} left this week).</>
               : `Up to ${quota?.limits.day ?? 3} listings a day and ${quota?.limits.week ?? 10} a week.`} Listings can be reported and are reviewed by moderators.</p>
             <div className="flex flex-col-reverse gap-2 sm:flex-row">
               <Button variant="outline" onClick={() => close(false)}>Cancel</Button>
-              <Button disabled={!site || !f.confirm || busy || limitReached || (apiEnabled && shield.status !== "done")} onClick={() => void submit()}>{busy ? <Loader2 className="animate-spin" /> : !f.confirm || limitReached ? null : <Building2 />}{busy ? "Listing…" : limitReached ? "Limit reached" : site && !f.confirm ? "Tick the box above to continue" : "List company"}</Button>
+              {signedOut
+                ? <Button disabled={!valid} onClick={() => void submit()}><Building2 />Join free to list it</Button>
+                : <Button disabled={!site || !f.confirm || busy || blocked || (apiEnabled && shield.status !== "done")} onClick={() => void submit()}>{busy ? <Loader2 className="animate-spin" /> : !f.confirm || blocked ? null : <Building2 />}{busy ? "Listing…" : blocked ? "Can't list right now" : site && !f.confirm ? "Tick the box above to continue" : "List company"}</Button>}
             </div>
           </div>
         </div>
       </div>
     </DialogContent>
   </Dialog>;
+}
+
+// After someone joins from "Request it", their company draft reopens here (mounted on the dashboard).
+export function PendingCompanyListing({ onListed }: { onListed?: (c: Company) => void }) {
+  const { signedIn } = useMe();
+  const [draft, setDraft] = useState<Draft | null>(null);
+  useEffect(() => { if (signedIn) { const d = readPending(); if (d) { clearPending(); setDraft(d); } } }, [signedIn]);
+  return <ListCompanyDialog open={!!draft} onOpenChange={(v) => { if (!v) setDraft(null); }} initial={draft} {...(onListed && { onListed })} />;
 }

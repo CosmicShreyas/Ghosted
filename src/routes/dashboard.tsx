@@ -8,6 +8,7 @@ import { WaitingRoomView } from "@/components/dashboard/waiting-room";
 import { FeedbackPulse } from "@/components/feedback-pulse";
 import { SettingsView } from "@/components/dashboard/settings";
 import { PlayView } from "@/components/dashboard/play-view";
+import { PendingCompanyListing } from "@/components/dashboard/list-company";
 import { ShareModal, type StoryPreset } from "@/components/dashboard/share-story";
 import { RightRail } from "@/components/dashboard/global-widgets";
 import { Preloader } from "@/components/preloader";
@@ -102,6 +103,7 @@ function DashboardPage() {
           {view === "saved" && <SavedView {...common} goHome={() => changeView("home")} />}
           {view === "insights" && <InsightsView openCompany={setCompany} query={query} filters={filtersFromSearch(search)} onFilters={(f) => void navigate({ to: "/dashboard", search: { view: "insights", ...searchFromFilters(f) }, replace: true, resetScroll: false })} />}
           {view === "play" && <PlayView />}
+          <PendingCompanyListing onListed={setCompany} />
           {view === "settings" && <SettingsView me={me} onLoggedOut={leave} onRequestLogout={() => setConfirmLogout(true)} />}
         </motion.div>
         {/* Wide screens only; on smaller ones Home shows the same cards as a swipeable strip. */}

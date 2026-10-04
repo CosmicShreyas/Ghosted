@@ -1366,4 +1366,25 @@ alter table public.game_scores enable row level security;
 revoke all on public.game_scores from anon, authenticated;
 grant select, insert, update, delete on public.game_scores to service_role;
 
+-- ============================================================================
+-- Company requests.
+--   company_requests   "Not listed yet? Request it" from someone who can't list the company right
+--                      now (daily or weekly listing limit, or a brand-new account). Keyed by the
+--                      company's website domain. When anyone lists that domain, every requester
+--                      gets one notification and notified_at is set. One request per member per domain.
+-- Safe to run again.
+-- ============================================================================
+create table if not exists public.company_requests (
+  user_id     uuid not null references public.profiles(id) on delete cascade,
+  domain      text not null check (char_length(domain) between 3 and 200),
+  name        text check (char_length(name) <= 80),
+  created_at  timestamptz not null default now(),
+  notified_at timestamptz,
+  primary key (user_id, domain)
+);
+create index if not exists company_requests_pending_idx on public.company_requests (domain) where notified_at is null;
+alter table public.company_requests enable row level security;
+revoke all on public.company_requests from anon, authenticated;
+grant select, insert, update, delete on public.company_requests to service_role;
+
 commit;

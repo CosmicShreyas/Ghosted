@@ -230,6 +230,10 @@ Separate admin identities; these are not member profiles.
 
 `applications.nudged_at` records when a tracked application that went quiet (twice the usual wait, at least 30 days) got its one "share what happened" notification and email (`backend/src/nudges.ts`, run by the daily automation). The section is at the end of `init_database.sql` and is safe to run again.
 
+### Company requests
+
+`company_requests` holds "Not listed yet? Request it" from members who can't list a company right now (daily or weekly listing limit, or an account younger than the minimum age). It's keyed by the company's website domain, one row per member per domain. When anyone lists that domain (`POST /v1/companies`), each requester except the lister gets one in-app notification and `notified_at` is set. Requests are made with `POST /v1/companies/requests`, which checks the website the same way as listing and returns the existing company instead if it's already on Ghosted. The section is at the end of `init_database.sql` and is safe to run again.
+
 ### Ghost Blasters leaderboard
 
 `game_scores` keeps each member's best Ghost Blasters run (Experience, level, offers, run length), one row per member, replaced only by a higher score. It's cosmetic: nothing else reads it. `backend/src/routes/game.ts` issues a sealed start ticket per run and, on submit, caps the score by the real time since the ticket and by what the game can award in that time (`npx tsx scripts/check-game.ts` checks the caps). The public board shows anonymous handles and avatars only, never real names, and leaves out bots and banned members. The section is at the end of `init_database.sql` and is safe to run again.
