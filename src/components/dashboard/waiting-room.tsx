@@ -26,6 +26,7 @@ import { card, popup, popupBody } from "./ui-kit";
 import { ShareModal, type StoryPreset } from "./share-story";
 import { CompanyPicker } from "@/components/company-picker";
 import { DateField } from "@/components/date-field";
+import { GameBreak } from "@/components/game-break";
 
 const TONE: Record<Verdict, { label: string; pill: string; bar: string; icon: typeof Clock }> = {
   fresh: { label: "Just applied", pill: "bg-muted text-foreground", bar: "var(--chart-cyan)", icon: Sparkles },
@@ -308,6 +309,7 @@ export function WaitingRoomView() {
           <p className="font-display text-2xl font-bold">Nothing on the clock yet</p>
           <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">Add the applications you're waiting on. Each gets a timer, compared with how long people usually wait at that company, so you know when it's fine to follow up and when it's time to move on.</p>
           <div className="mt-5">{addButton}</div>
+          <GameBreak className="mx-auto mt-6 max-w-lg" line={{ sassy: "Inbox quiet? Blast the bad hiring practices meanwhile.", calm: "While you wait, play a quick game." }} />
         </div>
       : <>
         <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">{tiles.map((t) => <div key={t.label} className={cn(card, "p-4")}>

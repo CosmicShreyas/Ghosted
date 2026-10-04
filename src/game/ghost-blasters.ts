@@ -54,6 +54,9 @@ export function preloadArt() {
   return loading;
 }
 
+// A loaded source image (after preloadArt), for things drawn outside the game such as the share card.
+export const artImage = (name: ImageName) => loaded.get(name) ?? null;
+
 // Pre-scaled copies, keyed by name and pixel size (the source PNGs are 1254px squares).
 const scaled = new Map<string, HTMLCanvasElement>();
 function sprite(name: ImageName, px: number) {

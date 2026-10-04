@@ -22,6 +22,7 @@ import { useSaved } from "@/lib/saved";
 import { useAccountActions, useAuthGuard, useMe, useTone, voice } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import type { Company } from "@/mock/data";
+import { GameBreak } from "@/components/game-break";
 
 // A company's page, addressed by its slug. Same layout as people pages: header, what people say,
 // stories (filterable), and the stats rail.
@@ -170,6 +171,7 @@ function CompanyPageRoute() {
               <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">{voice(tone, `Interviewed at ${name}? Your story could save someone six rounds.`, `Interviewed at ${name}? Share how it went.`)}</p>
               <Button className="mt-5" onClick={startShare}><PenLine />Share a story about {name}</Button>
               {filter === "all" && page.stats.stories === 0 && <AskCommunity name={name} interest={page.interest} onToggle={async (on) => { if (signedOut) return askToJoin(); try { await hook.setInterest(on); toast.success(on ? `We'll email you when the first ${name} story lands.` : "Okay, we won't email you."); } catch { toast.error("Couldn't save that. Try again."); } }} />}
+              {filter === "all" && page.stats.stories === 0 && <GameBreak className="mx-auto mt-6 max-w-xl" line={voice(tone, `Waiting on the first ${name} story? Blast some ghosts.`, "Waiting for the first story? Play a quick game.")} />}
             </div>
           : <div className="space-y-4">
               {list.map((s) => <FeedStory key={s.id} story={s} saved={saved.has(s.id)} onSave={() => toggleSave(s.id)} onOpenCompany={openCompany} />)}

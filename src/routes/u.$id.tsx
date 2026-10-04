@@ -16,6 +16,7 @@ import { useSaved } from "@/lib/saved";
 import { useAccountActions, useAuthGuard, useMe } from "@/lib/session";
 import type { StoryModel } from "@/lib/stories";
 import type { Company } from "@/mock/data";
+import { GameBreak } from "@/components/game-break";
 
 // A person's page, addressed only by their 15-digit public id (never a name or an internal id).
 export const Route = createFileRoute("/u/$id")({
@@ -87,7 +88,7 @@ function PersonPageRoute() {
       <section>
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-bold uppercase text-primary">Their receipts</p><h2 className="text-2xl font-bold">{query ? `Results for “${query}”` : `Stories by ${name}`}</h2></div><span className="text-xs font-semibold text-muted-foreground">{page.stats.stories} {page.stats.stories === 1 ? "story" : "stories"}</span></div>
         {list.length === 0 && !feed.loadingFirst
-          ? <div className="rounded-xl border-2 border-dashed border-foreground/40 p-10 text-center"><p className="font-display text-xl font-bold">{query ? "Nothing matches" : "No stories yet"}</p><p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">{query ? "Try another search." : page.profile.isMe ? "Your first story could save someone six rounds and a surprise take-home." : `When ${name} shares a story, it'll show up here.`}</p>{page.profile.isMe && !query && <Button className="mt-5" onClick={() => setShare(true)}>Share your first story</Button>}</div>
+          ? <div className="rounded-xl border-2 border-dashed border-foreground/40 p-10 text-center"><p className="font-display text-xl font-bold">{query ? "Nothing matches" : "No stories yet"}</p><p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">{query ? "Try another search." : page.profile.isMe ? "Your first story could save someone six rounds and a surprise take-home." : `When ${name} shares a story, it'll show up here.`}</p>{page.profile.isMe && !query && <Button className="mt-5" onClick={() => setShare(true)}>Share your first story</Button>}{!query && <GameBreak className="mx-auto mt-6 max-w-lg" line={page.profile.isMe ? { sassy: "Not ready to write yet? Blast a few ghosts first.", calm: "Not ready to write? Play a quick game." } : { sassy: `Waiting on ${name}'s first story? Pass the time.`, calm: "Waiting for their first story? Play a quick game." }} />}</div>
           : <div className="space-y-4">
               {list.map((s) => <FeedStory key={s.id} story={s} saved={saved.has(s.id)} onSave={() => toggleSave(s.id)} onOpenCompany={setCompany} />)}
               <div ref={sentinel} aria-hidden="true" />

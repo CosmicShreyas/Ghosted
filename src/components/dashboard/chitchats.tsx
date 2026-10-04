@@ -21,6 +21,7 @@ import { apiEnabled } from "@/lib/api";
 import { cn, formatCount } from "@/lib/utils";
 import { PersonLink } from "./widgets";
 import { card } from "./ui-kit";
+import { GameBreak } from "@/components/game-break";
 
 const MAX = 1000;
 
@@ -144,6 +145,7 @@ export function ChitchatThread({ storyId, storyAuthorId }: { storyId: string; st
       : list.length === 0 ? <div className="mt-6 rounded-xl border-2 border-dashed border-foreground/30 p-8 text-center">
           <p className="font-display text-lg font-bold">{voice(tone, "Crickets. Start the chitchat.", "No chitchats yet.")}</p>
           <p className="mt-1 text-sm text-muted-foreground">{voice(tone, "Been through the same? Say so. It helps more than you think.", "Be the first to add something useful.")}</p>
+          <GameBreak className="mx-auto mt-5 max-w-lg" line={voice(tone, "Waiting for someone to reply? Classic. Play meanwhile.", "Waiting for replies? Play a quick game.")} />
         </div>
       : <ul className="mt-6 space-y-5">
           <AnimatePresence initial={false}>{list.map((t) => {

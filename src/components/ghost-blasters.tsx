@@ -4,7 +4,9 @@
 // keyboard-friendly and in the site's design system.
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { Crosshair, Keyboard, Pause, Play, RotateCcw, Trophy } from "lucide-react";
+import { Crosshair, Keyboard, Pause, Play, RotateCcw, Share2, Trophy } from "lucide-react";
+import { toast } from "sonner";
+import { shareRun } from "@/game/share-card";
 import { Button } from "@/components/ui/button";
 import { GhostBlasters, ENEMY_INFO, preloadArt, type GameState, type HudState, type RunResult } from "@/game/ghost-blasters";
 import { getPrefs, setPrefs, usePrefs, type GameControls } from "@/lib/prefs";
@@ -74,6 +76,15 @@ export function GhostBlastersGame({ compact = false, className }: { compact?: bo
   useEffect(() => { game.current?.setControls(prefs.game.controls); }, [prefs.game.controls]);
   useEffect(() => { game.current?.setCalm(calm); }, [calm]);
 
+  const [sharing, setSharing] = useState(false);
+  const share = async (r: RunResult) => {
+    setSharing(true);
+    const how = await shareRun(r).finally(() => setSharing(false));
+    if (how === "downloaded") toast.success("Card saved, and the text is copied. Paste it with the image.");
+    else if (how === "copied") toast.success("Score copied. Paste it anywhere.");
+    else if (how === "failed") toast.error("Couldn't share that. Try again.");
+    wrap.current?.focus({ preventScroll: true });
+  };
   const start = () => { setResult(null); game.current?.start(); wrap.current?.focus({ preventScroll: true }); };
   const togglePause = () => { const g = game.current; if (!g) return; if (state === "playing") g.pause(); else { g.resume(); wrap.current?.focus({ preventScroll: true }); } };
   const setControls = (c: GameControls) => setPrefs({ game: { ...prefs.game, controls: c } });
@@ -133,7 +144,10 @@ export function GhostBlastersGame({ compact = false, className }: { compact?: bo
           <p className="text-xs font-bold text-muted-foreground">Experience · Level {result.level} · {result.offers} {result.offers === 1 ? "offer" : "offers"} · {result.seconds}s</p>
           {result.best ? <p className="mx-auto mt-3 inline-flex items-center gap-1.5 rounded-full border-2 border-foreground bg-accent px-3 py-1 text-xs font-bold"><Trophy className="size-3.5" />New best Experience</p>
             : best > 0 && <p className="mt-3 text-xs text-muted-foreground">Your best: {best.toLocaleString("en-IN")}</p>}
-          <Button className="mt-5 w-full" onClick={start}><RotateCcw />{voice(tone, "Apply again", "Play again")}</Button>
+          <div className="mt-5 grid grid-cols-2 gap-2">
+            <Button variant="outline" disabled={sharing || result.xp === 0} onClick={() => void share(result)}><Share2 />{sharing ? "Making card…" : "Share score"}</Button>
+            <Button onClick={start}><RotateCcw />{voice(tone, "Apply again", "Play again")}</Button>
+          </div>
           {!touch && <p className="mt-2 text-[11px] text-muted-foreground">or press <kbd className="font-bold">Space</kbd></p>}
         </div>
       </motion.div>}
