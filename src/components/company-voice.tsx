@@ -1,6 +1,6 @@
 // Ask candidates (company Q&A), the Right of Reply, and the removal / correction request form.
 // Rules and limits are enforced by the API (backend/src/routes/company-voice.ts); this is the UI.
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { BadgeCheck, CheckCircle2, Clock, FileWarning, Loader2, MailCheck, MessageCircleQuestion, Pencil, Pin, PinOff, ShieldCheck, Trash2, UserRound, Users } from "lucide-react";
 import { CodeInput } from "@/components/code-input";
 import { toast } from "sonner";
@@ -122,15 +122,31 @@ export function RepVerifyDialog({ open, onOpenChange, slug, name }: { open: bool
   const [step, setStep] = useState<"email" | "code" | "done">("email");
   const [busy, setBusy] = useState(false);
   const close = (v: boolean) => { onOpenChange(v); if (!v) { setStep("email"); setCode(""); } };
-  const start = async () => {
+  // Resending: the server allows a new code every 60 seconds, so the link counts down like sign-in.
+  const [cooldown, setCooldown] = useState(0);
+  useEffect(() => { if (cooldown <= 0) return; const t = window.setTimeout(() => setCooldown((s) => s - 1), 1000); return () => window.clearTimeout(t); }, [cooldown]);
+  const start = async (resend = false) => {
     setBusy(true);
-    try { const r = await repsApi.start(slug, email.trim()); setStep(r.alreadyVerified ? "done" : "code"); }
-    catch (e) { toast.error(errText(e, "Couldn't send the code.")); } finally { setBusy(false); }
+    try {
+      const r = await repsApi.start(slug, email.trim());
+      if (r.alreadyVerified) setStep("done");
+      else { setStep("code"); setCode(""); setCooldown(60); if (resend) toast.success(`New code sent to ${email.trim()}. The old one no longer works.`); }
+    } catch (e) {
+      // Asked again too soon: pick up the server's remaining wait instead of just failing.
+      const wait = e instanceof ApiRequestError && e.code === "otp_cooldown" ? Number(e.message.match(/(\d+)s/)?.[1] ?? 0) : 0;
+      if (wait) setCooldown(wait);
+      toast.error(errText(e, "Couldn't send the code."));
+    } finally { setBusy(false); }
   };
   const verify = async (value = code) => {
     setBusy(true);
     try { await repsApi.verify(slug, email.trim(), value.trim()); setStep("done"); }
-    catch (e) { toast.error(errText(e, "That code didn't work.")); setCode(""); } finally { setBusy(false); }
+    catch (e) {
+      // Too many wrong tries or an expired code: point straight at a new one.
+      const dead = e instanceof ApiRequestError && (e.code === "otp_locked" || e.code === "otp_expired");
+      toast.error(dead ? `${errText(e, "")} Tap "send a new code" below.` : errText(e, "That code didn't work."));
+      setCode("");
+    } finally { setBusy(false); }
   };
   return <Dialog open={open} onOpenChange={close}>
     <DialogContent className={cn(popup, "max-w-lg")}>
@@ -156,7 +172,7 @@ export function RepVerifyDialog({ open, onOpenChange, slug, name }: { open: bool
             <button type="button" onClick={() => { setStep("email"); setCode(""); }} className="inline-flex shrink-0 items-center gap-1 text-xs font-bold text-primary hover:underline"><Pencil className="size-3" />Change</button>
           </div>
           <CodeInput value={code} onChange={setCode} onComplete={(v) => { if (!busy) void verify(v); }} />
-          <p className="text-xs text-muted-foreground">No email? Check spam, or <button type="button" disabled={busy} onClick={() => void start()} className="font-bold text-primary hover:underline disabled:text-muted-foreground">send a new code</button>.</p>
+          <p className="text-xs text-muted-foreground">No email, or the code stopped working? Check spam, or <button type="button" disabled={busy || cooldown > 0} onClick={() => void start(true)} className="font-bold text-primary hover:underline disabled:cursor-not-allowed disabled:text-muted-foreground disabled:no-underline">{cooldown > 0 ? `send a new code in ${cooldown}s` : "send a new code"}</button>.</p>
           <Button type="submit" className="w-full" disabled={busy || code.length !== 6}>{busy && <Loader2 className="animate-spin" />}Verify</Button>
         </form>}
         {step === "done" && <div className="mt-5 rounded-lg border-2 border-flag-green bg-flag-green/10 p-4 text-sm">
