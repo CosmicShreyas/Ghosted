@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ForwardRefExoticComponent, type React
 import { Link, useNavigate } from "@tanstack/react-router";
 import { samplePublicId } from "@/lib/stories";
 import { AnimatePresence, motion } from "motion/react";
-import { BadgeCheck, Building2, Eye, Hourglass, Loader2, UserCheck, UserPlus, type LucideIcon } from "lucide-react";
+import { BadgeCheck, Building2, Eye, Gamepad2, Hourglass, Loader2, UserCheck, UserPlus, type LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Avatar } from "@/components/ghosted";
 import {
@@ -23,7 +23,7 @@ import { useSmoothScrollIn } from "@/components/smooth-scroll";
 import { ApiRequestError } from "@/lib/api";
 import { useSearch, type PersonSearchResult } from "@/lib/search";
 
-export type View = "home" | "mine" | "waiting" | "companies" | "saved" | "insights" | "settings";
+export type View = "home" | "mine" | "waiting" | "companies" | "saved" | "insights" | "play" | "settings";
 type AnimatedIcon = ForwardRefExoticComponent<{ size?: number; className?: string } & RefAttributes<IconHandle>>;
 
 // `icon: null` = no animated version exists yet; `still` is the static icon shown instead.
@@ -34,6 +34,7 @@ export const NAV: { id: View; label: string; icon: AnimatedIcon | null; still?: 
   { id: "companies", label: "Companies", icon: null, still: Building2 },
   { id: "saved", label: "Saved", icon: BookmarkIcon },
   { id: "insights", label: "Insights", icon: ChartLineIcon },
+  { id: "play", label: "Play", icon: null, still: Gamepad2 },
   { id: "settings", label: "Settings", icon: SettingsIcon },
 ];
 
@@ -108,7 +109,7 @@ export function Sidebar(props: SidebarProps) {
 // Phones and tablets: an app-style dock fixed to the bottom of the screen, instead of the sidebar.
 // Five tabs, like a native app. Insights and Settings live in the account sheet (your avatar).
 const DOCK: View[] = ["home", "mine", "waiting", "companies", "saved"];
-const SHORT: Record<View, string> = { home: "Home", mine: "Stories", waiting: "Waiting", companies: "Companies", saved: "Saved", insights: "Insights", settings: "Settings" };
+const SHORT: Record<View, string> = { home: "Home", mine: "Stories", waiting: "Waiting", companies: "Companies", saved: "Saved", insights: "Insights", play: "Play", settings: "Settings" };
 
 function DockItem({ id, icon: Icon, still: Still = Building2, active, onClick }: { id: View; icon: AnimatedIcon | null; still?: LucideIcon | undefined; active: boolean; onClick: () => void }) {
   const anim = useIconAnimation();
@@ -233,9 +234,10 @@ function MenuRow({ icon: Icon, label, onSelect, danger }: { icon: AnimatedIcon; 
 }
 
 // Bottom-sheet version of a menu row: bigger touch target, closes the sheet when tapped.
-function SheetRow({ icon: Icon, label, onSelect, danger }: { icon: AnimatedIcon; label: string; onSelect: () => void; danger?: boolean }) {
+// `still`: a plain icon for rows with no animated version.
+function SheetRow({ icon: Icon, still: Still, label, onSelect, danger }: { icon?: AnimatedIcon; still?: LucideIcon; label: string; onSelect: () => void; danger?: boolean }) {
   const anim = useIconAnimation();
-  return <DrawerClose asChild><button type="button" onClick={() => { anim.start(); onSelect(); }} className={cn("flex w-full items-center gap-3 rounded-lg px-3 py-3.5 text-left text-base font-bold transition-colors", danger ? "text-flag-red active:bg-flag-red active:text-primary-foreground" : "text-foreground active:bg-primary active:text-primary-foreground")}><Icon ref={anim.ref} size={20} />{label}</button></DrawerClose>;
+  return <DrawerClose asChild><button type="button" onClick={() => { if (Icon) anim.start(); onSelect(); }} className={cn("flex w-full items-center gap-3 rounded-lg px-3 py-3.5 text-left text-base font-bold transition-colors", danger ? "text-flag-red active:bg-flag-red active:text-primary-foreground" : "text-foreground active:bg-primary active:text-primary-foreground")}>{Icon ? <Icon ref={anim.ref} size={20} /> : Still && <Still className="size-5" />}{label}</button></DrawerClose>;
 }
 
 function ProfileMenu({ me, onChange, onLogout }: { me: Me; onChange: (v: View) => void; onLogout: () => void }) {
@@ -256,6 +258,7 @@ function ProfileMenu({ me, onChange, onLogout }: { me: Me; onChange: (v: View) =
         <SheetRow icon={UserIcon} label="View profile" onSelect={viewProfile} />
         {/* The dock keeps five tabs; the rest of the app lives here on phones and tablets. */}
         <SheetRow icon={ChartLineIcon} label="Insights" onSelect={() => onChange("insights")} />
+        <SheetRow still={Gamepad2} label="Play Ghost Blasters" onSelect={() => onChange("play")} />
         <SheetRow icon={SettingsIcon} label="Settings" onSelect={() => onChange("settings")} />
         <SheetRow icon={HeartIcon} label="Invite friends" onSelect={() => void navigate({ to: "/invite" })} />
         <SheetRow icon={SparklesIcon} label="Feedback and support" onSelect={() => void navigate({ to: "/feedback" })} />
