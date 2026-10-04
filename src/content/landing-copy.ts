@@ -224,7 +224,7 @@ const hi: Partial_ = {
     pillars: [
       { title: "रसीदें, रेटिंग नहीं", copy: "एक और फ़ाइव-स्टार वाइब चेक नहीं। राउंड, इंतज़ार के दिन, पोस्टिंग बनाम सैलरी, वापस लिए गए ऑफ़र। वही चीज़ें जो तय करती हैं कि आपको अप्लाई करना चाहिए या नहीं।", statLabel: "चीज़ें जिन्हें हम स्कोर करते हैं, 1 स्टार रेटिंग नहीं" },
       { title: "डिज़ाइन से गुमनाम", copy: "आपका नाम एन्क्रिप्टेड है, आपका हैंडल रैंडम है, और आपकी गुमनाम पोस्ट आप तक नहीं पहुँचतीं। क्रेडिट चाहिए तभी पब्लिक होइए।", statLabel: "नाम दिखते हैं, जब तक आप न चाहें" },
-      { title: "कोई बिकाऊ नहीं", copy: "कोई एम्प्लॉयर डैशबोर्ड नहीं। कोई पेड प्रोफ़ाइल पॉलिश नहीं। बजट वाले किसी के लिए “यह रिव्यू हटाओ” बटन नहीं। और कोड खुला है, आप जाँच सकते हैं।", statLabel: "कंपनियाँ स्कोर बदलवाने के लिए दे सकती हैं" },
+      { title: "कोई बिकाऊ नहीं", copy: "कोई एम्प्लॉयर डैशबोर्ड नहीं। कोई पेड प्रोफ़ाइल पॉलिश नहीं। बजट वाले किसी के लिए “यह रिव्यू हटाओ” बटन नहीं। किसी कंपनी को ज़्यादा से ज़्यादा एक मुफ़्त, साफ़ लेबल वाला जवाब मिलता है। और कोड खुला है, आप जाँच सकते हैं।", statLabel: "कंपनियाँ स्कोर बदलवाने के लिए दे सकती हैं" },
     ],
     closer: { line: "रिक्रूटर्स के पास ATS सॉफ़्टवेयर, हायरिंग मैनेजर और पूरी HR टीम है।", punch: "उम्मीदवारों के पास आख़िरकार Ghosted है।", cta: "रसीदों के क्लब में शामिल हों" },
   },
@@ -360,7 +360,7 @@ const kn: Partial_ = {
     pillars: [
       { title: "ರಸೀದಿಗಳು, ರೇಟಿಂಗ್ ಅಲ್ಲ", copy: "ಇನ್ನೊಂದು ಫೈವ್-ಸ್ಟಾರ್ ವೈಬ್ ಚೆಕ್ ಅಲ್ಲ. ಸುತ್ತುಗಳು, ಕಾಯುವ ದಿನಗಳು, ಪೋಸ್ಟಿಂಗ್ ವಿರುದ್ಧ ಸಂಬಳ, ಹಿಂಪಡೆದ ಆಫರ್‌ಗಳು. ನೀವು ಅರ್ಜಿ ಹಾಕಬೇಕೇ ಎಂದು ನಿರ್ಧರಿಸುವ ವಿಷಯಗಳು.", statLabel: "ನಾವು ಸ್ಕೋರ್ ಮಾಡುವ ವಿಷಯಗಳು, 1 ಸ್ಟಾರ್ ರೇಟಿಂಗ್ ಅಲ್ಲ" },
       { title: "ವಿನ್ಯಾಸದಿಂದಲೇ ಅನಾಮಧೇಯ", copy: "ನಿಮ್ಮ ಹೆಸರು ಎನ್‌ಕ್ರಿಪ್ಟ್ ಆಗಿದೆ, ಹ್ಯಾಂಡಲ್ ಯಾದೃಚ್ಛಿಕ, ಮತ್ತು ನಿಮ್ಮ ಅನಾಮಧೇಯ ಪೋಸ್ಟ್‌ಗಳು ನಿಮ್ಮವರೆಗೆ ತಲುಪುವುದಿಲ್ಲ. ಕ್ರೆಡಿಟ್ ಬೇಕಿದ್ದರೆ ಮಾತ್ರ ಸಾರ್ವಜನಿಕವಾಗಿ.", statLabel: "ಹೆಸರುಗಳು ಕಾಣುತ್ತವೆ, ನೀವು ಹೇಳದ ಹೊರತು" },
-      { title: "ಯಾರೂ ಮಾರಾಟಕ್ಕಿಲ್ಲ", copy: "ಎಂಪ್ಲಾಯರ್ ಡ್ಯಾಶ್‌ಬೋರ್ಡ್ ಇಲ್ಲ. ಪಾವತಿಸಿದ ಪ್ರೊಫೈಲ್ ಪಾಲಿಶ್ ಇಲ್ಲ. ಬಜೆಟ್ ಇರುವವರಿಗೆ “ಈ ರಿವ್ಯೂ ತೆಗೆಯಿರಿ” ಬಟನ್ ಇಲ್ಲ. ಮತ್ತು ಕೋಡ್ ತೆರೆದಿದೆ, ನೀವು ಪರಿಶೀಲಿಸಬಹುದು.", statLabel: "ಸ್ಕೋರ್ ಬದಲಿಸಲು ಕಂಪನಿಗಳು ಪಾವತಿಸಬಹುದು" },
+      { title: "ಯಾರೂ ಮಾರಾಟಕ್ಕಿಲ್ಲ", copy: "ಎಂಪ್ಲಾಯರ್ ಡ್ಯಾಶ್‌ಬೋರ್ಡ್ ಇಲ್ಲ. ಪಾವತಿಸಿದ ಪ್ರೊಫೈಲ್ ಪಾಲಿಶ್ ಇಲ್ಲ. ಬಜೆಟ್ ಇರುವವರಿಗೆ “ಈ ರಿವ್ಯೂ ತೆಗೆಯಿರಿ” ಬಟನ್ ಇಲ್ಲ. ಕಂಪನಿಗೆ ಸಿಗುವುದು ಹೆಚ್ಚೆಂದರೆ ಒಂದು ಉಚಿತ, ಸ್ಪಷ್ಟವಾಗಿ ಗುರುತಿಸಿದ ಉತ್ತರ. ಮತ್ತು ಕೋಡ್ ತೆರೆದಿದೆ, ನೀವು ಪರಿಶೀಲಿಸಬಹುದು.", statLabel: "ಸ್ಕೋರ್ ಬದಲಿಸಲು ಕಂಪನಿಗಳು ಪಾವತಿಸಬಹುದು" },
     ],
     closer: { line: "ರಿಕ್ರೂಟರ್‌ಗಳ ಬಳಿ ATS ಸಾಫ್ಟ್‌ವೇರ್, ಹೈರಿಂಗ್ ಮ್ಯಾನೇಜರ್‌ಗಳು ಮತ್ತು ಪೂರ್ತಿ HR ತಂಡ ಇದೆ.", punch: "ಅಭ್ಯರ್ಥಿಗಳ ಬಳಿ ಕೊನೆಗೂ Ghosted ಇದೆ.", cta: "ರಸೀದಿಗಳ ಕ್ಲಬ್‌ಗೆ ಸೇರಿ" },
   },
@@ -496,7 +496,7 @@ const hinglish: Partial_ = {
     pillars: [
       { title: "Receipts, ratings nahi", copy: "Ek aur five-star vibe check nahi. Rounds, wait ke din, posting vs pay, wapas liye offers. Wahi cheezein jo decide karti hain ki tumhe apply karna chahiye ya nahi.", statLabel: "cheezein jo hum score karte hain, 1 star rating nahi" },
       { title: "Design se anonymous", copy: "Tumhara naam encrypted hai, handle random hai, aur tumhari anonymous posts tum tak nahi pahunchti. Credit chahiye tabhi public bano.", statLabel: "naam dikhte hain jab tak tum na bolo" },
-      { title: "Koi bikau nahi", copy: "Koi employer dashboard nahi. Koi paid profile polish nahi. Budget wale ke liye “yeh review hatao” button nahi. Aur code open hai, check kar sakte ho.", statLabel: "companies score badalne ke liye pay kar sakti hain" },
+      { title: "Koi bikau nahi", copy: "Koi employer dashboard nahi. Koi paid profile polish nahi. Budget wale ke liye “yeh review hatao” button nahi. Company ko zyada se zyada ek free, clearly labelled reply milta hai. Aur code open hai, check kar sakte ho.", statLabel: "companies score badalne ke liye pay kar sakti hain" },
     ],
     closer: { line: "Recruiters ke paas ATS software, hiring managers aur poori HR team hai.", punch: "Candidates ke paas finally Ghosted hai.", cta: "Receipts club join karo" },
   },

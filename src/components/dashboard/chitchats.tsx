@@ -27,12 +27,15 @@ const MAX = 1000;
 
 // ---------- composer ----------
 
-function Composer({ onPost, placeholder, autoFocus, onCancel, compact }: { onPost: (body: string) => Promise<string | null | void>; placeholder: string; autoFocus?: boolean; onCancel?: () => void; compact?: boolean }) {
+// Also used by Ask candidates (company-voice.tsx): `label` names the button ("Ask", "Answer"),
+// `max` caps the length.
+export function Composer({ onPost, placeholder, autoFocus, onCancel, compact, label, max }: { onPost: (body: string) => Promise<string | null | void>; placeholder: string; autoFocus?: boolean; onCancel?: () => void; compact?: boolean; label?: string; max?: number }) {
   const { me } = useMe();
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const ref = useRef<HTMLTextAreaElement>(null);
-  const ok = text.trim().length >= 2 && text.length <= MAX;
+  const limit = max ?? MAX;
+  const ok = text.trim().length >= 2 && text.length <= limit;
   const send = async () => {
     if (!ok || busy) return;
     setBusy(true);
@@ -48,15 +51,15 @@ function Composer({ onPost, placeholder, autoFocus, onCancel, compact }: { onPos
   return <div className="flex items-start gap-3">
     {!compact && <Avatar seed={me.avatarSeed} pastel={me.pastel} size="sm" label={displayName(me)} />}
     <div className="min-w-0 flex-1 rounded-xl border-2 border-foreground bg-background transition-shadow focus-within:shadow-hard-sm">
-      <Textarea ref={ref} autoFocus={autoFocus} value={text} maxLength={MAX} rows={compact ? 2 : 3} placeholder={placeholder}
+      <Textarea ref={ref} autoFocus={autoFocus} value={text} maxLength={limit} rows={compact ? 2 : 3} placeholder={placeholder}
         onChange={(e) => { setText(e.target.value); const el = e.target; el.style.height = "auto"; el.style.height = `${Math.min(el.scrollHeight, 320)}px`; }}
         onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); void send(); } if (e.key === "Escape") onCancel?.(); }}
         className="min-h-0 resize-none border-0 bg-transparent px-3 py-2.5 shadow-none focus-visible:ring-0" />
       <div className="flex items-center justify-between gap-2 border-t border-foreground/15 px-2 py-1.5">
-        <span className="pl-1 text-[11px] text-muted-foreground">{text.length > MAX * 0.8 ? `${MAX - text.length} left` : <span className="hidden sm:inline">**Markdown** works · Ctrl+Enter to post</span>}</span>
+        <span className="pl-1 text-[11px] text-muted-foreground">{text.length > limit * 0.8 ? `${limit - text.length} left` : <span className="hidden sm:inline">**Markdown** works · Ctrl+Enter to post</span>}</span>
         <div className="flex gap-1.5">
           {onCancel && <Button size="sm" variant="ghost" onClick={onCancel}>Cancel</Button>}
-          <Button size="sm" disabled={!ok || busy} onClick={() => void send()}>{busy ? <Loader2 className="animate-spin" /> : <Send />}{compact ? "Reply" : "Post"}</Button>
+          <Button size="sm" disabled={!ok || busy} onClick={() => void send()}>{busy ? <Loader2 className="animate-spin" /> : <Send />}{label ?? (compact ? "Reply" : "Post")}</Button>
         </div>
       </div>
     </div>

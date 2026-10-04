@@ -64,18 +64,22 @@ export async function referralStats(profileId: string) {
 export type Mission = { id: string; label: string; hint: string; done: number; goal: number };
 export async function missionsFor(profileId: string, voices: number) {
   const n = (q: PromiseLike<{ count: number | null }>) => Promise.resolve(q).then((r) => r.count ?? 0, () => 0);
-  const [stories, reactions, chitchats, follows, tracked] = await Promise.all([
+  const [stories, reactions, chitchats, follows, tracked, asked, answered] = await Promise.all([
     n(admin().from("stories").select("id", { count: "exact", head: true }).eq("author_id", profileId).eq("status", "published")),
     n(admin().from("reactions").select("story_id", { count: "exact", head: true }).eq("user_id", profileId)),
     n(admin().from("comments").select("id", { count: "exact", head: true }).eq("author_id", profileId).eq("status", "published")),
     n(admin().from("company_follows").select("company_id", { count: "exact", head: true }).eq("user_id", profileId)),
     n(admin().from("applications").select("id", { count: "exact", head: true }).eq("user_id", profileId)),
+    // Ask candidates: a published question or answer (0 if the Q&A tables aren't installed yet).
+    n(admin().from("company_questions").select("id", { count: "exact", head: true }).eq("author_id", profileId).eq("status", "published")),
+    n(admin().from("company_answers").select("id", { count: "exact", head: true }).eq("author_id", profileId).eq("status", "published")),
   ]);
   const list: Mission[] = [
     { id: "share", label: "Share your first story", hint: "About 30 seconds with a quick story", done: Math.min(stories, 1), goal: 1 },
     { id: "react", label: "React to 3 stories", hint: "Relatable, eye-opening, with you…", done: Math.min(reactions, 3), goal: 3 },
     { id: "chitchat", label: "Leave a chitchat", hint: "Add what you know under a story", done: Math.min(chitchats, 1), goal: 1 },
     { id: "follow", label: "Follow a company", hint: "Hear when someone shares about it", done: Math.min(follows, 1), goal: 1 },
+    { id: "ask", label: "Ask or answer on a company page", hint: "Ask candidates, or help someone who asked", done: Math.min(asked + answered, 1), goal: 1 },
     { id: "track", label: "Track an application", hint: "The Waiting Room nudges you if they go quiet", done: Math.min(tracked, 1), goal: 1 },
     { id: "invite", label: "Bring a voice", hint: "Invite someone who shares a story", done: Math.min(voices, 1), goal: 1 },
   ];

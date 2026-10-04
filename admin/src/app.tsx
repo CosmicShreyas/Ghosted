@@ -25,10 +25,11 @@ import { PlatformPage } from "./pages/platform";
 import { GoofyControlsPage, GoofyOverviewPage } from "./pages/goofy";
 import { SettingsPage } from "./pages/settings";
 import { GrowthPage } from "./pages/growth";
+import { VoicePage } from "./pages/voice";
 import { StoragePage } from "./pages/storage";
-import { HardDrive, Megaphone } from "lucide-react";
+import { FileWarning, HardDrive, Megaphone } from "lucide-react";
 
-export type Page = "overview" | "queue" | "reports" | "goofy" | "goofy-controls" | "terms" | "members" | "feedback" | "companies" | "donations" | "team" | "audit" | "platform" | "growth" | "storage" | "settings";
+export type Page = "overview" | "queue" | "reports" | "voice" | "goofy" | "goofy-controls" | "terms" | "members" | "feedback" | "companies" | "donations" | "team" | "audit" | "platform" | "growth" | "storage" | "settings";
 // Animated icons (same set as the main app) play on hover; the rest are plain Lucide icons.
 type Animated = ForwardRefExoticComponent<{ size?: number; className?: string } & RefAttributes<IconHandle>>;
 const ANIM: Partial<Record<Page, Animated>> = { overview: HomeIcon, members: UserIcon, team: ShieldCheckIcon, feedback: MessageCircleIcon, donations: WalletIcon, settings: SettingsIcon, audit: ChartLineIcon, platform: SparklesIcon };
@@ -46,6 +47,7 @@ const NAV: { id: Page; label: string; icon: LucideIcon; group: string; need?: Pe
   { id: "overview", label: "Overview", icon: LayoutDashboard, group: "" },
   { id: "queue", label: "Held for review", icon: Hourglass, group: "Moderation", need: "queue" },
   { id: "reports", label: "Reports", icon: Flag, group: "Moderation", need: "reports" },
+  { id: "voice", label: "Requests & replies", icon: FileWarning, group: "Moderation", need: "reports" },
   { id: "goofy", label: "Overview", icon: Bot, group: "Goofy" },
   { id: "goofy-controls", label: "Controls", icon: SlidersHorizontal, group: "Goofy" },
   { id: "terms", label: "Word lists", icon: BookText, group: "Goofy", need: "terms" },
@@ -88,7 +90,7 @@ function Shell({ me, onSignOut, onMe }: { me: AdminMe; onSignOut: () => void; on
   const body: Record<Page, ReactNode> = {
     overview: <OverviewPage go={go} me={me} />, queue: <QueuePage />, reports: <ReportsPage />, feedback: <FeedbackPage />, members: <MembersPage me={me} focus={focusMember} onFocused={() => setFocusMember(null)} />,
     companies: <CompaniesPage />, donations: <DonationsPage />, goofy: <GoofyOverviewPage me={me} />, "goofy-controls": <GoofyControlsPage me={me} />, terms: <TermsPage />, audit: <AuditPage search={auditSearch} />, team: <TeamPage me={me} />,
-    platform: <PlatformPage me={me} />, growth: <GrowthPage />, storage: <StoragePage me={me} />, settings: <SettingsPage me={me} onMe={onMe} onSignOut={onSignOut} />,
+    platform: <PlatformPage me={me} />, growth: <GrowthPage />, voice: <VoicePage />, storage: <StoragePage me={me} />, settings: <SettingsPage me={me} onMe={onMe} onSignOut={onSignOut} />,
   };
 
   return <div className="min-h-screen bg-background lg:pl-64">

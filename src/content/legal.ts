@@ -76,7 +76,8 @@ export const aboutDoc: Doc = {
       "Useful over loud. The best posts are specific: what happened, when, and what the next candidate should know.",
     ]] },
     { id: "companies", heading: "For employers", blocks: [
-      "Companies can respond publicly to stories and report content they believe breaks our Community Rules or the law through Feedback & Support in the app. We review every report, but we do not remove honest reviews simply because they are negative.",
+      "Companies can reply publicly, free: a verified representative posts one clearly labelled reply per story and one on the company page. They can't edit, hide, rank or remove stories, and no one can pay for that.",
+      "To ask for a removal or a correction, use \"Request a correction\" on the story or company page. We acknowledge within 24 hours and decide within 15 days. We do not remove honest reviews simply because they are negative.",
     ] },
     { id: "contact", heading: "Contact", blocks: [
       "Ghosted is currently an independent, pre-launch project and does not claim to be a private limited company or to maintain a registered office.",
@@ -269,13 +270,27 @@ export const communityDoc: Doc = {
     { id: "integrity", heading: "7. No fake reviews or manipulation", blocks: [
       "Employers, recruiters and agencies must not post reviews about themselves or competitors, or offer anything in return for reviews. Coordinated campaigns to raise or lower a Flag Score are removed and can lead to a company being marked on its page.",
     ] },
-    { id: "enforcement", heading: "8. How we enforce these rules", blocks: [
+    { id: "company-replies", heading: "8. Company replies (Right of Reply)", blocks: [
+      "A company's representative can reply to stories about it, free. To do that they verify a work email on the company's own website domain. We keep only the domain, never the address.",
+      [
+        "One reply per story, plus one on the company page, always clearly labelled as an official company reply.",
+        "Replies follow these same rules and are checked like every other post. They must not identify, threaten or pressure the author or anyone else.",
+        "A reply can't be edited or deleted by the company once it's up. Only our moderators can remove one.",
+        "Representatives can't hide, rank, edit or remove stories, and can't report their own company's stories to get them taken down. They can send a removal or correction request like anyone else, and a moderator decides.",
+        "None of this is for sale. There is no paid tier, no employer dashboard and no way to pay for a different outcome.",
+      ],
+    ] },
+    { id: "requests", heading: "9. Asking for a removal or correction", blocks: [
+      "Anyone, including companies and the people a story is about, can ask us to remove content or correct a factual error, using \"Request a correction\" on any story or company page. We acknowledge every request within 24 hours and give a decision within 15 days.",
+      "We remove content that breaks these rules or the law. We don't remove honest experiences just because they're negative or unflattering.",
+    ] },
+    { id: "enforcement", heading: "10. How we enforce these rules", blocks: [
       "Our moderators review reported posts and use automated checks to spot spam and abuse. Depending on how serious a violation is, we may:",
       ["Ask you to edit a post.", "Hide or remove the post.", "Temporarily suspend your account.", "Permanently ban accounts for serious or repeated violations."],
       "If you think we got it wrong, reply to the notice we send you or use Feedback & Support during pre-launch testing. See our Terms & Conditions for the full process and the statutory contact that will be published before public launch.",
       { type: "email", email: e.email.grievance, label: "Ask us to reconsider a decision" },
     ] },
-    { id: "report", heading: "9. Report a post", blocks: [
+    { id: "report", heading: "11. Report a post", blocks: [
       "Use the report option on any post, or use Feedback & Support with a link and a short explanation. Reports are confidential; we don't tell the author who reported them.",
       { type: "email", email: e.email.grievance, label: "Report content by email" },
     ] },

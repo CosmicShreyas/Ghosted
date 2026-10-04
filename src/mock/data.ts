@@ -447,7 +447,7 @@ export const landingPitch = {
   pillars: [
     { title: "Receipts, not ratings", copy: "Not another five-star vibe check. Rounds, days waited, pay vs the posting, offers pulled. The stuff that actually decides whether you should apply.", stat: "5", statLabel: "things we score, not 1 star rating" },
     { title: "Anonymous by design", copy: "Your name is encrypted, your handle is random, and nothing links your anonymous posts to you. Go public only if you want the credit.", stat: "0", statLabel: "names shown unless you say so" },
-    { title: "Nobody's for sale", copy: "No employer dashboards. No paid profile polishing. No “remove this review” button for anyone with a budget. And the code is open, so you can check.", stat: "₹0", statLabel: "companies can pay to change a score" },
+    { title: "Nobody's for sale", copy: "No employer dashboards. No paid profile polishing. No “remove this review” button for anyone with a budget. The most a company gets is one free, clearly labelled reply. And the code is open, so you can check.", stat: "₹0", statLabel: "companies can pay to change a score" },
   ],
   closer: { line: "Recruiters have ATS software, hiring managers and a whole HR team.", punch: "Candidates finally have Ghosted.", cta: "Join the receipts club" },
 } as const;

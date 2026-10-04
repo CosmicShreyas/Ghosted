@@ -125,6 +125,50 @@ async function listCompany(c: CompanyInput, by: string): Promise<{ name: string;
 const ROW_BYTES: Record<string, number> = { stories: 2200, comments: 700, reactions: 120, notifications: 400, profiles: 900, companies: 1500, story_counts: 100, session_devices: 350, rate_limits: 120, feedback: 900, applications: 400, admin_audit: 400, company_follows: 90, follows: 90 };
 
 export const adminExtraRoutes = new Hono<AdminEnv>()
+  // ---------- voice: removal / correction requests, company reps' replies, held Q&A ----------
+  // Requests: oldest first, with how long they've waited against the 24 h / 15 day promise.
+  .get("/voice/requests", validate("query", z.object({ status: z.enum(["open", "acknowledged", "resolved", "declined", "all"]).default("open"), offset: offsetQ })), async (c) => {
+    const { status, offset } = c.req.valid("query");
+    let q = db().from("content_requests").select("public_id, kind, target_url, email, relationship, details, status, resolution, created_at, acknowledged_at, resolved_at").order("created_at", { ascending: status === "open" || status === "acknowledged" }).range(offset, offset + PAGE);
+    q = status === "all" ? q : status === "open" ? q.in("status", ["open", "acknowledged"]) : q.eq("status", status);
+    const { data, error } = await q;
+    if (error) dbFail("content requests (run the Ask candidates section of init_database.sql)", error);
+    return c.json(paged(((data ?? []) as Record<string, unknown>[]).map((r) => ({ ...r, publicId: String(r.public_id) })), offset));
+  })
+  .post("/voice/requests/:id", validate("param", z.object({ id: z.string().regex(/^\d{15}$/) })), validate("json", z.object({ status: z.enum(["acknowledged", "resolved", "declined"]), resolution: z.string().trim().max(2000).optional() }).strict()), async (c) => {
+    const { status, resolution } = c.req.valid("json");
+    const now = new Date().toISOString();
+    const patch: Record<string, unknown> = { status, ...(resolution !== undefined && { resolution }) };
+    if (status === "acknowledged") patch["acknowledged_at"] = now;
+    else { patch["resolved_at"] = now; patch["acknowledged_at"] = now; }
+    const { data, error } = await db().from("content_requests").update(patch).eq("public_id", c.req.valid("param").id).select("public_id, acknowledged_at").single();
+    if (error) dbFail("update request", error);
+    await audit(c, `content_request_${status}`, { kind: "request", ref: c.req.valid("param").id });
+    return c.json({ ok: true, request: data });
+  })
+  // Company reps' replies and held questions/answers: what's waiting, and the live replies.
+  .get("/voice/items", validate("query", z.object({ kind: z.enum(["rep_reply", "question", "answer"]), status: z.enum(["pending", "published"]).default("pending"), offset: offsetQ })), async (c) => {
+    const { kind, status, offset } = c.req.valid("query");
+    const table = kind === "rep_reply" ? "rep_replies" : kind === "question" ? "company_questions" : "company_answers";
+    const cols = kind === "answer" ? "public_id, body_z, status, created_at, question:company_questions(company:companies(name, slug))" : "public_id, body_z, status, created_at, company:companies(name, slug)";
+    const { data, error } = await db().from(table).select(cols).eq("status", status).order("created_at", { ascending: status === "pending" }).range(offset, offset + PAGE);
+    if (error) dbFail(`voice ${kind}`, error);
+    type Row = { public_id: number; body_z: string; status: string; created_at: string; company?: { name: string; slug: string } | null; question?: { company: { name: string; slug: string } | null } | null };
+    return c.json(paged(((data ?? []) as unknown as Row[]).map((r) => ({ publicId: String(r.public_id), body: fromBytea(r.body_z), status: r.status, createdAt: r.created_at, company: r.company ?? r.question?.company ?? null })), offset));
+  })
+  // Approve a held item, or remove one (the only way a company rep's reply ever comes down).
+  .post("/voice/items/:kind/:id", validate("param", z.object({ kind: z.enum(["rep_reply", "question", "answer"]), id: z.string().regex(/^\d{15}$/) })), validate("json", z.object({ action: z.enum(["approve", "remove"]), reason: z.string().trim().max(300).optional() }).strict()), async (c) => {
+    const { kind, id } = c.req.valid("param");
+    const { action, reason } = c.req.valid("json");
+    const table = kind === "rep_reply" ? "rep_replies" : kind === "question" ? "company_questions" : "company_answers";
+    const patch: Record<string, unknown> = { status: action === "approve" ? "published" : "removed", ...(kind === "rep_reply" && action === "remove" && { removed_reason: reason ?? null }) };
+    const { error } = await db().from(table).update(patch).eq("public_id", id);
+    if (error?.code === "23505") throw new ApiError(409, "already_replied", "This company already has a live reply there.");
+    if (error) dbFail(`voice ${action}`, error);
+    await bump({ shared: ["companies"] });
+    await audit(c, `${kind}_${action}`, { kind, ref: id }, reason ? { reason } : undefined);
+    return c.json({ ok: true });
+  })
   // The growth funnel: visits → free tools → company searches → sign-ups → first stories.
   .get("/growth/funnel", validate("query", z.object({ days: z.coerce.number().int().refine((d) => [7, 30, 90].includes(d)).default(7) })), async (c) => c.json(await funnel(c.req.valid("query").days)))
   .get("/storage", async (c) => {

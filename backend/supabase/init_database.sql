@@ -1387,4 +1387,95 @@ alter table public.company_requests enable row level security;
 revoke all on public.company_requests from anon, authenticated;
 grant select, insert, update, delete on public.company_requests to service_role;
 
+-- ============================================================================
+-- Ask candidates (company Q&A), Right of Reply, and removal / correction requests.
+--   company_questions   anonymous questions on a company page (any member; 3 open per day).
+--   company_answers     anonymous answers, only from members with a story about the company or
+--                       who follow it. The asker can pin one as best (best_answer_id).
+--   company_reps        members verified as a company's representative by a code sent to a work
+--                       email on the company's own domain. Only the domain is kept, never the email.
+--   rep_replies         a verified rep's ONE official reply per story, plus one on the company page
+--                       (story_id null). Reps can't edit or delete; only moderators remove them.
+--   content_requests    removal and factual-error requests from anyone (signed in or not), with the
+--                       times we acknowledged and resolved them (24 h / 15 day promise).
+-- Bodies are Brotli-compressed like stories and chitchats. Safe to run again.
+-- ============================================================================
+create table if not exists public.company_questions (
+  id             uuid primary key default gen_random_uuid(),
+  public_id      bigint not null unique default gen_public_id(),
+  company_id     uuid not null references public.companies (id) on delete cascade,
+  author_id      uuid not null references public.profiles (id) on delete cascade,
+  body_z         bytea not null check (octet_length(body_z) between 2 and 4096),
+  status         text not null default 'published' check (status in ('published','pending','removed')),
+  best_answer_id uuid,
+  moderation     jsonb,
+  created_at     timestamptz not null default now()
+);
+create index if not exists company_questions_company_idx on public.company_questions (company_id, created_at desc) where status = 'published';
+create index if not exists company_questions_author_idx on public.company_questions (author_id, created_at desc);
+
+create table if not exists public.company_answers (
+  id          uuid primary key default gen_random_uuid(),
+  public_id   bigint not null unique default gen_public_id(),
+  question_id uuid not null references public.company_questions (id) on delete cascade,
+  author_id   uuid not null references public.profiles (id) on delete cascade,
+  body_z      bytea not null check (octet_length(body_z) between 2 and 4096),
+  basis       text not null check (basis in ('story','follower')),
+  status      text not null default 'published' check (status in ('published','pending','removed')),
+  moderation  jsonb,
+  created_at  timestamptz not null default now()
+);
+create index if not exists company_answers_question_idx on public.company_answers (question_id, created_at) where status = 'published';
+create index if not exists company_answers_author_idx on public.company_answers (author_id, created_at desc);
+
+create table if not exists public.company_reps (
+  user_id      uuid not null references public.profiles (id) on delete cascade,
+  company_id   uuid not null references public.companies (id) on delete cascade,
+  email_domain text not null check (char_length(email_domain) between 3 and 200),
+  verified_at  timestamptz not null default now(),
+  revoked_at   timestamptz,
+  primary key (user_id, company_id)
+);
+
+create table if not exists public.rep_replies (
+  id         uuid primary key default gen_random_uuid(),
+  public_id  bigint not null unique default gen_public_id(),
+  company_id uuid not null references public.companies (id) on delete cascade,
+  story_id   uuid references public.stories (id) on delete cascade,
+  author_id  uuid not null references public.profiles (id) on delete cascade,
+  body_z     bytea not null check (octet_length(body_z) between 2 and 4096),
+  status     text not null default 'published' check (status in ('published','pending','removed')),
+  moderation jsonb,
+  removed_reason text,
+  created_at timestamptz not null default now()
+);
+-- One live reply per story per company, and one on the company page.
+create unique index if not exists rep_replies_one_per_story on public.rep_replies (company_id, story_id) where story_id is not null and status <> 'removed';
+create unique index if not exists rep_replies_one_on_page on public.rep_replies (company_id) where story_id is null and status <> 'removed';
+
+create table if not exists public.content_requests (
+  id              uuid primary key default gen_random_uuid(),
+  public_id       bigint not null unique default gen_public_id(),
+  kind            text not null check (kind in ('removal','factual_error')),
+  target_url      text not null check (char_length(target_url) between 8 and 500),
+  requester_id    uuid references public.profiles (id) on delete set null,
+  email           text not null check (char_length(email) between 5 and 254),
+  relationship    text not null check (relationship in ('author','company','subject','other')),
+  details         text not null check (char_length(details) between 20 and 3000),
+  status          text not null default 'open' check (status in ('open','acknowledged','resolved','declined')),
+  resolution      text check (char_length(resolution) <= 2000),
+  created_at      timestamptz not null default now(),
+  acknowledged_at timestamptz,
+  resolved_at     timestamptz
+);
+create index if not exists content_requests_open_idx on public.content_requests (created_at) where status in ('open','acknowledged');
+
+alter table public.company_questions enable row level security;
+alter table public.company_answers   enable row level security;
+alter table public.company_reps      enable row level security;
+alter table public.rep_replies       enable row level security;
+alter table public.content_requests  enable row level security;
+revoke all on public.company_questions, public.company_answers, public.company_reps, public.rep_replies, public.content_requests from anon, authenticated;
+grant select, insert, update, delete on public.company_questions, public.company_answers, public.company_reps, public.rep_replies, public.content_requests to service_role;
+
 commit;

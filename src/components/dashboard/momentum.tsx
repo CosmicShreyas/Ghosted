@@ -3,7 +3,7 @@
 //   BlockerCard   for accounts over a day old with no stories: "What's in the way?", one tap, once
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Building2, Check, Copy, Gift, HeartHandshake, Hourglass, Loader2, MessageCircle, PenLine, Target, X } from "lucide-react";
+import { Building2, Check, Copy, Gift, HeartHandshake, Hourglass, Loader2, MessageCircle, MessageCircleQuestion, PenLine, Target, X } from "lucide-react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { inviteLink, useInvite, VOICE_TIERS } from "@/lib/invite";
 import { CompanyMark } from "@/components/ghosted";
@@ -41,7 +41,7 @@ export function Spotlight({ className }: { className?: string }) {
 
 // ---------- missions: small things that make Ghosted better, each one a step toward flair ----------
 
-const MISSION_ICON: Record<string, typeof Check> = { share: PenLine, react: HeartHandshake, chitchat: MessageCircle, follow: Building2, track: Hourglass, invite: Gift };
+const MISSION_ICON: Record<string, typeof Check> = { share: PenLine, react: HeartHandshake, chitchat: MessageCircle, follow: Building2, ask: MessageCircleQuestion, track: Hourglass, invite: Gift };
 
 export function MissionsCard({ onShare }: { onShare: () => void }) {
   const tone = useTone();

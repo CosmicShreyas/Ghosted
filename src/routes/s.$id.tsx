@@ -1,11 +1,12 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, FileWarning } from "lucide-react";
 import { Sidebar, Topbar, type View } from "@/components/dashboard/shell";
 import { FeedStory } from "@/components/dashboard/widgets";
 import { ShareModal } from "@/components/dashboard/share-story";
 import { ChitchatThread } from "@/components/dashboard/chitchats";
+import { ContentRequestDialog, RepReplySlot } from "@/components/company-voice";
 import { CompanyRail, StoryCompanyCard } from "@/components/dashboard/company-page";
 import { LogoutDialog } from "@/components/dashboard/confirm-dialogs";
 import { Preloader } from "@/components/preloader";
@@ -89,10 +90,16 @@ function StoryLayout({ story, saved, onSave, onOpenCompany }: { story: StoryMode
   const navigate = useNavigate();
   const company = useCompanyPage(story.company.id);
   const page = company.page;
+  const [requesting, setRequesting] = useState(false);
   return <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
     <div className="min-w-0 space-y-5">
       <BackButton />
       <FeedStory story={story} saved={saved} onSave={onSave} onOpenCompany={onOpenCompany} full />
+
+      {/* Right of Reply: the company's one official reply to this story, clearly labelled. */}
+      <RepReplySlot slug={story.company.id} companyName={story.company.name} storyPublicId={story.id} />
+      <p className="text-xs text-muted-foreground"><button type="button" onClick={() => setRequesting(true)} className="inline-flex items-center gap-1 font-bold hover:text-foreground hover:underline"><FileWarning className="size-3.5" />Something wrong with this story? Request a correction or removal</button></p>
+      <ContentRequestDialog open={requesting} onOpenChange={setRequesting} targetUrl={typeof window === "undefined" ? "" : window.location.href} />
 
       {/* Phones/tablets: no company card or numbers under the story; the company name in the
           story links to its page. Desktop keeps them in the right-hand rail. */}

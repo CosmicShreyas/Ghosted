@@ -134,7 +134,7 @@ export const adminRoutes = new Hono<AdminEnv>()
   .use("*", async (c, next) => {
     const section = c.req.path.replace(/^.*\/v1\/admin\//, "").split("/")[0] ?? "";
     const write = c.req.method !== "GET";
-    const p = ({ queue: "queue", reports: "reports", terms: "terms", goofy: write ? "platform" : null, feedback: "feedback", companies: "companies", donations: "donations", audit: "audit", platform: write ? "platform" : null, team: write ? "team" : null, members: "members", "ip-bans": "ban", mail: "members" } as Record<string, Permission | null>)[section];
+    const p = ({ queue: "queue", reports: "reports", terms: "terms", goofy: write ? "platform" : null, feedback: "feedback", companies: "companies", donations: "donations", audit: "audit", platform: write ? "platform" : null, team: write ? "team" : null, members: "members", "ip-bans": "ban", mail: "members", voice: "reports" } as Record<string, Permission | null>)[section];
     if (p) need(c.get("admin"), p);
     await next();
   })

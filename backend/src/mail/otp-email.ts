@@ -5,7 +5,7 @@
 import { EMAIL_LOGO_CID } from "./logo.js";
 
 export type Tone = "sassy" | "calm";
-export type OtpPurpose = "signup" | "reset" | "mfa" | "mfa-setup" | "admin";
+export type OtpPurpose = "signup" | "reset" | "mfa" | "mfa-setup" | "admin" | "rep";
 
 const C = { bg: "#FAF7F2", ink: "#141110", muted: "#6B6560", card: "#FFFFFF", violet: "#6D28D9", accent: "#EDE3A6", red: "#EF4444", line: "#D9D2C7" };
 const FONT = "'Space Grotesk','Segoe UI',Helvetica,Arial,sans-serif";
@@ -70,6 +70,10 @@ const COPY: Record<OtpPurpose, Record<Tone, { banner: string; heading: (n: strin
   admin: {
     sassy: { banner: "Admin panel", heading: (n) => (n ? `${n}, the keys are yours.` : "The keys are yours."), tagline: "With great power comes a great audit log.", intro: "Enter this code in the Ghosted admin panel to set your admin password. Every action you take there is logged.", expiry: (m) => `Expires in <strong style="color:${C.ink};">${m} minutes</strong> and works once.`, ignore: "Didn't ask for this? Ignore this email and nothing changes. If it keeps happening, tell the other owners.", subject: (c) => `${c} is your Ghosted admin code` },
     calm: { banner: "Admin panel", heading: (n) => (n ? `Hi ${n}, set your admin password.` : "Set your admin password."), intro: "Enter this code in the Ghosted admin panel to set your admin password.", expiry: (m) => `This code expires in <strong style="color:${C.ink};">${m} minutes</strong> and works once.`, ignore: "If you didn't request this, you can ignore this email. Nothing changes without the code.", subject: (c) => `${c} is your Ghosted admin code` },
+  },
+  rep: {
+    sassy: { banner: "Right of Reply", heading: () => "Confirm you work here.", tagline: "Free. No dashboard. No delete button.", intro: "Someone asked to reply on Ghosted on behalf of your company using this work email. Enter this code to confirm. Verified reps can post one clearly labelled reply per story. They can't edit, hide or remove anything.", expiry: (m) => `Expires in <strong style="color:${C.ink};">${m} minutes</strong> and works once.`, ignore: "Didn't ask for this? Ignore this email. Nobody gets verified without the code.", subject: (c) => `${c} confirms your Ghosted company reply access` },
+    calm: { banner: "Right of Reply", heading: () => "Confirm you represent your company.", intro: "Enter this code on Ghosted to confirm this work email. Verified representatives can post one clearly labelled reply per story and one on the company page.", expiry: (m) => `This code expires in <strong style="color:${C.ink};">${m} minutes</strong> and works once.`, ignore: "If you didn't request this, you can ignore this email.", subject: (c) => `${c} is your Ghosted verification code` },
   },
 };
 

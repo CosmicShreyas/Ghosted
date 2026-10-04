@@ -230,6 +230,15 @@ Separate admin identities; these are not member profiles.
 
 `applications.nudged_at` records when a tracked application that went quiet (twice the usual wait, at least 30 days) got its one "share what happened" notification and email (`backend/src/nudges.ts`, run by the daily automation). The section is at the end of `init_database.sql` and is safe to run again.
 
+### Ask candidates, Right of Reply and removal requests
+
+- `company_questions` and `company_answers`: anonymous Q&A on company pages. Any member can ask (3 open questions per rolling day); only members with a published story about the company, or who follow it, can answer, and each answer records which (`basis`). The asker pins one answer with `best_answer_id`. Both go through the chitchat review (`pending` when held). Questions notify the company's storytellers and followers once.
+- `company_reps`: members verified as a company's representative by a code sent to a work email on the company's own domain. Only `email_domain` is kept, never the address. `revoked_at` ends access.
+- `rep_replies`: a rep's official reply, one per story (`story_id`) and one on the company page (`story_id` null), enforced by partial unique indexes. There are no edit or delete endpoints for reps; only moderators remove a reply (`removed_reason` kept). Verified reps also can't report their own company's stories.
+- `content_requests`: removal and factual-error requests from anyone, with `acknowledged_at` and `resolved_at` against the promise shown on the form (acknowledge within 24 hours, decide within 15 days). Moderators work them in the admin panel's Requests & replies page.
+
+Routes are in `backend/src/routes/company-voice.ts` (`/v1/voice/*`); admin endpoints are `/v1/admin/voice/*` (the "Settle reports" permission). The section is at the end of `init_database.sql` and is safe to run again.
+
 ### Company requests
 
 `company_requests` holds "Not listed yet? Request it" from members who can't list a company right now (daily or weekly listing limit, or an account younger than the minimum age). It's keyed by the company's website domain, one row per member per domain. When anyone lists that domain (`POST /v1/companies`), each requester except the lister gets one in-app notification and `notified_at` is set. Requests are made with `POST /v1/companies/requests`, which checks the website the same way as listing and returns the existing company instead if it's already on Ghosted. The section is at the end of `init_database.sql` and is safe to run again.

@@ -361,6 +361,14 @@ export const storyRoutes = new Hono<AppEnv>()
     await ensureOpen("reportsOpen");
     const story = await storyByPublicId(c.req.valid("param").id);
     const { reason, details } = c.req.valid("json");
+    // Right of Reply: a company's verified reps can't report its stories to get them removed. They
+    // reply publicly, or use the removal and correction request form, which a moderator reviews.
+    const reporter = c.get("profile");
+    if (reporter) {
+      const { data: s } = await admin().from("stories").select("company_id").eq("id", story.id).single();
+      const { data: rep } = await admin().from("company_reps").select("user_id").eq("user_id", reporter.id).eq("company_id", (s as { company_id: string }).company_id).is("revoked_at", null).maybeSingle();
+      if (rep) throw new ApiError(403, "rep_cannot_report", "As this company's verified representative, you can't report its stories. Post your official reply, or send a removal or correction request for a moderator to review.");
+    }
     const { error } = await admin().from("reports").insert({ story_id: story.id, reporter_id: c.get("profile")?.id ?? null, reason, details });
     if (error) dbFail("report", error);
     later((async () => {

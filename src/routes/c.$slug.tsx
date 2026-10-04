@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { motion } from "motion/react";
-import { ArrowLeft, BellOff, BellRing, Loader2, PenLine, Users } from "lucide-react";
+import { ArrowLeft, BadgeCheck, BellOff, BellRing, FileWarning, Loader2, PenLine, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Sidebar, Topbar, type View } from "@/components/dashboard/shell";
 import { FeedStory } from "@/components/dashboard/widgets";
@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 import type { Company } from "@/mock/data";
 import { GameBreak } from "@/components/game-break";
 import { PillSelect } from "@/components/pill-select";
+import { AskCandidates, ContentRequestDialog, RepReplySlot, RepVerifyDialog } from "@/components/company-voice";
 
 // A company's page, addressed by its slug. Same layout as people pages: header, what people say,
 // stories (filterable), and the stats rail.
@@ -98,6 +99,8 @@ function CompanyPageRoute() {
   const [since, setSince] = useState<"" | "90d" | "1y">("");
   const [share, setShare] = useState(false);
   const [reporting, setReporting] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [requesting, setRequesting] = useState(false);
   const [saved, toggleSave] = useSaved();
   const [confirmLogout, setConfirmLogout] = useState(false);
   const page = hook.page;
@@ -141,6 +144,16 @@ function CompanyPageRoute() {
       <CompanyHeader page={page} actions={<CompanyActions page={page} hook={hook} onShare={startShare} onReport={() => (signedOut ? askToJoin() : setReporting(true))} />} />
       <WhatPeopleSay stats={page.stats} />
 
+      {/* Right of Reply: the company's one official page reply (or, for a verified rep, the box to
+          write it), and the two fair routes: get verified, or ask for a correction. */}
+      <RepReplySlot slug={slug} companyName={name} />
+      <p className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+        <button type="button" onClick={() => (signedOut ? askToJoin() : setVerifying(true))} className="inline-flex items-center gap-1 font-bold hover:text-foreground hover:underline"><BadgeCheck className="size-3.5" />Work at {name}? Reply as the company, free</button>
+        <button type="button" onClick={() => setRequesting(true)} className="inline-flex items-center gap-1 font-bold hover:text-foreground hover:underline"><FileWarning className="size-3.5" />Something wrong? Request a correction</button>
+      </p>
+
+      <AskCandidates slug={slug} name={name} />
+
       {/* Phones/tablets: the stats as a swipeable strip (desktop shows them on the right). */}
       <section className="xl:hidden"><p className="mb-3 text-xs font-bold uppercase text-primary">Swipe for the numbers</p><CompanyRail page={page} layout="strip" /></section>
 
@@ -177,5 +190,7 @@ function CompanyPageRoute() {
     </div>
     <div data-lenis-prevent className="hidden xl:sticky xl:top-[5.5rem] xl:block xl:max-h-[calc(100vh-6.5rem)] xl:self-start xl:overflow-y-auto xl:overflow-x-hidden xl:overscroll-contain xl:pb-2 xl:pr-2 no-scrollbar"><CompanyRail page={page} /></div>
     <ReportCompanyDialog open={reporting} onOpenChange={setReporting} name={name} onSubmit={hook.report} />
+    <RepVerifyDialog open={verifying} onOpenChange={setVerifying} slug={slug} name={name} />
+    <ContentRequestDialog open={requesting} onOpenChange={setRequesting} targetUrl={typeof window === "undefined" ? "" : window.location.href} />
   </div>);
 }
