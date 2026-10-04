@@ -1346,4 +1346,24 @@ grant execute on function public.funnel_hit(text) to service_role;
 
 alter table public.applications add column if not exists nudged_at timestamptz;
 
+-- ============================================================================
+-- Ghost Blasters leaderboard (cosmetic only).
+--   game_scores   each member's best run: Experience, level, offers and run length. One row per
+--                 member, replaced only by a higher score. Shown with anonymous handles only, never
+--                 real names. The API caps every score by how long the run really lasted.
+-- Safe to run again.
+-- ============================================================================
+create table if not exists public.game_scores (
+  user_id    uuid primary key references public.profiles(id) on delete cascade,
+  xp         integer not null check (xp between 0 and 10000000),
+  level      integer not null check (level between 1 and 10000),
+  offers     integer not null check (offers between 0 and 10000),
+  seconds    integer not null check (seconds between 0 and 86400),
+  updated_at timestamptz not null default now()
+);
+create index if not exists game_scores_xp_idx on public.game_scores (xp desc, updated_at asc);
+alter table public.game_scores enable row level security;
+revoke all on public.game_scores from anon, authenticated;
+grant select, insert, update, delete on public.game_scores to service_role;
+
 commit;

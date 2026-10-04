@@ -21,6 +21,7 @@ export type HudState = { xp: number; level: number; offers: number };
 
 type Opts = {
   calm: boolean;
+  tone: "sassy" | "calm";
   controls: Controls;
   onState: (s: GameState) => void;
   onHud: (h: HudState) => void;
@@ -112,6 +113,7 @@ export class GhostBlasters {
   private xp = 0; private level = 1; private offers = 0;
   private spawnIn = 0; private recruiterIn = 0; private shake = 0;
   private killer: EnemyKind = "ghoster";
+  private quipIn = 0; // seconds until the next pop-up line is allowed
   private overDelay = 0;
   private cleanup: (() => void)[] = [];
 
@@ -138,6 +140,7 @@ export class GhostBlasters {
   // ---------- public controls ----------
 
   setControls(c: Controls) { this.opts.controls = c; }
+  setTone(t: "sassy" | "calm") { this.opts.tone = t; }
   setCalm(calm: boolean) { this.opts.calm = calm; this.makeStars(); }
   setStick(x: number, y: number) { this.stick = { x, y }; }
   setFire(on: boolean) { this.touchFire = on; }
@@ -149,6 +152,8 @@ export class GhostBlasters {
     this.ship = { x: this.w / 2, y: this.h / 2, vx: 0, vy: 0, angle: 0, cool: 0, moving: false, alive: true, invuln: 1.6 };
     this.spawnIn = 0.6; this.recruiterIn = rand(4, 6);
     for (let i = 0; i < 3; i++) this.spawnEnemy(3);
+    this.float(this.w / 2, this.h * 0.32, this.opts.tone === "calm" ? "Go!" : pick(["Applications open. Good luck.", "Résumés loaded.", "Interview season. Brace."]), C.cream, true);
+    this.quipIn = 2;
     this.setState("playing");
     this.hud();
   }
@@ -246,6 +251,7 @@ export class GhostBlasters {
   private update(dt: number) {
     const u = this.unit, s = this.ship;
     this.runTime += dt;
+    this.quipIn -= dt;
     // ---- ship ----
     if (s.alive) {
       const d = this.dir();
@@ -293,7 +299,11 @@ export class GhostBlasters {
           const sp = rand(80, 120) * u * mul;
           n.vx = Math.cos(a) * sp; n.vy = Math.sin(a) * sp;
         }
-        else this.float(e.x, e.y, `+${TIER_XP[e.tier]}`, C.cream);
+        else {
+          this.float(e.x, e.y, `+${TIER_XP[e.tier]}`, C.cream);
+          // Now and then a line for the one you just finished off (never more than one every few seconds).
+          if (this.quipIn <= 0 && Math.random() < 0.45) { this.float(e.x, e.y - 22 * u, lineFor(ENEMY_INFO[e.kind].pop, this.opts.tone), C.lilac); this.quipIn = 2.6; }
+        }
         break;
       }
     }
@@ -307,8 +317,12 @@ export class GhostBlasters {
       const gain = 100 * this.level;
       this.xp += gain;
       this.burst(s.x, s.y, [C.green, C.amber, C.violet, C.cream], 40, 260, "confetti");
+      this.float(s.x, s.y - 64 * u, lineFor(OFFER_LINES, this.opts.tone), C.cream);
       this.float(s.x, s.y - 40 * u, "Offer letter!", C.green, true);
       this.float(s.x, s.y - 14 * u, `+${gain} XP · Level ${this.level}`, C.amber);
+      // Every other level, a shout from the top of the screen.
+      if (this.level % 2 === 1) this.float(this.w / 2, this.h * 0.2, lineFor(LEVEL_LINES, this.opts.tone), C.amber, true);
+      this.quipIn = 3;
       this.opts.onOffer?.(gain, this.level);
     }
     this.recruiters = this.recruiters.filter((r) => r.x > -120 && r.x < this.w + 120);
@@ -552,11 +566,50 @@ export class GhostBlasters {
   }
 }
 
-// Names and lines for the end screen, kept with the game so the two never drift apart.
-export const ENEMY_INFO: Record<EnemyKind, { name: string; line: { sassy: string; calm: string } }> = {
-  ghoster: { name: "The Ghoster", line: { sassy: "Seen at 10:02. Replied never.", calm: "They stopped replying." } },
-  rounds: { name: "Endless Rounds", line: { sassy: "Round seven, with the founder's cousin.", calm: "One round too many." } },
-  phantom: { name: "Phantom Posting", line: { sassy: "The job was never real. Your effort was.", calm: "The role never existed." } },
-  lowball: { name: "Lowball", line: { sassy: "The range was a vibe. Here's 30% less.", calm: "The offer came in far below the posting." } },
-  takehome: { name: "Take-Home Monster", line: { sassy: "It ate your weekend and asked for more.", calm: "The assignment took far longer than promised." } },
+// Names and lines, kept with the game so the two never drift apart. `line` is the classic end-screen
+// line; `outro` adds variety on the end screen; `pop` is what pops up when you finish one off.
+type Lines = { sassy: string[]; calm: string[] };
+export const ENEMY_INFO: Record<EnemyKind, { name: string; line: { sassy: string; calm: string }; outro: Lines; pop: Lines }> = {
+  ghoster: {
+    name: "The Ghoster", line: { sassy: "Seen at 10:02. Replied never.", calm: "They stopped replying." },
+    outro: { sassy: ["They'll “circle back”. They won't.", "Left on read, permanently.", "Your follow-up email is now a ghost too."], calm: ["The replies stopped.", "No response this time."] },
+    pop: { sassy: ["Ghosted the ghoster", "Read receipts: off", "Boo yourself", "Who's silent now?"], calm: ["Cleared", "Reply received"] },
+  },
+  rounds: {
+    name: "Endless Rounds", line: { sassy: "Round seven, with the founder's cousin.", calm: "One round too many." },
+    outro: { sassy: ["Just one more quick round. Forever.", "The final round had a final round.", "You met the whole company. Twice."], calm: ["The process ran long.", "Too many rounds this time."] },
+    pop: { sassy: ["Round skipped", "No round eight", "Panel dismissed", "Loop broken"], calm: ["Cleared", "One less round"] },
+  },
+  phantom: {
+    name: "Phantom Posting", line: { sassy: "The job was never real. Your effort was.", calm: "The role never existed." },
+    outro: { sassy: ["Reposted daily. Hired never.", "The headcount was a mood.", "Applied to a vibe. Got haunted."], calm: ["That posting wasn't real.", "The role was never open."] },
+    pop: { sassy: ["Posting removed", "Not even real", "Fake job, real hit", "Unlisted"], calm: ["Cleared", "Gone"] },
+  },
+  lowball: {
+    name: "Lowball", line: { sassy: "The range was a vibe. Here's 30% less.", calm: "The offer came in far below the posting." },
+    outro: { sassy: ["“Competitive pay”, competing with nothing.", "They paid you in exposure.", "Your current CTC became your ceiling."], calm: ["The pay didn't match the posting.", "The offer was too low."] },
+    pop: { sassy: ["Counter-offered", "Negotiated", "Pay me properly", "Range restored"], calm: ["Cleared", "Fair pay"] },
+  },
+  takehome: {
+    name: "Take-Home Monster", line: { sassy: "It ate your weekend and asked for more.", calm: "The assignment took far longer than promised." },
+    outro: { sassy: ["“Max 2 hours.” It's Tuesday now.", "Your assignment shipped to their prod.", "Unpaid labour, beautifully formatted."], calm: ["The assignment was too long.", "That task took the whole weekend."] },
+    pop: { sassy: ["Weekend saved", "Not doing that", "Free work: denied", "Scope rejected"], calm: ["Cleared", "Task declined"] },
+  },
 };
+
+// Green Flag Recruiter lines when you collect an offer, and level-up shouts.
+export const OFFER_LINES: Lines = {
+  sassy: ["They replied in a day!", "Feedback included. Wild.", "Salary in writing. Who are they?", "No sixth round. A miracle.", "They remembered your name!", "Offer letter, no strings"],
+  calm: ["Offer received", "A clear, quick reply", "Fair and on time"],
+};
+export const LEVEL_LINES: Lines = {
+  sassy: ["Promoted! (In a game. Still counts.)", "Experience: undeniable", "Recruiters are noticing", "Senior ghost blaster", "Hiring managers hate this trick"],
+  calm: ["Level up", "Nice progress", "Moving up"],
+};
+// Rotating lines under the title screen.
+export const TITLE_LINES: Lines = {
+  sassy: ["Your résumé is finally useful.", "No take-home. Just take-downs.", "Shoot first. Follow up later.", "The only process with instant feedback.", "Ghosting goes both ways now."],
+  calm: ["Collect offers, avoid bad practices.", "A short break while you wait.", "Beat your best Experience."],
+};
+
+export const lineFor = (l: Lines, tone: "sassy" | "calm") => { const a = l[tone]; return a[Math.floor(Math.random() * a.length)]!; };

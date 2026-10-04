@@ -26,6 +26,7 @@ import { feedbackRoutes } from "./routes/feedback.js";
 import { donationRoutes } from "./routes/donations.js";
 import { adminRoutes } from "./routes/admin.js";
 import { peopleRoutes } from "./routes/people.js";
+import { gameRoutes } from "./routes/game.js";
 import { ipKey, limitBy, optionalAuth, rateLimit, type AppEnv } from "./security.js";
 import { createChallenge } from "./captcha.js";
 import { later, versions } from "./live.js";
@@ -227,6 +228,7 @@ app.route("/v1/donations", donationRoutes);
 // The admin panel's API: 404 for anything that isn't the admin app with a live admin session.
 app.route("/v1/admin", adminRoutes);
 app.route("/v1/profiles", peopleRoutes);
+app.route("/v1/game", gameRoutes);
 
 app.notFound((c) => c.json({ error: { code: "not_found", message: "No such endpoint." } }, 404));
 

@@ -1,9 +1,10 @@
 // "Waiting? Play Ghost Blasters": a small card for empty pages (a company with no stories yet, a
 // story with no chitchats, a profile with no stories, an empty Waiting Room). Nothing loads or runs
-// until someone taps Play; then the compact game opens right here.
+// until someone taps Play; then the game opens in a big popup over the page.
 import { lazy, Suspense, useState } from "react";
-import { Gamepad2, Play, X } from "lucide-react";
+import { Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { usePrefs } from "@/lib/prefs";
 import { useTone, voice } from "@/lib/session";
 import { cn } from "@/lib/utils";
@@ -16,19 +17,24 @@ export function GameBreak({ line: lines, className }: { line: string | { sassy: 
   const line = typeof lines === "string" ? lines : voice(tone, lines.sassy, lines.calm);
   const [open, setOpen] = useState(false);
   const best = usePrefs().game.best;
-  if (open) return <div className={cn("text-left", className)}>
-    <div className="mb-2 flex items-center justify-between gap-2">
-      <p className="flex items-center gap-2 text-sm font-bold"><Gamepad2 className="size-4 text-primary" />Ghost Blasters</p>
-      <button type="button" onClick={() => setOpen(false)} className="inline-flex min-h-10 items-center gap-1 rounded-full px-3 text-xs font-bold hover:bg-muted"><X className="size-3.5" />Close</button>
+  return <>
+    <div className={cn("flex items-center gap-3 rounded-xl border-2 border-foreground bg-[#16111D] p-3 text-left text-[#F2E9D8] shadow-hard-sm sm:p-4", className)}>
+      <img src="/Ghost%20Blasters/player-ship.png" alt="" width={56} height={56} loading="lazy" className="size-14 shrink-0 object-contain" />
+      <div className="min-w-0 flex-1">
+        <p className="font-display text-base font-bold leading-tight">{line}</p>
+        <p className="mt-0.5 text-xs text-[#F2E9D8]/75">{best > 0 ? `Your best: ${best.toLocaleString("en-IN")} Experience. Beat it.` : "Blast bad hiring practices, grab offers, earn Experience."}</p>
+      </div>
+      <Button size="sm" className="min-h-10 shrink-0" onClick={() => setOpen(true)}><Play />Play</Button>
     </div>
-    <Suspense fallback={<div className="skeleton h-[22rem] rounded-xl border-2 border-foreground sm:h-[26rem]" />}><GhostBlastersGame compact /></Suspense>
-  </div>;
-  return <div className={cn("flex items-center gap-3 rounded-xl border-2 border-foreground bg-[#16111D] p-3 text-left text-[#F2E9D8] shadow-hard-sm sm:p-4", className)}>
-    <img src="/Ghost%20Blasters/player-ship.png" alt="" width={56} height={56} loading="lazy" className="size-14 shrink-0 object-contain" />
-    <div className="min-w-0 flex-1">
-      <p className="font-display text-base font-bold leading-tight">{line}</p>
-      <p className="mt-0.5 text-xs text-[#F2E9D8]/75">{best > 0 ? `Your best: ${best.toLocaleString("en-IN")} Experience. Beat it.` : "Blast bad hiring practices, grab offers, earn Experience."}</p>
-    </div>
-    <Button size="sm" className="min-h-10 shrink-0" onClick={() => setOpen(true)}><Play />Play</Button>
-  </div>;
+    {/* The game in a big popup. Closing it ends the run (the game stops with the popup). */}
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent className="w-[min(96vw,72rem)] max-w-none gap-0 border-2 border-foreground bg-card p-3 shadow-hard sm:p-4">
+        <DialogTitle className="sr-only">Ghost Blasters</DialogTitle>
+        <DialogDescription className="sr-only">Arcade game. Enter starts, Space fires, P pauses, Escape closes.</DialogDescription>
+        {open && <Suspense fallback={<div className="skeleton h-[min(80vh,44rem)] rounded-xl border-2 border-foreground" />}>
+          <GhostBlastersGame className="h-[min(80vh,44rem)] min-h-[22rem]" />
+        </Suspense>}
+      </DialogContent>
+    </Dialog>
+  </>;
 }

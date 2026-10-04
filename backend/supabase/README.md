@@ -230,6 +230,10 @@ Separate admin identities; these are not member profiles.
 
 `applications.nudged_at` records when a tracked application that went quiet (twice the usual wait, at least 30 days) got its one "share what happened" notification and email (`backend/src/nudges.ts`, run by the daily automation). The section is at the end of `init_database.sql` and is safe to run again.
 
+### Ghost Blasters leaderboard
+
+`game_scores` keeps each member's best Ghost Blasters run (Experience, level, offers, run length), one row per member, replaced only by a higher score. It's cosmetic: nothing else reads it. `backend/src/routes/game.ts` issues a sealed start ticket per run and, on submit, caps the score by the real time since the ticket and by what the game can award in that time (`npx tsx scripts/check-game.ts` checks the caps). The public board shows anonymous handles and avatars only, never real names, and leaves out bots and banned members. The section is at the end of `init_database.sql` and is safe to run again.
+
 ### Ratings by journey
 
 A story carries only the ratings that fit what happened: hiring and communication always; pay (and salary) for `offer` and `offer_revoked`; culture and growth only for `offer` with `joined = true`. The five `rating_*` columns are nullable, `stories.joined` and `stories.quick` record the journey and the quick path, and `rating_avg` is the mean of the ratings present. The API enforces the same rules (`backend/src/score.ts`, checked by `npx tsx scripts/check-score.ts`). The section is at the end of `init_database.sql` and is safe to run again on an existing database.

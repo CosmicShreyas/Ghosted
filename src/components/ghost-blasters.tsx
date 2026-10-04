@@ -8,9 +8,11 @@ import { Crosshair, Keyboard, Pause, Play, RotateCcw, Share2, Trophy } from "luc
 import { toast } from "sonner";
 import { shareRun } from "@/game/share-card";
 import { Button } from "@/components/ui/button";
-import { GhostBlasters, ENEMY_INFO, preloadArt, type GameState, type HudState, type RunResult } from "@/game/ghost-blasters";
+import { GhostBlasters, ENEMY_INFO, TITLE_LINES, lineFor, preloadArt, type GameState, type HudState, type RunResult } from "@/game/ghost-blasters";
 import { getPrefs, setPrefs, usePrefs, type GameControls } from "@/lib/prefs";
-import { useTone, voice } from "@/lib/session";
+import { useMe, useTone, voice } from "@/lib/session";
+import { useQueryClient } from "@tanstack/react-query";
+import { api, apiEnabled } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 const CONTROL_OPTIONS: { id: GameControls; label: string }[] = [{ id: "both", label: "Both" }, { id: "arrows", label: "Arrow keys" }, { id: "wasd", label: "WASD" }];
@@ -48,24 +50,39 @@ export function GhostBlastersGame({ compact = false, className }: { compact?: bo
   const game = useRef<GhostBlasters | null>(null);
   const [state, setState] = useState<GameState>("ready");
   const [hud, setHud] = useState<HudState>({ xp: 0, level: 1, offers: 0 });
-  const [result, setResult] = useState<(RunResult & { best: boolean }) | null>(null);
+  const [result, setResult] = useState<(RunResult & { best: boolean; line: string }) | null>(null);
+  const toneRef = useRef(tone);
+  toneRef.current = tone;
+  // Title screen: a new line every few seconds (holds still in calm mode).
+  const [title, setTitle] = useState(() => TITLE_LINES[tone][0]!);
+  useEffect(() => {
+    setTitle(lineFor(TITLE_LINES, tone));
+    if (calm) return;
+    const id = window.setInterval(() => setTitle(lineFor(TITLE_LINES, toneRef.current)), 3500);
+    return () => window.clearInterval(id);
+  }, [tone, calm]);
   const [ready, setReady] = useState(false);
   const [touch, setTouch] = useState(false);
   const best = prefs.game.best;
+  const { signedIn } = useMe();
+  const qc = useQueryClient();
 
   useEffect(() => { setTouch(window.matchMedia("(pointer: coarse)").matches); void preloadArt().then(() => setReady(true)); }, []);
 
   useEffect(() => {
     if (!canvas.current || !wrap.current) return;
     const g = new GhostBlasters(canvas.current, wrap.current, {
-      calm, controls: prefs.game.controls,
+      calm, tone, controls: prefs.game.controls,
       onState: setState,
       onHud: (h) => setHud((p) => (p.xp === h.xp && p.level === h.level && p.offers === h.offers ? p : h)),
       onOver: (r) => {
         const saved = getPrefs().game;
         const isBest = r.xp > 0 && r.xp > saved.best;
         if (isBest) setPrefs({ game: { ...saved, best: r.xp } });
-        setResult({ ...r, best: isBest });
+        // A different line most runs: the classic one, or one of the extras for whoever got you.
+        const info = ENEMY_INFO[r.killer], t = toneRef.current;
+        setResult({ ...r, best: isBest, line: Math.random() < 0.35 ? voice(t, info.line.sassy, info.line.calm) : lineFor(info.outro, t) });
+        void submit(r);
       },
     });
     game.current = g;
@@ -75,7 +92,22 @@ export function GhostBlastersGame({ compact = false, className }: { compact?: bo
   }, []);
   useEffect(() => { game.current?.setControls(prefs.game.controls); }, [prefs.game.controls]);
   useEffect(() => { game.current?.setCalm(calm); }, [calm]);
+  useEffect(() => { game.current?.setTone(tone); }, [tone]);
 
+  // Leaderboard (signed in, API on): a ticket when the run starts; the server times the run from it.
+  const ticket = useRef<Promise<string | null> | null>(null);
+  const signedInRef = useRef(signedIn);
+  signedInRef.current = signedIn;
+  const [board, setBoard] = useState<{ counted: number; newBest: boolean } | null>(null);
+  const submit = async (r: RunResult) => {
+    const t = await ticket.current; ticket.current = null;
+    if (!t || r.xp <= 0) return;
+    try {
+      const res = await api<{ counted: number; newBest: boolean }>("/v1/game/score", { method: "POST", body: { ticket: t, xp: r.xp, level: r.level, offers: r.offers, seconds: r.seconds } });
+      setBoard(res);
+      void qc.invalidateQueries({ queryKey: ["game"] });
+    } catch { /* the board is cosmetic: a failed save never interrupts the game */ }
+  };
   const [sharing, setSharing] = useState(false);
   const share = async (r: RunResult) => {
     setSharing(true);
@@ -85,7 +117,10 @@ export function GhostBlastersGame({ compact = false, className }: { compact?: bo
     else if (how === "failed") toast.error("Couldn't share that. Try again.");
     wrap.current?.focus({ preventScroll: true });
   };
-  const start = () => { setResult(null); game.current?.start(); wrap.current?.focus({ preventScroll: true }); };
+  const start = () => {
+    setResult(null); setBoard(null);
+    ticket.current = apiEnabled && signedInRef.current ? api<{ ticket: string }>("/v1/game/start", { method: "POST" }).then((r) => r.ticket).catch(() => null) : null;
+    game.current?.start(); wrap.current?.focus({ preventScroll: true }); };
   const togglePause = () => { const g = game.current; if (!g) return; if (state === "playing") g.pause(); else { g.resume(); wrap.current?.focus({ preventScroll: true }); } };
   const setControls = (c: GameControls) => setPrefs({ game: { ...prefs.game, controls: c } });
   const keysHint = prefs.game.controls === "arrows" ? "Arrow keys" : prefs.game.controls === "wasd" ? "WASD" : "Arrows or WASD";
@@ -117,6 +152,7 @@ export function GhostBlastersGame({ compact = false, className }: { compact?: bo
         <div>
           <p className="text-xs font-bold text-[#9F7AEA]">Hiring Process: Haunted</p>
           <h2 className={cn("font-display font-bold leading-none", compact ? "text-4xl" : "text-5xl sm:text-6xl")}>Ghost Blasters</h2>
+          <AnimatePresence mode="wait" initial={false}><motion.p key={title} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.2 }} className="mt-2 min-h-5 font-display text-sm font-bold text-[#F59E0B]" aria-live="off">{title}</motion.p></AnimatePresence>
           {!compact && <p className="mx-auto mt-3 max-w-md text-sm text-[#F2E9D8]/80">{voice(tone, "Blast bad hiring practices with your résumé. Grab offers from Green Flag Recruiters. One touch from a Ghoster and it's back to applying.", "Shoot the bad hiring practices, collect offers from Green Flag Recruiters, and keep beating your best Experience.")}</p>}
         </div>
         <div className="flex w-full max-w-sm flex-col items-center gap-3">
@@ -139,11 +175,13 @@ export function GhostBlastersGame({ compact = false, className }: { compact?: bo
       {state === "over" && result && <motion.div key="over" initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 grid place-items-center bg-[#16111D]/75 p-5 backdrop-blur-sm">
         <div className="w-full max-w-sm rounded-xl border-2 border-foreground bg-card p-5 text-center text-foreground shadow-hard sm:p-6">
           <p className="text-xs font-bold text-flag-red">Taken out by {ENEMY_INFO[result.killer].name}</p>
-          <p className="mt-1 font-display text-lg font-bold leading-snug">“{voice(tone, ENEMY_INFO[result.killer].line.sassy, ENEMY_INFO[result.killer].line.calm)}”</p>
+          <p className="mt-1 font-display text-lg font-bold leading-snug">“{result.line}”</p>
           <p className="mt-4 font-display text-5xl font-bold tabular-nums text-primary">{result.xp.toLocaleString("en-IN")}</p>
           <p className="text-xs font-bold text-muted-foreground">Experience · Level {result.level} · {result.offers} {result.offers === 1 ? "offer" : "offers"} · {result.seconds}s</p>
           {result.best ? <p className="mx-auto mt-3 inline-flex items-center gap-1.5 rounded-full border-2 border-foreground bg-accent px-3 py-1 text-xs font-bold"><Trophy className="size-3.5" />New best Experience</p>
             : best > 0 && <p className="mt-3 text-xs text-muted-foreground">Your best: {best.toLocaleString("en-IN")}</p>}
+          {board?.newBest && <p className="mt-2 text-xs font-bold text-primary">On the leaderboard with {board.counted.toLocaleString("en-IN")} Experience.</p>}
+          {apiEnabled && !signedIn && result.xp > 0 && <p className="mt-2 text-xs text-muted-foreground">Sign in to put your runs on the leaderboard.</p>}
           <div className="mt-5 grid grid-cols-2 gap-2">
             <Button variant="outline" disabled={sharing || result.xp === 0} onClick={() => void share(result)}><Share2 />{sharing ? "Making card…" : "Share score"}</Button>
             <Button onClick={start}><RotateCcw />{voice(tone, "Apply again", "Play again")}</Button>
