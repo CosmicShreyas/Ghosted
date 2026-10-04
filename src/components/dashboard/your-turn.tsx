@@ -7,7 +7,8 @@
 //   3. Otherwise → today's writing prompt, with your streak
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { BookOpenText, Building2, Flame, Ghost, Heart, Hourglass, MessageCircle, PenLine, Sparkles, type LucideIcon } from "lucide-react";
+import { BookOpenText, Building2, Flag, Flame, Ghost, Heart, Hourglass, MessageCircle, PenLine, Sparkles, type LucideIcon } from "lucide-react";
+import { ShoutoutDialog } from "@/components/green-flag";
 import { daysSince, useApplications, verdict } from "@/lib/applications";
 import { useMyStats } from "@/lib/my-stats";
 import { useDailyPrompt } from "@/lib/prompts";
@@ -17,9 +18,10 @@ import { FoundingProgress } from "@/lib/founding";
 import { ListCompanyDialog } from "./list-company";
 import type { View } from "./shell";
 
-type Action = { id: "read" | "chitchat" | "list" | "track"; icon: LucideIcon; label: string; hint: string };
+type Action = { id: "read" | "green" | "chitchat" | "list" | "track"; icon: LucideIcon; label: string; hint: string };
 const ACTIONS: Action[] = [
   { id: "read", icon: BookOpenText, label: "Read today's stories", hint: "See what others went through" },
+  { id: "green", icon: Flag, label: "Give a green flag", hint: "Thank a company that did it right" },
   { id: "chitchat", icon: MessageCircle, label: "Chitchat on a story", hint: "Add what you know" },
   { id: "list", icon: Building2, label: "List a company", hint: "Missing one? Add it" },
   { id: "track", icon: Hourglass, label: "Track an application", hint: "Start a wait timer" },
@@ -31,6 +33,7 @@ export function YourTurn({ onChange }: { onChange: (v: View) => void }) {
   const prompt = useDailyPrompt();
   const [share, setShare] = useState(false);
   const [listing, setListing] = useState(false);
+  const [shouting, setShouting] = useState(false);
 
   const now = new Date();
   const ghosted = list.filter((a) => a.status === "waiting" && verdict(a, now) === "ghosted").sort((a, b) => daysSince(b.waitingSince, now) - daysSince(a.waitingSince, now))[0];
@@ -41,6 +44,7 @@ export function YourTurn({ onChange }: { onChange: (v: View) => void }) {
 
   const run = (id: Action["id"]) => {
     if (id === "list") return setListing(true);
+    if (id === "green") return setShouting(true);
     if (id === "track") return onChange("waiting");
     onChange("home"); // the feed: read, then chitchat under any story
   };
@@ -86,5 +90,6 @@ export function YourTurn({ onChange }: { onChange: (v: View) => void }) {
 
     <ShareModal open={share} onOpenChange={setShare} />
     <ListCompanyDialog open={listing} onOpenChange={setListing} />
+    <ShoutoutDialog open={shouting} onOpenChange={setShouting} />
   </div>;
 }

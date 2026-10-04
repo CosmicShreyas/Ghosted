@@ -1478,4 +1478,21 @@ alter table public.content_requests  enable row level security;
 revoke all on public.company_questions, public.company_answers, public.company_reps, public.rep_replies, public.content_requests from anon, authenticated;
 grant select, insert, update, delete on public.company_questions, public.company_answers, public.company_reps, public.rep_replies, public.content_requests to service_role;
 
+-- ============================================================================
+-- Green flag shout-outs.
+--   story_green_flags   the up-to-3 things a company did well, for stories posted as a "Green flag
+--                       shout-out". The story itself is an ordinary quick story (so it counts toward
+--                       the Founding 50 and the Flag Score like any other); this table only adds the
+--                       ticks and the green card style. Kept separate so stories never depend on it.
+-- Safe to run again.
+-- ============================================================================
+create table if not exists public.story_green_flags (
+  story_id   uuid primary key references public.stories (id) on delete cascade,
+  flags      text[] not null check (cardinality(flags) between 1 and 3 and flags <@ array['replied_48h','clear_pay','respectful_rejection','quick_process','gave_feedback']::text[]),
+  created_at timestamptz not null default now()
+);
+alter table public.story_green_flags enable row level security;
+revoke all on public.story_green_flags from anon, authenticated;
+grant select, insert, update, delete on public.story_green_flags to service_role;
+
 commit;

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "motion/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Bookmark, HandHeart, Heart, HeartHandshake, Lightbulb, MessageCircle, MoreHorizontal, PenLine, Plus, Share2, ShieldAlert, Sparkles, Trash2 } from "lucide-react";
+import { Bookmark, Check, Flag, HandHeart, Heart, HeartHandshake, Lightbulb, MessageCircle, MoreHorizontal, PenLine, Plus, Share2, ShieldAlert, Sparkles, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Avatar, QuickBadge } from "@/components/ghosted";
@@ -13,7 +13,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { api, ApiRequestError, apiEnabled, askToJoin } from "@/lib/api";
 import { liveNudge } from "@/lib/live";
 import { useMe, useTone, voice } from "@/lib/session";
-import { react, samplePublicId, type Author, type StoryModel, type StoryReaction, type StoryReactionCounts } from "@/lib/stories";
+import { GREEN_FLAG_LABEL, react, samplePublicId, type Author, type StoryModel, type StoryReaction, type StoryReactionCounts } from "@/lib/stories";
 import { ShareModal } from "./share-story";
 import { GOOFY_AVATAR, GOOFY_ID } from "@/lib/goofy";
 import { ReportFlow } from "./report-flow";
@@ -134,7 +134,7 @@ export function FeedStory({ story, saved, onSave, onOpenCompany, full = false }:
   };
 
   return <motion.article layout initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} onClick={openStory}
-    className={cn(card, "p-5", !full && "cursor-pointer transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-hard")}>
+    className={cn(card, "p-5", !full && "cursor-pointer transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-hard", story.greenFlags?.length && "border-flag-green bg-flag-green/[0.07] shadow-[4px_4px_0_0_var(--flag-green)]")}>
     <div className="flex items-start gap-3">
       {/* The avatar and name open this person's page (addressed by id, whatever name they show). */}
       <PersonLink author={author} className="shrink-0 rounded-full"><FlairRing flair={author.flair}><Avatar seed={author.avatarSeed} pastel={author.pastel} size="sm" label={author.name} /></FlairRing></PersonLink>
@@ -160,9 +160,13 @@ export function FeedStory({ story, saved, onSave, onOpenCompany, full = false }:
     </div>
     {/* In the feed every card is the same height: one row of tags, a one-line title and exactly three
         lines of story (padded when shorter, cut with "…" when longer). The full story is one click away. */}
-    <div className={cn("mt-3 flex items-center gap-2", full ? "flex-wrap" : "min-w-0 flex-nowrap overflow-hidden")}><span className="shrink-0 rounded-full border-2 border-foreground bg-accent px-2.5 py-0.5 text-[11px] font-bold uppercase">{story.outcomeLabel}</span>{story.quick && <span className="shrink-0"><QuickBadge /></span>}{story.role && <span className={cn("text-xs font-semibold text-muted-foreground", !full && "min-w-0 truncate")}>{story.role}</span>}{minutes > 1 && <span className="ml-auto shrink-0 text-xs text-muted-foreground">{minutes} min read</span>}</div>
+    <div className={cn("mt-3 flex items-center gap-2", full ? "flex-wrap" : "min-w-0 flex-nowrap overflow-hidden")}>{story.greenFlags?.length
+      ? <span className="inline-flex shrink-0 items-center gap-1 rounded-full border-2 border-foreground bg-flag-green px-2.5 py-0.5 text-[11px] font-bold uppercase text-primary-foreground"><Flag className="size-3" />Green flag shout-out</span>
+      : <><span className="shrink-0 rounded-full border-2 border-foreground bg-accent px-2.5 py-0.5 text-[11px] font-bold uppercase">{story.outcomeLabel}</span>{story.quick && <span className="shrink-0"><QuickBadge /></span>}</>}{story.role && <span className={cn("text-xs font-semibold text-muted-foreground", !full && "min-w-0 truncate")}>{story.role}</span>}{minutes > 1 && <span className="ml-auto shrink-0 text-xs text-muted-foreground">{minutes} min read</span>}</div>
     {full
-      ? <>{story.title && <h1 className="mt-3 font-display text-2xl font-bold leading-tight sm:text-3xl">{story.title}</h1>}<StoryBody text={story.body} fold={false} className={cn("text-[16px] sm:text-[17px]", story.title ? "mt-3" : "mt-3")} /></>
+      ? <>{story.title && <h1 className="mt-3 font-display text-2xl font-bold leading-tight sm:text-3xl">{story.title}</h1>}
+        {/* A shout-out's ticks, as green chips (the feed card keeps its fixed height and skips them). */}
+        {!!story.greenFlags?.length && <ul className="mt-3 flex flex-wrap gap-2">{story.greenFlags.map((g) => <li key={g} className="inline-flex items-center gap-1.5 rounded-full border-2 border-flag-green bg-flag-green/10 px-3 py-1 text-xs font-bold"><Check className="size-3.5 text-flag-green" />{GREEN_FLAG_LABEL[g]}</li>)}</ul>}<StoryBody text={story.body} fold={false} className={cn("text-[16px] sm:text-[17px]", story.title ? "mt-3" : "mt-3")} /></>
       : <>
           {/* The card itself opens the story; the title is also a real link for keyboards and screen readers. */}
           <h3 className="mt-3 truncate font-bold leading-snug"><Link to="/s/$id" params={{ id: story.id }} className="rounded hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2" aria-label={`Open the story${story.title ? `: ${story.title}` : ""}`}>{story.title ?? `A story about ${company.name}`}</Link></h3>

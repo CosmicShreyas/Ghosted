@@ -29,6 +29,7 @@ const stageEnum = z.enum(["application", "screening", "technical", "final", "off
 const ratingsShape = z.object({ hiring: rating.optional(), communication: rating.optional(), culture: optRating, pay: optRating, growth: optRating }).strict();
 const salaryShape = z.object({ min: z.number().min(0).max(1000), max: z.number().min(0).max(1000) }).refine((s) => s.max >= s.min, "Max must be at least min");
 
+export const GREEN_FLAGS = ["replied_48h", "clear_pay", "respectful_rejection", "quick_process", "gave_feedback"] as const;
 const newStory = z.object({
   companySlug: z.string().regex(/^[a-z0-9-]{2,60}$/),
   outcome: outcomeEnum,
@@ -44,7 +45,14 @@ const newStory = z.object({
   // Kept for older clients; ignored. Identity is account-level (see dto.ts storyAuthor).
   anonymous: z.boolean().optional(),
   captchaToken: z.string().max(12000).optional(),
-}).strict().superRefine(checkJourney);
+  // Green flag shout-out: up to 3 things the company did well. Always a quick story that ended in
+  // an offer or a (respectful) rejection.
+  greenFlags: z.array(z.enum(GREEN_FLAGS)).min(1).max(3).optional(),
+}).strict().superRefine(checkJourney).superRefine((s, ctx) => {
+  if (!s.greenFlags) return;
+  if (new Set(s.greenFlags).size !== s.greenFlags.length) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["greenFlags"], message: "Pick each one once" });
+  if (s.outcome !== "offer" && s.outcome !== "rejected") ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["outcome"], message: "A shout-out is for an offer or a respectful rejection" });
+});
 
 const idParam = validate("param", z.object({ id: publicId }));
 
@@ -131,6 +139,11 @@ export const storyRoutes = new Hono<AppEnv>()
       status: held ? "pending" : "published", moderation: moderationRecord(review),
     }).select("public_id").single();
     if (error) dbFail("create story", error);
+    // A shout-out's ticks (best effort: a missing table just means no green card style yet).
+    if (body.greenFlags?.length) {
+      const { error: gErr } = await admin().from("story_green_flags").insert({ story_id: await idOfStory(String(data.public_id)), flags: body.greenFlags });
+      if (gErr) console.error("[story] green flags (run the Green flag shout-outs section of init_database.sql)", gErr.message);
+    }
     if (held) {
       later(bump({ user: me(c).id, topics: ["stories"] }));
       later(goofyHolds(me(c), "story", review, { id: await idOfStory(String(data.public_id)), publicId: String(data.public_id) }));

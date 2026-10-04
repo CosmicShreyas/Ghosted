@@ -56,7 +56,12 @@ export type CompanyStats = {
   byStage: { stage: string; avgDays: number | null; stories: number }[];
   salaries: { role: string; range: [number, number]; median: number; reports: number }[];
   bestStory: StoryModel | null; worstStory: StoryModel | null;
+  // "Typical process" (needs 5+ stories; each figure is null when there isn't enough behind it).
+  process?: ProcessSummary;
 };
+export type ProcessSummary =
+  | { ready: false; stories: number; needed: number }
+  | { ready: true; stories: number; usualStage: string | null; stageCounts: { stage: string; count: number }[]; medianDays: number | null; waitReports: number; outcomes: { outcome: string; share: number }[]; offerPay: { median: number; reports: number } | null };
 // interest: members waiting for this company's first story ("I want to know"), and whether you are.
 export type CompanyInterest = { waiting: number; mine: boolean };
 export type CompanyPage = { company: Company; stats: CompanyStats; relationship: CompanyRelationship | null; stories: StoryModel[]; nextCursor: string | null; interest?: CompanyInterest };
@@ -82,6 +87,8 @@ function samplePage(slug: string, rel: CompanyRelationship | null): CompanyPage 
       byStage: [["application", 6], ["screening", 4], ["technical", 8], ["final", 13], ["offer", 5]].map(([stage, d]) => ({ stage: stage as string, avgDays: d as number, stories: 3 })),
       salaries: [{ role: "Software Engineer", range: company.salary, median: Math.round((company.salary[0] + company.salary[1]) / 2), reports: 6 }],
       bestStory: positive[0] ?? null, worstStory: critical[0] ?? null,
+      // Preview mode never invents a process summary: the sample shows the "needs more stories" state.
+      process: { ready: false, stories: stories.length, needed: Math.max(1, 5 - stories.length) },
     },
     relationship: rel ?? { following: false, notify: false },
     stories, nextCursor: null,

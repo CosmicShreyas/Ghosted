@@ -306,6 +306,8 @@ async function companyStories(companyId: string, viewer: Profile | null, { befor
   return { stories: await hydrate(page, viewer), nextCursor: rows.length > limit ? page.at(-1)!.created_at : null };
 }
 
+const PROCESS_MIN = 5; // stories before the "Typical process" card shows
+
 async function companyStats(companyId: string, viewer: Profile | null) {
   const DAY = 86400_000, WEEKS = 8;
   const [{ data, error }, followers] = await Promise.all([
@@ -340,6 +342,26 @@ async function companyStats(companyId: string, viewer: Profile | null) {
   }
   const median = (a: number[]) => [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)] ?? 0;
 
+  // "Typical process": only from real stories, and only once there are enough of them. Each figure
+  // has its own minimum too, so a single number never stands in for a pattern. Ghosted doesn't record
+  // a count of rounds or the posted salary, so the card says how far people usually got and what was
+  // offered, never a rounds count or an offer-vs-posted gap.
+  const STAGES = ["application", "screening", "technical", "final", "offer"];
+  const process = (() => {
+    if (rows.length < PROCESS_MIN) return { ready: false as const, stories: rows.length, needed: PROCESS_MIN - rows.length };
+    const reach = rows.map((r) => STAGES.indexOf(r.stage)).filter((i) => i >= 0);
+    const waits = rows.map((r) => r.days_waited).filter((d): d is number => d != null);
+    const pays = rows.filter((r) => r.salary_min_lpa != null && r.salary_max_lpa != null).map((r) => (Number(r.salary_min_lpa) + Number(r.salary_max_lpa)) / 2);
+    return {
+      ready: true as const, stories: rows.length,
+      usualStage: reach.length ? STAGES[median(reach)]! : null,
+      stageCounts: STAGES.map((s) => ({ stage: s, count: rows.filter((r) => r.stage === s).length })),
+      medianDays: waits.length >= 3 ? median(waits) : null, waitReports: waits.length,
+      outcomes: ["ghosted", "rejected", "offer", "offer_revoked", "ghost_job"].map((o) => ({ outcome: o, share: Math.round((rows.filter((r) => r.outcome === o).length / rows.length) * 100) })),
+      offerPay: pays.length >= 3 ? { median: Math.round(median(pays) * 10) / 10, reports: pays.length } : null,
+    };
+  })();
+
   // The best and the worst experience (by stars, most recent first), shown side by side.
   const pick = async (list: Row[], best: boolean) => {
     const top = [...list].sort((a, b) => (best ? avg(b) - avg(a) : avg(a) - avg(b)) || b.created_at.localeCompare(a.created_at))[0];
@@ -353,7 +375,7 @@ async function companyStats(companyId: string, viewer: Profile | null) {
     stories: rows.length, relatableReceived: sum("relatable"), flagsReceived: sum("flags"), chitchats: sum("comments"), followers: followers.count ?? 0,
     sentiment: { positive: positive.length, mixed: rows.length - positive.length - critical.length, critical: critical.length },
     outcomes: ["ghosted", "rejected", "offer", "offer_revoked", "ghost_job"].map((o) => ({ outcome: o, count: rows.filter((r) => r.outcome === o).length })),
-    weekly, byStage,
+    weekly, byStage, process,
     salaries: [...roles.values()].sort((a, b) => b.mins.length - a.mins.length).slice(0, 4).map((e) => ({ role: e.role, range: [Math.min(...e.mins), Math.max(...e.maxs)] as [number, number], median: Math.round((median(e.mins) + median(e.maxs)) / 2), reports: e.mins.length })),
     bestStory, worstStory,
   };

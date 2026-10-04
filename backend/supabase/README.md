@@ -239,6 +239,10 @@ Separate admin identities; these are not member profiles.
 
 Routes are in `backend/src/routes/company-voice.ts` (`/v1/voice/*`); admin endpoints are `/v1/admin/voice/*` (the "Settle reports" permission). The section is at the end of `init_database.sql` and is safe to run again.
 
+### Green flag shout-outs
+
+`story_green_flags` holds the up-to-3 things a company did well (`replied_48h`, `clear_pay`, `respectful_rejection`, `quick_process`, `gave_feedback`) for stories posted as a green flag shout-out. The story itself is an ordinary quick story with an offer or rejected outcome, so it counts toward the Founding 50 and the Flag Score like any other; its ratings come only from the ticks (5 where a tick speaks to it, 4 otherwise) and are shown before posting. The table is separate on purpose: story reads ignore it if it's missing. The section is at the end of `init_database.sql` and is safe to run again.
+
 ### Company requests
 
 `company_requests` holds "Not listed yet? Request it" from members who can't list a company right now (daily or weekly listing limit, or an account younger than the minimum age). It's keyed by the company's website domain, one row per member per domain. When anyone lists that domain (`POST /v1/companies`), each requester except the lister gets one in-app notification and `notified_at` is set. Requests are made with `POST /v1/companies/requests`, which checks the website the same way as listing and returns the existing company instead if it's already on Ghosted. The section is at the end of `init_database.sql` and is safe to run again.

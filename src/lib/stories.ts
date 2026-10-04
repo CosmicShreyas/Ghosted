@@ -46,6 +46,14 @@ export type StoryModel = {
   flagScore?: number | null;
   salary?: [number, number] | null;
   daysWaited?: number | null;
+  // Set when the story is a green flag shout-out (shown with the green card style).
+  greenFlags?: GreenFlag[] | null;
+};
+
+// Green flag shout-outs: the things a company can be thanked for. Same ids as the API.
+export type GreenFlag = "replied_48h" | "clear_pay" | "respectful_rejection" | "quick_process" | "gave_feedback";
+export const GREEN_FLAG_LABEL: Record<GreenFlag, string> = {
+  replied_48h: "Replied within 48 hours", clear_pay: "Clear pay range", respectful_rejection: "Respectful rejection", quick_process: "Quick process", gave_feedback: "Gave feedback",
 };
 
 export const OUTCOME_LABEL: Record<string, string> = { ghosted: "Ghosted", rejected: "Rejected", offer: "Offer", offer_revoked: "Offer revoked", ghost_job: "Ghost job" };
@@ -124,6 +132,8 @@ export type StoryDto = {
   // Not every journey rates all five: missing ones are null (see src/lib/score.ts).
   ratings?: { hiring: number | null; communication: number | null; culture: number | null; pay: number | null; growth: number | null };
   joined?: boolean | null;
+  // A green flag shout-out: what the company did well (up to 3).
+  greenFlags?: GreenFlag[] | null;
   quick?: boolean;
   flagScore?: number | null;
   salary?: [number, number] | null;
@@ -144,7 +154,7 @@ export function fromApi(s: StoryDto, index: Map<string, Company>): StoryModel {
     myReaction: s.myReaction,
     editedAt: s.editedAt ?? null, goofy: s.goofy ?? null, stage: s.stage,
     ...(s.ratings && { ratings: s.ratings }), joined: s.joined ?? null, quick: s.quick ?? false, flagScore: s.flagScore ?? null,
-    salary: s.salary ?? null, daysWaited: s.daysWaited ?? null,
+    salary: s.salary ?? null, daysWaited: s.daysWaited ?? null, greenFlags: s.greenFlags ?? null,
   };
 }
 
