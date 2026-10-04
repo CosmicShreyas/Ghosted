@@ -193,7 +193,7 @@ const RELATIONSHIPS: { id: Relationship; label: string }[] = [
 
 export function ContentRequestDialog({ open, onOpenChange, targetUrl = "" }: { open: boolean; onOpenChange: (v: boolean) => void; targetUrl?: string }) {
   const { signedOut } = useMe();
-  const shield = useHumanCheck();
+  const shield = useHumanCheck(open && signedOut); // only signed-out visitors need it, and only while open
   const [kind, setKind] = useState<RequestKind>("factual_error");
   const [url, setUrl] = useState(targetUrl);
   const [email, setEmail] = useState("");

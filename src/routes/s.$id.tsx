@@ -98,7 +98,7 @@ function StoryLayout({ story, saved, onSave, onOpenCompany }: { story: StoryMode
 
       {/* Right of Reply: the company's one official reply to this story, clearly labelled. */}
       <RepReplySlot slug={story.company.id} companyName={story.company.name} storyPublicId={story.id} />
-      <p className="text-xs text-muted-foreground"><button type="button" onClick={() => setRequesting(true)} className="inline-flex items-center gap-1 font-bold hover:text-foreground hover:underline"><FileWarning className="size-3.5" />Something wrong with this story? Request a correction or removal</button></p>
+      <p className="text-xs text-muted-foreground"><button type="button" onClick={() => setRequesting(true)} className="inline-flex items-start gap-1.5 text-left font-bold hover:text-foreground hover:underline"><FileWarning className="mt-px size-3.5 shrink-0" />Something wrong with this story? Request a correction or removal</button></p>
       <ContentRequestDialog open={requesting} onOpenChange={setRequesting} targetUrl={typeof window === "undefined" ? "" : window.location.href} />
 
       {/* Phones/tablets: no company card or numbers under the story; the company name in the

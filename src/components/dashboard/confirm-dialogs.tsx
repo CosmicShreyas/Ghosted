@@ -50,10 +50,9 @@ export function DeleteAccountDialog({ open, onOpenChange, onConfirm }: { open: b
   const [typed, setTyped] = useState("");
   useEffect(() => { if (!open) setTyped(""); }, [open]);
   const armed = typed === "DELETE";
-  // The check starts solving as soon as Settings loads (this dialog is mounted with it), so by the
-  // time you open it the tick is usually already there. It re-solves itself before expiring and
-  // after every use, since tokens are single-use.
-  const shield = useHumanCheck();
+  // The check starts solving when the dialog opens (it takes about a second, while you type DELETE),
+  // re-solves itself before expiring and after every use, since tokens are single-use.
+  const shield = useHumanCheck(open);
   const shieldReady = !apiEnabled || shield.status === "done";
   const confirm = async () => {
     setBusy(true);

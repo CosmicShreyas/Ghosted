@@ -102,8 +102,8 @@ const clearPending = () => { try { localStorage.removeItem(PENDING_KEY); } catch
 // `initial`: a saved draft to start from.
 export function ListCompanyDialog({ open, onOpenChange, onListed, requestName, initial }: { open: boolean; onOpenChange: (v: boolean) => void; onListed?: (c: Company) => void; requestName?: string; initial?: Draft | null }) {
   const qc = useQueryClient();
-  const shield = useHumanCheck();
   const { signedOut } = useMe();
+  const shield = useHumanCheck(open && !signedOut); // signed out, the final step is joining instead
   const [f, setF] = useState(blank);
   const [requested, setRequested] = useState(false);
   const [tooNew, setTooNew] = useState<string | null>(null);

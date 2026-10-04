@@ -113,7 +113,10 @@ async function solveWithWorkers(ch: Challenge, cancelled: () => boolean): Promis
   });
 }
 
-export function useHumanCheck() {
+// `active`: only fetch and solve while it's actually needed (pass the popup's `open`). A closed popup
+// with an active check used to fetch puzzles in the background, again every few minutes, which
+// could hit the server's limit and fail with 429s on pages showing no puzzle at all.
+export function useHumanCheck(active = true) {
   const [status, setStatus] = useState<ShieldStatus>("checking");
   const [level, setLevel] = useState<"normal" | "hard">("normal");
   const [run, setRun] = useState(0);
@@ -124,6 +127,7 @@ export function useHumanCheck() {
   const autoRetried = useRef(false);
 
   useEffect(() => {
+    if (!active) { runRef.current++; solved.current = null; return; }
     const id = ++runRef.current;
     const cancelled = () => runRef.current !== id;
     let expiry: number | undefined;
@@ -160,7 +164,7 @@ export function useHumanCheck() {
       }
     })();
     return () => { runRef.current++; if (expiry) window.clearTimeout(expiry); };
-  }, [run, level]);
+  }, [run, level, active]);
 
   return {
     status,

@@ -43,6 +43,9 @@ const DAY = 86400_000;
 const slugParam = validate("param", z.object({ slug: z.string().regex(/^[a-z0-9-]{2,60}$/) }));
 const idParam = validate("param", z.object({ id: publicId }));
 
+// The table doesn't exist yet: Postgres "undefined table", or PostgREST's "not in the schema cache".
+const missingTable = (e: { code?: string }) => e.code === "42P01" || e.code === "PGRST205";
+
 type Company = { id: string; slug: string; name: string; domain: string | null };
 async function companyBySlug(slug: string): Promise<Company> {
   const { data, error } = await admin().from("companies").select("id, slug, name, domain").eq("slug", slug).maybeSingle();
@@ -103,13 +106,16 @@ export const voiceRoutes = new Hono<AppEnv>()
     const co = await companyBySlug(c.req.valid("param").slug);
     const viewer = c.get("profile");
     const { data: qs, error } = await admin().from("company_questions").select("id, public_id, author_id, body_z, best_answer_id, created_at").eq("company_id", co.id).eq("status", "published").order("created_at", { ascending: false }).limit(50);
-    if (error) dbFail("questions (run the Ask candidates section of init_database.sql)", error);
+    // Tables not created yet (SQL not run): an empty section, not a 500 on every company page.
+    // A read that fails (most often: the SQL section hasn't been run yet) shows an empty section
+    // instead of a 500 on every company page. The real error is logged.
+    if (error) { console.error(`[qa] questions${missingTable(error) ? " (run the Ask candidates section of init_database.sql)" : ""}:`, error.code, error.message); return c.json({ canAsk: false, canAnswer: false, questionsLeftToday: 0, questions: [] }); }
     const questions = (qs ?? []) as QRow[];
     const [ans, basis] = await Promise.all([
       questions.length ? admin().from("company_answers").select("id, public_id, question_id, author_id, body_z, basis, created_at").in("question_id", questions.map((q) => q.id)).eq("status", "published").order("created_at").limit(1000) : Promise.resolve({ data: [], error: null }),
       viewer ? answerBasis(viewer.id, co.id) : Promise.resolve(null),
     ]);
-    if (ans.error) dbFail("answers", ans.error);
+    if (ans.error) console.error("[qa] answers:", ans.error.code, ans.error.message); // questions still show, without answers
     const byQ = new Map<string, ARow[]>();
     for (const a of (ans.data ?? []) as ARow[]) byQ.set(a.question_id, [...(byQ.get(a.question_id) ?? []), a]);
     let openToday = 0;
@@ -241,7 +247,8 @@ export const voiceRoutes = new Hono<AppEnv>()
       admin().from("rep_replies").select("public_id, body_z, created_at, story:stories(public_id)").eq("company_id", co.id).eq("status", "published").limit(500),
       viewer ? activeRep(viewer.id, co.id) : Promise.resolve(null),
     ]);
-    if (rows.error) dbFail("rep replies (run the Ask candidates section of init_database.sql)", rows.error);
+    // Same as questions: a failed read is an empty reply slot, never a 500 on the page.
+    if (rows.error) { console.error(`[rep] replies${missingTable(rows.error) ? " (run the Ask candidates section of init_database.sql)" : ""}:`, rows.error.code, rows.error.message); return c.json({ company: { name: co.name, domain: co.domain }, viewerIsRep: false, replies: [] }); }
     const list = ((rows.data ?? []) as unknown as { public_id: number; body_z: string; created_at: string; story: { public_id: number } | null }[])
       .map((r) => ({ publicId: String(r.public_id), body: fromBytea(r.body_z), createdAt: r.created_at, storyPublicId: r.story ? String(r.story.public_id) : null }));
     return c.json({ company: { name: co.name, domain: co.domain }, viewerIsRep: !!rep, replies: list });

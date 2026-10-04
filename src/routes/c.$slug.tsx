@@ -156,8 +156,8 @@ function CompanyPageRoute() {
           write it), and the two fair routes: get verified, or ask for a correction. */}
       <RepReplySlot slug={slug} companyName={name} />
       <p className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-        <button type="button" onClick={() => (signedOut ? askToJoin() : setVerifying(true))} className="inline-flex items-center gap-1 font-bold hover:text-foreground hover:underline"><BadgeCheck className="size-3.5" />Work at {name}? Reply as the company, free</button>
-        <button type="button" onClick={() => setRequesting(true)} className="inline-flex items-center gap-1 font-bold hover:text-foreground hover:underline"><FileWarning className="size-3.5" />Something wrong? Request a correction</button>
+        <button type="button" onClick={() => (signedOut ? askToJoin() : setVerifying(true))} className="inline-flex items-start gap-1.5 text-left font-bold hover:text-foreground hover:underline"><BadgeCheck className="mt-px size-3.5 shrink-0" />Work at {name}? Reply as the company, free</button>
+        <button type="button" onClick={() => setRequesting(true)} className="inline-flex items-start gap-1.5 text-left font-bold hover:text-foreground hover:underline"><FileWarning className="mt-px size-3.5 shrink-0" />Something wrong? Request a correction</button>
       </p>
 
       <AskCandidates slug={slug} name={name} />

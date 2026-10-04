@@ -45,7 +45,8 @@ const DialogContent = React.forwardRef<
     >
       {children}
       {/* Same treatment as the search bar's clear button: a rounded square box appears on hover. */}
-      <DialogPrimitive.Close className="absolute right-3 top-3 grid size-8 cursor-pointer place-items-center rounded-md text-foreground/70 transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground disabled:pointer-events-none">
+      {/* Solid and above the content: when a long popup scrolls, the content passes behind it. */}
+      <DialogPrimitive.Close className="absolute right-3 top-3 z-20 grid size-9 cursor-pointer place-items-center rounded-lg border-2 border-foreground/15 bg-card text-foreground/70 shadow-sm transition-colors hover:border-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground disabled:pointer-events-none">
         <X className="h-4 w-4" />
         <span className="sr-only">Close</span>
       </DialogPrimitive.Close>

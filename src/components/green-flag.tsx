@@ -90,7 +90,7 @@ function ThanksCard({ company, flags }: { company: string; flags: GreenFlag[] })
 export function ShoutoutDialog({ open, onOpenChange, presetCompany = null }: { open: boolean; onOpenChange: (v: boolean) => void; presetCompany?: string | null }) {
   const tone = useTone();
   const qc = useQueryClient();
-  const shield = useHumanCheck();
+  const shield = useHumanCheck(open);
   const { list, index } = useCompanyIndex();
   const [company, setCompany] = useState(presetCompany ?? "");
   const [end, setEnd] = useState<End | "">("");

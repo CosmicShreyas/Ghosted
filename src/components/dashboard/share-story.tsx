@@ -261,7 +261,9 @@ export function ShareModal({ open, onOpenChange, editing = null, presetCompany =
   const fv = (pick: (c: typeof C) => { sassy: string; calm: string }) => f.c((c) => voice(tone, pick(c).sassy, pick(c).calm));
   const { me } = useMe();
   const { list: companyList, index } = useCompanyIndex();
-  const shield = useHumanCheck();
+  // Solves in the background while the form is open (done long before the last step); editing an
+  // existing story doesn't need it.
+  const shield = useHumanCheck(open && !editing);
   const [d, setD] = useState<Draft>(EMPTY);
   const [step, setStep] = useState(0);
   const [reached, setReached] = useState(0);
