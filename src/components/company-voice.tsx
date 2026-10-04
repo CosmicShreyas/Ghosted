@@ -1,7 +1,8 @@
 // Ask candidates (company Q&A), the Right of Reply, and the removal / correction request form.
 // Rules and limits are enforced by the API (backend/src/routes/company-voice.ts); this is the UI.
 import { useState } from "react";
-import { BadgeCheck, CheckCircle2, Clock, FileWarning, Loader2, MessageCircleQuestion, Pin, PinOff, ShieldCheck, Trash2, UserRound, Users } from "lucide-react";
+import { BadgeCheck, CheckCircle2, Clock, FileWarning, Loader2, MailCheck, MessageCircleQuestion, Pencil, Pin, PinOff, ShieldCheck, Trash2, UserRound, Users } from "lucide-react";
+import { CodeInput } from "@/components/code-input";
 import { toast } from "sonner";
 import { Markdown } from "@/components/markdown";
 import { HumanCheck, useHumanCheck } from "@/components/human-check";
@@ -126,10 +127,10 @@ export function RepVerifyDialog({ open, onOpenChange, slug, name }: { open: bool
     try { const r = await repsApi.start(slug, email.trim()); setStep(r.alreadyVerified ? "done" : "code"); }
     catch (e) { toast.error(errText(e, "Couldn't send the code.")); } finally { setBusy(false); }
   };
-  const verify = async () => {
+  const verify = async (value = code) => {
     setBusy(true);
-    try { await repsApi.verify(slug, email.trim(), code.trim()); setStep("done"); }
-    catch (e) { toast.error(errText(e, "That code didn't work.")); } finally { setBusy(false); }
+    try { await repsApi.verify(slug, email.trim(), value.trim()); setStep("done"); }
+    catch (e) { toast.error(errText(e, "That code didn't work.")); setCode(""); } finally { setBusy(false); }
   };
   return <Dialog open={open} onOpenChange={close}>
     <DialogContent className={cn(popup, "max-w-lg")}>
@@ -147,9 +148,15 @@ export function RepVerifyDialog({ open, onOpenChange, slug, name }: { open: bool
           <p className="text-xs text-muted-foreground">It must be on {name}'s own website domain. Personal addresses can't be verified.</p>
           <Button type="submit" className="w-full" disabled={busy || !email.includes("@")}>{busy && <Loader2 className="animate-spin" />}Send code</Button>
         </form>}
-        {step === "code" && <form className="mt-5 space-y-2" onSubmit={(e) => { e.preventDefault(); void verify(); }}>
-          <label className="text-sm font-bold" htmlFor="rep-code">The 6-digit code we sent to {email}</label>
-          <Input id="rep-code" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} className="h-11 border-2 border-foreground text-center font-display text-xl tracking-[0.4em]" required />
+        {/* The same code step as sign-in: who it went to (with Change), the 6 boxes, auto-verify on the 6th digit. */}
+        {step === "code" && <form className="mt-5 space-y-4" onSubmit={(e) => { e.preventDefault(); void verify(); }}>
+          <div className="flex items-center gap-3 rounded-lg border-2 border-foreground bg-card p-3">
+            <MailCheck className="size-5 shrink-0 text-primary" />
+            <p className="min-w-0 flex-1 truncate text-sm">Code sent to <strong>{email}</strong></p>
+            <button type="button" onClick={() => { setStep("email"); setCode(""); }} className="inline-flex shrink-0 items-center gap-1 text-xs font-bold text-primary hover:underline"><Pencil className="size-3" />Change</button>
+          </div>
+          <CodeInput value={code} onChange={setCode} onComplete={(v) => { if (!busy) void verify(v); }} />
+          <p className="text-xs text-muted-foreground">No email? Check spam, or <button type="button" disabled={busy} onClick={() => void start()} className="font-bold text-primary hover:underline disabled:text-muted-foreground">send a new code</button>.</p>
           <Button type="submit" className="w-full" disabled={busy || code.length !== 6}>{busy && <Loader2 className="animate-spin" />}Verify</Button>
         </form>}
         {step === "done" && <div className="mt-5 rounded-lg border-2 border-flag-green bg-flag-green/10 p-4 text-sm">

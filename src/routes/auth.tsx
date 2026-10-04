@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { PasswordStrength } from "@/components/password-strength";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { CodeInput } from "@/components/code-input";
 import { toast } from "sonner";
 import { ApiRequestError, apiEnabled, authApi, type MfaMethod } from "@/lib/api";
 import { handleFromSeed, randomHandle } from "@/lib/handles";
@@ -81,15 +81,6 @@ function Stepper({ step }: { step: Step }) {
     <span className={cn("text-xs font-bold", i === at ? "text-foreground" : "text-muted-foreground")}>{s.label}</span>
     {i < STEPS.length - 1 && <span className="relative h-0.5 flex-1 overflow-hidden rounded-full bg-muted"><motion.span className="absolute inset-y-0 left-0 bg-foreground" animate={{ width: i < at ? "100%" : "0%" }} transition={{ duration: 0.35 }} /></span>}
   </li>)}</ol>;
-}
-
-function CodeInput({ value, onChange, onComplete }: { value: string; onChange: (v: string) => void; onComplete?: (v: string) => void }) {
-  return <div>
-    <span className="mb-2 block text-sm font-bold">Enter the 6-digit code</span>
-    <InputOTP maxLength={6} value={value} onChange={(v) => { const digits = v.replace(/\D/g, ""); onChange(digits); if (digits.length === 6) onComplete?.(digits); }} inputMode="numeric" pattern="^[0-9]*$" autoFocus containerClassName="justify-between" aria-label="6-digit code">
-      <InputOTPGroup className="w-full justify-between gap-2">{Array.from({ length: 6 }, (_, i) => <InputOTPSlot key={i} index={i} className="size-12 rounded-lg border-2 border-foreground bg-card font-display text-2xl font-bold first:rounded-lg first:border-l-2 last:rounded-lg sm:size-14" />)}</InputOTPGroup>
-    </InputOTP>
-  </div>;
 }
 
 function SentTo({ email, onChange }: { email: string; onChange: () => void }) {
