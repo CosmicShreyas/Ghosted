@@ -103,6 +103,9 @@ export class GhostBlasters {
   private keys = new Set<string>();
   private stick: Vec = { x: 0, y: 0 };
   private touchFire = false;
+  // Touch (and mouse): tap to fire at a spot; hold and drag to fly toward your finger.
+  private mover: { id: number; x: number; y: number; sx: number; sy: number; at: number; steering: boolean } | null = null;
+  private autoCool = 0;
   private ship = { x: 0, y: 0, vx: 0, vy: 0, angle: 0, cool: 0, moving: false, alive: true, invuln: 0 };
   private enemies: Enemy[] = [];
   private bullets: Bullet[] = [];
@@ -127,6 +130,14 @@ export class GhostBlasters {
     const blur = () => this.keys.clear();
     // A hidden tab pauses the run; it never resumes by itself.
     const vis = () => { if (document.visibilityState === "hidden" && this.state === "playing") this.pause(); };
+    const pdown = (e: PointerEvent) => this.onPointer(e, "down");
+    const pmove = (e: PointerEvent) => this.onPointer(e, "move");
+    const pup = (e: PointerEvent) => this.onPointer(e, "up");
+    canvas.addEventListener("pointerdown", pdown);
+    canvas.addEventListener("pointermove", pmove);
+    canvas.addEventListener("pointerup", pup);
+    canvas.addEventListener("pointercancel", pup);
+    this.cleanup.push(() => { canvas.removeEventListener("pointerdown", pdown); canvas.removeEventListener("pointermove", pmove); canvas.removeEventListener("pointerup", pup); canvas.removeEventListener("pointercancel", pup); });
     keyTarget.addEventListener("keydown", down);
     keyTarget.addEventListener("keyup", up);
     keyTarget.addEventListener("blur", blur);
@@ -148,7 +159,7 @@ export class GhostBlasters {
 
   start() {
     this.enemies = []; this.bullets = []; this.recruiters = []; this.particles = []; this.floaters = [];
-    this.xp = 0; this.level = 1; this.offers = 0; this.runTime = 0; this.overDelay = 0;
+    this.xp = 0; this.level = 1; this.offers = 0; this.runTime = 0; this.overDelay = 0; this.mover = null; this.autoCool = 0;
     this.ship = { x: this.w / 2, y: this.h / 2, vx: 0, vy: 0, angle: 0, cool: 0, moving: false, alive: true, invuln: 1.6 };
     this.spawnIn = 0.6; this.recruiterIn = rand(4, 6);
     for (let i = 0; i < 3; i++) this.spawnEnemy(3);
@@ -157,7 +168,7 @@ export class GhostBlasters {
     this.setState("playing");
     this.hud();
   }
-  pause() { if (this.state === "playing") { this.keys.clear(); this.setState("paused"); } }
+  pause() { if (this.state === "playing") { this.keys.clear(); this.mover = null; this.setState("paused"); } }
   resume() { if (this.state === "paused") { this.last = performance.now(); this.setState("playing"); } }
   destroy() { cancelAnimationFrame(this.raf); this.cleanup.forEach((f) => f()); }
 
@@ -193,6 +204,47 @@ export class GhostBlasters {
     if (down) this.keys.add(k); else this.keys.delete(k);
   }
 
+  private onPointer(e: PointerEvent, phase: "down" | "move" | "up") {
+    if (this.state !== "playing") return;
+    const r = this.canvas.getBoundingClientRect();
+    const x = e.clientX - r.left, y = e.clientY - r.top;
+    if (phase === "down") {
+      e.preventDefault();
+      this.canvas.setPointerCapture?.(e.pointerId);
+      // A tap fires straight at the spot you touched.
+      this.fireAt(x, y);
+      if (!this.mover) this.mover = { id: e.pointerId, x, y, sx: x, sy: y, at: performance.now(), steering: false };
+      return;
+    }
+    if (!this.mover || this.mover.id !== e.pointerId) return;
+    if (phase === "move") {
+      this.mover.x = x; this.mover.y = y;
+      // A drag (or a held press) turns into flying toward your finger.
+      if (!this.mover.steering && (Math.hypot(x - this.mover.sx, y - this.mover.sy) > 14 || performance.now() - this.mover.at > 220)) this.mover.steering = true;
+    } else this.mover = null;
+  }
+
+  private fireAt(x: number, y: number) {
+    const s = this.ship;
+    if (!s.alive) return;
+    s.angle = Math.atan2(y - s.y, x - s.x) + Math.PI / 2;
+    if (s.cool <= 0.08) this.fire(); // taps can come a little faster than the held-key rate
+  }
+
+  // While you drag, the ship covers you: it fires at the closest bad practice every so often.
+  private autoFire(dt: number) {
+    this.autoCool -= dt;
+    if (this.autoCool > 0 || !this.enemies.length) return;
+    const s = this.ship;
+    let best: Enemy | null = null, bd = Infinity;
+    for (const e of this.enemies) { const d = Math.hypot(e.x - s.x, e.y - s.y); if (d < bd) { bd = d; best = e; } }
+    if (!best || bd > Math.max(this.w, this.h) * 0.7) return;
+    const a = Math.atan2(best.y - s.y, best.x - s.x);
+    const sp = 560 * this.unit, nose = 26 * this.unit;
+    this.bullets.push({ x: s.x + Math.cos(a) * nose, y: s.y + Math.sin(a) * nose, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 1.1, angle: a + Math.PI / 2 });
+    this.autoCool = 0.42;
+  }
+
   private dir(): Vec {
     const c = this.opts.controls, k = this.keys;
     const arrows = c !== "wasd", wasd = c !== "arrows";
@@ -202,6 +254,12 @@ export class GhostBlasters {
     if ((arrows && k.has("ArrowUp")) || (wasd && k.has("w"))) y -= 1;
     if ((arrows && k.has("ArrowDown")) || (wasd && k.has("s"))) y += 1;
     x += this.stick.x; y += this.stick.y;
+    // Flying toward a held finger: full speed when far, easing off as the ship arrives.
+    const m = this.mover;
+    if (m?.steering) {
+      const dx = m.x - this.ship.x, dy = m.y - this.ship.y, d = Math.hypot(dx, dy);
+      if (d > 12) { const k = Math.min(1, d / (90 * this.unit)); x += (dx / d) * k; y += (dy / d) * k; }
+    }
     const len = Math.hypot(x, y);
     return len > 1 ? { x: x / len, y: y / len } : { x, y };
   }
@@ -262,10 +320,11 @@ export class GhostBlasters {
       const sp = Math.hypot(s.vx, s.vy);
       if (sp > max) { s.vx *= max / sp; s.vy *= max / sp; }
       s.x = clamp(s.x + s.vx * dt, 20 * u, this.w - 20 * u); s.y = clamp(s.y + s.vy * dt, 20 * u, this.h - 20 * u);
-      // The nose turns toward where you're flying, so you aim by moving.
+      // The nose turns toward where you're flying, so you aim by moving (a tap aims it instantly).
       if (s.moving) s.angle = angleTo(s.angle, Math.atan2(d.y, d.x) + Math.PI / 2, 10 * dt);
       s.cool -= dt; s.invuln = Math.max(0, s.invuln - dt);
       if ((this.keys.has(" ") || this.touchFire) && s.cool <= 0) this.fire();
+      if (this.mover?.steering) this.autoFire(dt);
     }
     // ---- bullets ----
     for (const b of this.bullets) { b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt; }

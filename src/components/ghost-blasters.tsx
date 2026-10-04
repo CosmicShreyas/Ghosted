@@ -2,7 +2,7 @@
 // Used as the dashboard's Play view, and small (`compact`) wherever someone is waiting on an empty
 // page. The title, pause and game-over screens are plain HTML over the canvas, so they stay crisp,
 // keyboard-friendly and in the site's design system.
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Crosshair, Keyboard, Pause, Play, RotateCcw, Share2, Trophy } from "lucide-react";
 import { toast } from "sonner";
@@ -19,25 +19,6 @@ const CONTROL_OPTIONS: { id: GameControls; label: string }[] = [{ id: "both", la
 
 function Key({ children }: { children: string }) {
   return <kbd className="inline-grid min-w-7 place-items-center rounded-md border-2 border-background/70 bg-background/10 px-1.5 py-0.5 font-mono text-[11px] font-bold">{children}</kbd>;
-}
-
-// Thumb stick for phones and tablets: drag anywhere in the pad, the ship follows.
-function Joystick({ onMove }: { onMove: (x: number, y: number) => void }) {
-  const pad = useRef<HTMLDivElement>(null);
-  const [knob, setKnob] = useState({ x: 0, y: 0 });
-  const move = (e: ReactPointerEvent) => {
-    const r = pad.current!.getBoundingClientRect();
-    const max = r.width / 2 - 18;
-    let x = e.clientX - (r.left + r.width / 2), y = e.clientY - (r.top + r.height / 2);
-    const len = Math.hypot(x, y);
-    if (len > max) { x = (x / len) * max; y = (y / len) * max; }
-    setKnob({ x, y }); onMove(x / max, y / max);
-  };
-  const end = () => { setKnob({ x: 0, y: 0 }); onMove(0, 0); };
-  return <div ref={pad} aria-hidden="true" onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); move(e); }} onPointerMove={(e) => { if (e.buttons) move(e); }} onPointerUp={end} onPointerCancel={end}
-    className="pointer-events-auto relative size-28 touch-none rounded-full border-2 border-background/40 bg-background/10 backdrop-blur-sm">
-    <span className="absolute left-1/2 top-1/2 size-12 rounded-full border-2 border-foreground bg-primary shadow-hard-sm" style={{ transform: `translate(calc(-50% + ${knob.x}px), calc(-50% + ${knob.y}px))` }} />
-  </div>;
 }
 
 export function GhostBlastersGame({ compact = false, className }: { compact?: boolean; className?: string }) {
@@ -63,6 +44,13 @@ export function GhostBlastersGame({ compact = false, className }: { compact?: bo
   }, [tone, calm]);
   const [ready, setReady] = useState(false);
   const [touch, setTouch] = useState(false);
+  const [hint, setHint] = useState(false);
+  useEffect(() => {
+    if (state !== "playing") return;
+    setHint(true);
+    const t = window.setTimeout(() => setHint(false), 4000);
+    return () => window.clearTimeout(t);
+  }, [state === "playing"]); // eslint-disable-line react-hooks/exhaustive-deps
   const best = prefs.game.best;
   const { signedIn } = useMe();
   const qc = useQueryClient();
@@ -128,7 +116,8 @@ export function GhostBlastersGame({ compact = false, className }: { compact?: bo
   return <div ref={wrap} tabIndex={0} role="application" aria-label="Ghost Blasters game. Press Enter to start, Space to fire, P to pause."
     className={cn("relative isolate select-none overflow-hidden rounded-xl border-2 border-foreground bg-[#16111D] text-[#F2E9D8] shadow-hard outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background",
       compact ? "h-[22rem] sm:h-[26rem]" : "h-[min(72vh,40rem)] min-h-[26rem]", className)}>
-    <canvas ref={canvas} className="absolute inset-0 size-full" />
+    {/* touch-none: taps and drags steer the game instead of scrolling the page. */}
+    <canvas ref={canvas} className="absolute inset-0 size-full touch-none" />
 
     {/* Live numbers while you play. */}
     {(state === "playing" || state === "paused") && <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-3">
@@ -140,12 +129,11 @@ export function GhostBlastersGame({ compact = false, className }: { compact?: bo
       <button type="button" onClick={togglePause} aria-label={state === "paused" ? "Resume" : "Pause"} className="pointer-events-auto grid size-10 place-items-center rounded-full border-2 border-foreground bg-card text-foreground shadow-hard-sm">{state === "paused" ? <Play className="size-4" /> : <Pause className="size-4" />}</button>
     </div>}
 
-    {/* Thumb controls on touch screens. */}
-    {touch && state === "playing" && <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between p-4">
-      <Joystick onMove={(x, y) => game.current?.setStick(x, y)} />
-      <button type="button" aria-label="Fire" onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); game.current?.setFire(true); }} onPointerUp={() => game.current?.setFire(false)} onPointerCancel={() => game.current?.setFire(false)}
-        className="pointer-events-auto grid size-20 touch-none place-items-center rounded-full border-2 border-foreground bg-flag-red text-primary-foreground shadow-hard active:translate-y-0.5 active:shadow-none"><Crosshair className="size-8" /></button>
-    </div>}
+    {/* Touch screens: a short reminder of the controls at the start of each run. */}
+    <AnimatePresence>{touch && state === "playing" && hint && <motion.p key="hint" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+      className="pointer-events-none absolute inset-x-0 bottom-4 mx-auto flex w-fit items-center gap-2 rounded-full border-2 border-foreground bg-card px-4 py-2 text-xs font-bold text-foreground shadow-hard-sm">
+      <Crosshair className="size-4 text-primary" />Tap enemies to shoot · Hold and drag to fly
+    </motion.p>}</AnimatePresence>
 
     <AnimatePresence>
       {state === "ready" && <motion.div key="ready" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 flex flex-col items-center justify-between p-5 text-center sm:p-7">
@@ -157,7 +145,7 @@ export function GhostBlastersGame({ compact = false, className }: { compact?: bo
         </div>
         <div className="flex w-full max-w-sm flex-col items-center gap-3">
           <Button size="lg" onClick={start} disabled={!ready} className="min-w-44 shadow-hard"><Play />{ready ? "Start run" : "Loading…"}</Button>
-          {touch ? <p className="text-xs text-[#F2E9D8]/75">Left thumb steers, right thumb fires.</p>
+          {touch ? <p className="text-xs text-[#F2E9D8]/75">Tap an enemy to fire at it. Hold and drag to fly; your ship covers you while you move.</p>
             : <p className="flex flex-wrap items-center justify-center gap-1.5 text-xs text-[#F2E9D8]/80"><Keyboard className="size-3.5" />{keysHint} to fly · <Key>Space</Key> to send résumés · <Key>P</Key> to pause</p>}
           {!touch && <div role="radiogroup" aria-label="Movement keys" className="flex rounded-full border-2 border-background/40 p-0.5 text-xs font-bold">
             {CONTROL_OPTIONS.map((o) => <button key={o.id} type="button" role="radio" aria-checked={prefs.game.controls === o.id} onClick={() => setControls(o.id)}
