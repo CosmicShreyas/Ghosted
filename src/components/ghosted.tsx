@@ -75,7 +75,7 @@ export function CompanyMark({ company, size = "md" }: { company: Pick<Company, "
 }
 
 // A real story (API) on the landing page's story wall: same look as the sample cards.
-export function StoryModelCard({ story, readMore = "Read more" }: { story: StoryModel; readMore?: string }) {
+export function StoryModelCard({ story, readMore = "Read more" }: { story: StoryModel; readMore?: React.ReactNode }) {
   // Every card is the same size: one-line role and title, the story capped at four lines, and
   // "Read more" (which asks visitors to join) always in the same place.
   return <article className="card-lift flex h-full flex-col rounded-xl border-2 border-foreground bg-card p-5 shadow-hard-sm">

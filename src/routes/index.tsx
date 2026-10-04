@@ -10,6 +10,7 @@ import { organizationLd, pageHead, websiteLd } from "@/lib/meta";
 import { api, apiEnabled, track } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import { useLanding } from "@/content/landing-copy";
+import { useFit } from "@/components/fit";
 import { fromApi, isRated, useCompanyIndex, type StoryDto } from "@/lib/stories";
 import { Preloader } from "@/components/preloader";
 import { GhostOMeter, HiringMinefield } from "@/components/landing-games";
@@ -124,6 +125,7 @@ function LandingPage() {
   const { waiting } = useAuthGuard("public-only");
   const t = useT();
   const L = useLanding();
+  const f = useFit(); // text that keeps its English size, so nothing moves when the language changes
   const { list, ready } = useCompanyIndex();
   const rated = list.filter(isRated).sort((a, b) => b.score - a.score);
   const loved = apiEnabled ? rated.filter((c) => c.score >= 50).slice(0, 4) : companies.slice(0, 4);
@@ -137,17 +139,17 @@ function LandingPage() {
     {/* Hero: the promise, a company search (no account needed), then the ask. */}
     <section id="top-search" className="mx-auto grid max-w-7xl scroll-mt-20 items-center gap-8 overflow-x-clip px-4 py-10 sm:gap-12 sm:px-6 sm:py-14 lg:min-h-[640px] lg:grid-cols-[1.05fr_.95fr] lg:gap-16 lg:py-20">
       <div className="animate-fade-up">
-        <div className="mb-5 inline-flex items-center gap-2 rounded-full border-2 border-foreground bg-accent px-3 py-1 text-sm font-bold"><Sparkles className="size-4" />{t("hero.badge")}</div>
+        <div className="mb-5 inline-flex items-center gap-2 rounded-full border-2 border-foreground bg-accent px-3 py-1 text-sm font-bold"><Sparkles className="size-4" />{f.t("hero.badge")}</div>
         {/* Exactly two lines are reserved for the typing line (h-[1.94em] at this line height), so the
     page below never moves; the lines themselves are short enough to never need a third. */}
-<h1 className="max-w-3xl text-[2.6rem] font-bold leading-[.97] min-[380px]:text-5xl sm:text-6xl lg:text-7xl">{t("hero.title")}<br /><span className="block h-[1.94em] overflow-hidden text-primary"><RetypingLine /></span></h1>
-        <p className="mt-4 max-w-xl text-lg leading-relaxed text-muted-foreground">{t("hero.lede")}</p>
+<h1 className="max-w-3xl text-[2.6rem] font-bold leading-[.97] min-[380px]:text-5xl sm:text-6xl lg:text-7xl">{f.t("hero.title")}<br /><span className="block h-[1.94em] overflow-hidden text-primary"><RetypingLine /></span></h1>
+        <p className="mt-4 max-w-xl text-lg leading-relaxed text-muted-foreground">{f.t("hero.lede", "grid")}</p>
         <CompanySearch className="mt-7 max-w-xl" />
         <div className="mt-6 flex flex-wrap items-center gap-3">
-          <Button size="lg" asChild><Link to="/auth" search={{ intent: "share" }}><PenLine />{t("hero.share")} <ArrowRight /></Link></Button>
-          <Button size="lg" variant="outline" asChild><a href="#ghost-o-meter"><Hourglass />{t("hero.waiting")}</a></Button>
+          <Button size="lg" asChild><Link to="/auth" search={{ intent: "share" }}><PenLine />{f.t("hero.share")} <ArrowRight /></Link></Button>
+          <Button size="lg" variant="outline" asChild><a href="#ghost-o-meter"><Hourglass />{f.t("hero.waiting")}</a></Button>
         </div>
-        <p className="mt-4 flex max-w-lg items-center gap-2 text-sm font-semibold"><ShieldCheck className="size-4 shrink-0 text-flag-green" />{t("hero.trust")}</p>
+        <p className="mt-4 flex max-w-lg items-center gap-2 text-sm font-semibold"><ShieldCheck className="size-4 shrink-0 text-flag-green" />{f.t("hero.trust")}</p>
       </div>
       {/* The collage is designed at 512×500 and scaled to fit smaller screens (66% on phones, 85% on
           small tablets). The outer box reserves the scaled height so nothing overlaps below it. */}
@@ -164,15 +166,15 @@ function LandingPage() {
     <Marquee />
     <StatsStrip />
 
-    <section id="how" className="mx-auto max-w-7xl px-4 py-24 sm:px-6"><p className="mb-3 text-sm font-bold uppercase text-primary">{L.how.eyebrow}</p><h2 className="max-w-2xl text-4xl font-bold sm:text-5xl">{L.how.title}</h2><div className="mt-10 grid gap-5 md:grid-cols-3">{L.how.steps.map(({ title, copy }, i) => <div key={i} className="card-lift rounded-xl border-2 border-foreground bg-card p-6 shadow-hard-sm"><span className="font-display text-5xl font-bold text-primary">{String(i + 1).padStart(2, "0")}</span><h3 className="mt-8 text-xl font-bold">{title}</h3><p className="mt-2 text-sm leading-relaxed text-muted-foreground">{copy}</p></div>)}</div></section>
+    <section id="how" className="mx-auto max-w-7xl px-4 py-24 sm:px-6"><p className="mb-3 text-sm font-bold uppercase text-primary">{f.l((c) => c.how.eyebrow)}</p><h2 className="max-w-2xl text-4xl font-bold sm:text-5xl">{f.l((c) => c.how.title, "grid")}</h2><div className="mt-10 grid gap-5 md:grid-cols-3">{L.how.steps.map(({ title, copy }, i) => <div key={i} className="card-lift rounded-xl border-2 border-foreground bg-card p-6 shadow-hard-sm"><span className="font-display text-5xl font-bold text-primary">{String(i + 1).padStart(2, "0")}</span><h3 className="mt-8 text-xl font-bold">{title}</h3><p className="mt-2 text-sm leading-relaxed text-muted-foreground">{copy}</p></div>)}</div></section>
 
     {/* The Ghost-o-meter, then the natural next step: look the company up. */}
     <div id="ghost-o-meter" className="scroll-mt-20 border-t-2 border-foreground">
       <GhostOMeter />
       <div className="mx-auto -mt-12 max-w-7xl px-4 pb-20 sm:px-6">
         <div className="rounded-xl border-2 border-foreground bg-accent p-5 shadow-hard-sm sm:p-6">
-          <p className="flex items-center gap-2 font-display text-xl font-bold"><Search className="size-5" />{L.lookup.title}</p>
-          <p className="mt-1 text-sm text-muted-foreground">{L.lookup.copy}</p>
+          <p className="flex items-center gap-2 font-display text-xl font-bold"><Search className="size-5" />{f.l((c) => c.lookup.title)}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{f.l((c) => c.lookup.copy)}</p>
           <CompanySearch size="md" className="mt-4 max-w-xl" />
         </div>
       </div>
@@ -181,15 +183,15 @@ function LandingPage() {
 
     <WhyGhosted />
     <LandingObjection />
-    <section className="border-y-2 border-foreground bg-accent py-24"><div className="mx-auto max-w-7xl px-4 sm:px-6"><div className="flex flex-wrap items-end justify-between gap-4"><div><p className="mb-3 text-sm font-bold uppercase text-primary">{L.proofs.eyebrow}</p><h2 className="text-4xl font-bold sm:text-5xl">{L.proofs.title}</h2></div><p className="max-w-md text-muted-foreground">{L.proofs.aside}</p></div><div className="mt-10 grid gap-5 md:grid-cols-3">{L.proofs.items.map(({ title, expected, reality }) => <article key={title} className="rounded-xl border-2 border-foreground bg-card p-5 shadow-hard-sm"><p className="text-xs font-bold uppercase text-primary">{title}</p><p className="mt-5 text-sm text-muted-foreground">{expected}</p><p className="mt-3 border-t-2 border-foreground pt-3 font-display text-lg font-bold">{reality}</p></article>)}</div></div></section>
+    <section className="border-y-2 border-foreground bg-accent py-24"><div className="mx-auto max-w-7xl px-4 sm:px-6"><div className="flex flex-wrap items-end justify-between gap-4"><div><p className="mb-3 text-sm font-bold uppercase text-primary">{f.l((c) => c.proofs.eyebrow)}</p><h2 className="text-4xl font-bold sm:text-5xl">{f.l((c) => c.proofs.title, "grid")}</h2></div><p className="max-w-md text-muted-foreground">{f.l((c) => c.proofs.aside, "grid")}</p></div><div className="mt-10 grid gap-5 md:grid-cols-3">{L.proofs.items.map(({ title, expected, reality }) => <article key={title} className="rounded-xl border-2 border-foreground bg-card p-5 shadow-hard-sm"><p className="text-xs font-bold uppercase text-primary">{title}</p><p className="mt-5 text-sm text-muted-foreground">{expected}</p><p className="mt-3 border-t-2 border-foreground pt-3 font-display text-lg font-bold">{reality}</p></article>)}</div></div></section>
     <Marquee reverse />
 
     <section id="companies" className="border-b-2 border-foreground bg-secondary py-24"><div className="mx-auto max-w-7xl px-4 sm:px-6">
-      <div className="flex flex-wrap items-end justify-between gap-4"><div><p className="mb-3 text-sm font-bold uppercase text-primary">{L.flags.eyebrow}</p><h2 className="text-4xl font-bold sm:text-5xl">{L.flags.title}</h2></div><p className="max-w-md text-muted-foreground">{L.flags.aside}</p></div>
+      <div className="flex flex-wrap items-end justify-between gap-4"><div><p className="mb-3 text-sm font-bold uppercase text-primary">{f.l((c) => c.flags.eyebrow)}</p><h2 className="text-4xl font-bold sm:text-5xl">{f.l((c) => c.flags.title, "grid")}</h2></div><p className="max-w-md text-muted-foreground">{f.l((c) => c.flags.aside, "grid")}</p></div>
       {apiEnabled && !loved.length && !warned.length
         ? <div className="mt-10 grid gap-5 rounded-xl border-2 border-foreground bg-card p-6 shadow-hard-sm sm:p-8 md:grid-cols-[1fr_auto] md:items-center">
-            <div><p className="font-display text-2xl font-bold">{L.flags.emptyTitle}</p><p className="mt-2 max-w-md text-muted-foreground">{L.flags.emptyCopy}</p></div>
-            <div className="grid gap-3"><Button asChild><Link to="/auth" search={{ intent: "share" }}><PenLine />{t("hero.share")}</Link></Button></div>
+            <div><p className="font-display text-2xl font-bold">{f.l((c) => c.flags.emptyTitle, "grid")}</p><p className="mt-2 max-w-md text-muted-foreground">{f.l((c) => c.flags.emptyCopy, "grid")}</p></div>
+            <div className="grid gap-3"><Button asChild><Link to="/auth" search={{ intent: "share" }}><PenLine />{f.t("hero.share")}</Link></Button></div>
           </div>
         : <div className="mt-10 grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-2 [&>*]:min-w-0">{([[L.flags.decent, loved, "text-flag-green"], [L.flags.snacks, warned, "text-flag-red"]] as const).map(([title, group, tone]) => <div key={title}><h3 className={`mb-4 text-xl font-bold ${tone}`}>{title}</h3><div className="space-y-3">
             {group.length === 0 && <p className="rounded-xl border-2 border-dashed border-foreground/40 p-4 text-sm text-muted-foreground">{L.flags.nobody}</p>}
@@ -201,16 +203,16 @@ function LandingPage() {
     {/* Phones and tablets: avatars, text and a full-width button stacked; a single row from lg up. */}
     <section className="border-b-2 border-foreground bg-accent"><div className="mx-auto grid max-w-7xl gap-5 px-4 py-10 sm:px-6 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center lg:gap-8">
       <div className="flex -space-x-3">{(["violet", "sunrise", "gold"] as const).map((f, i) => <FlairRing key={f} flair={f} className="bg-card"><Avatar {...getUser(["u2", "u5", "u8"][i]!)} size="md" /></FlairRing>)}</div>
-      <div className="min-w-0"><h2 className="font-display text-2xl font-bold leading-tight sm:text-3xl">{L.invite.title}</h2><p className="mt-2 max-w-2xl text-muted-foreground">{L.invite.copy}</p></div>
-      <Button size="lg" variant="outline" className="min-h-12 w-full bg-card sm:w-fit" asChild><Link to="/invite">{L.invite.cta} <ArrowRight /></Link></Button>
+      <div className="min-w-0"><h2 className="font-display text-2xl font-bold leading-tight sm:text-3xl">{f.l((c) => c.invite.title, "grid")}</h2><p className="mt-2 max-w-2xl text-muted-foreground">{f.l((c) => c.invite.copy, "grid")}</p></div>
+      <Button size="lg" variant="outline" className="min-h-12 w-full bg-card sm:w-fit" asChild><Link to="/invite">{f.l((c) => c.invite.cta)} <ArrowRight /></Link></Button>
     </div></section>
     <LandingPitch />
     <HiringMinefield />
 
     <section id="stories" className="mx-auto max-w-7xl px-4 py-24 sm:px-6">
-      <div className="flex flex-wrap items-end justify-between gap-4"><div><p className="mb-3 text-sm font-bold uppercase text-primary">{L.wall.eyebrow}</p><h2 className="text-4xl font-bold sm:text-5xl">{L.wall.title}</h2></div><Button variant="outline" asChild><Link to="/auth" search={{ intent: "share" }}><PenLine />{L.wall.add}</Link></Button></div>
+      <div className="flex flex-wrap items-end justify-between gap-4"><div><p className="mb-3 text-sm font-bold uppercase text-primary">{f.l((c) => c.wall.eyebrow)}</p><h2 className="text-4xl font-bold sm:text-5xl">{f.l((c) => c.wall.title, "grid")}</h2></div><Button variant="outline" asChild><Link to="/auth" search={{ intent: "share" }}><PenLine />{f.l((c) => c.wall.add)}</Link></Button></div>
       {apiEnabled
-        ? wallStories.length ? <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">{wallStories.map((story) => <StoryModelCard key={story.id} story={story} readMore={L.wall.readMore} />)}</div>
+        ? wallStories.length ? <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">{wallStories.map((story) => <StoryModelCard key={story.id} story={story} readMore={f.l((c) => c.wall.readMore)} />)}</div>
           : <div className="mt-10 grid gap-5 rounded-xl border-2 border-foreground bg-card p-6 shadow-hard-sm sm:p-8 md:grid-cols-[1fr_auto] md:items-center">
               <div><p className="font-display text-2xl font-bold">{wall.isPending ? L.wall.loading : L.wall.firstTitle}</p>{!wall.isPending && <p className="mt-2 max-w-lg text-muted-foreground">{L.wall.firstCopy}</p>}</div>
               {!wall.isPending && <Button asChild><Link to="/auth" search={{ intent: "share" }}><PenLine />{t("hero.share")}</Link></Button>}
@@ -218,7 +220,7 @@ function LandingPage() {
         : <div className="mt-10 columns-1 gap-5 space-y-5 md:columns-2 lg:columns-3">{stories.slice(0, 6).map((story) => <StoryCard key={story.id} story={story} />)}</div>}
     </section>
 
-    <section className="border-y-2 border-foreground bg-foreground text-background"><div className="mx-auto grid max-w-7xl items-center gap-12 px-4 py-20 sm:px-6 md:grid-cols-2"><div><div className="mb-4 grid size-12 place-items-center rounded-xl border-2 border-background/50 bg-primary text-primary-foreground shadow-hard-sm"><EyeOff /></div><h2 className="text-4xl font-bold">{L.privacy.title1}<br />{L.privacy.title2}</h2><p className="mt-4 max-w-lg leading-relaxed text-background/70">{L.privacy.copy}</p></div><PrivacyDemo /></div></section>
-    <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6"><div className="rounded-xl border-2 border-foreground bg-primary p-8 text-primary-foreground shadow-hard md:flex md:items-center md:justify-between md:gap-8 md:p-12"><div><Feather className="mb-5 size-8" /><h2 className="text-4xl font-bold">{L.cta.title}</h2><p className="mt-2 opacity-80">{L.cta.copy}</p></div><Button size="lg" variant="outline" className="mt-7 bg-background text-foreground md:mt-0" asChild><Link to="/auth" search={{ intent: "share" }}>{L.cta.share} <ArrowRight /></Link></Button></div></section>
+    <section className="border-y-2 border-foreground bg-foreground text-background"><div className="mx-auto grid max-w-7xl items-center gap-12 px-4 py-20 sm:px-6 md:grid-cols-2"><div><div className="mb-4 grid size-12 place-items-center rounded-xl border-2 border-background/50 bg-primary text-primary-foreground shadow-hard-sm"><EyeOff /></div><h2 className="text-4xl font-bold">{f.l((c) => c.privacy.title1)}<br />{f.l((c) => c.privacy.title2)}</h2><p className="mt-4 max-w-lg leading-relaxed text-background/70">{f.l((c) => c.privacy.copy, "grid")}</p></div><PrivacyDemo /></div></section>
+    <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6"><div className="rounded-xl border-2 border-foreground bg-primary p-8 text-primary-foreground shadow-hard md:flex md:items-center md:justify-between md:gap-8 md:p-12"><div><Feather className="mb-5 size-8" /><h2 className="text-4xl font-bold">{f.l((c) => c.cta.title, "grid")}</h2><p className="mt-2 opacity-80">{f.l((c) => c.cta.copy, "grid")}</p></div><Button size="lg" variant="outline" className="mt-7 bg-background text-foreground md:mt-0" asChild><Link to="/auth" search={{ intent: "share" }}>{f.l((c) => c.cta.share)} <ArrowRight /></Link></Button></div></section>
   </main><SiteFooter /></div>;
 }

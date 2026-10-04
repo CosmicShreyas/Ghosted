@@ -11,7 +11,7 @@
 import { usePrefs, type Lang } from "@/lib/prefs";
 import { ghostStages, heroRotatingLines, landingObjection, landingPitch, landingProofs, landingSteps, marqueeItems, recruiterSlaps, whyGhosted } from "@/mock/data";
 
-type DeepPartial<T> = T extends readonly (infer U)[] ? readonly (DeepPartial<U> | undefined)[] : T extends object ? { [K in keyof T]?: DeepPartial<T[K]> } : T;
+export type DeepPartial<T> = T extends readonly (infer U)[] ? readonly (DeepPartial<U> | undefined)[] : T extends object ? { [K in keyof T]?: DeepPartial<T[K]> } : T;
 // Exact-text types (from `as const` copy) widened to plain strings, so translations fit.
 type Widen<T> = T extends string ? string : T extends readonly (infer U)[] ? Widen<U>[] : T extends object ? { -readonly [K in keyof T]: Widen<T[K]> } : T;
 
@@ -519,7 +519,7 @@ const hinglish: Partial_ = {
 const DICTS: Record<Lang, Partial_ | null> = { en: null, hi, kn, hinglish };
 
 // Deep merge with English as the base: objects by key, arrays by position, strings replaced.
-function merge<T>(base: T, over: unknown): T {
+export function merge<T>(base: T, over: unknown): T {
   if (over === undefined || over === null) return base;
   if (Array.isArray(base)) return base.map((b, i) => merge(b, (over as unknown[])[i])) as T;
   if (typeof base === "object" && base !== null) {

@@ -33,6 +33,9 @@ import { ShareCard } from "./share-card";
 import { quickStory } from "@/lib/quick-story";
 import { useFounding } from "@/lib/founding";
 import { popup, popupBody, scoreTone } from "./ui-kit";
+import { useComposer, type ComposerCopy } from "@/content/composer-copy";
+import { fill } from "@/content/landing-copy";
+import { useFit } from "@/components/fit";
 
 // ---------- options ----------
 
@@ -52,14 +55,6 @@ const OUTCOMES: { id: Outcome; label: string; icon: LucideIcon; blurb: string; t
   { id: "offer", label: "Got an offer", icon: PartyPopper, blurb: "The rare happy ending", tone: "text-flag-green" },
 ];
 
-const RATING_INFO: Record<Dimension, { label: string; hint: string }> = {
-  hiring: { label: "Hiring process", hint: "Clear, fair, well organised?" },
-  communication: { label: "Communication", hint: "Did they reply, and on time?" },
-  pay: { label: "Pay transparency", hint: "Was the salary discussed honestly?" },
-  culture: { label: "Work culture", hint: "Respectful? Good to work in?" },
-  growth: { label: "Growth", hint: "Is the role going somewhere?" },
-};
-const STAR_WORD = ["", "Awful", "Poor", "Okay", "Good", "Great"];
 const STAR_TONE = ["", "text-flag-red", "text-flag-red", "text-flag-amber", "text-flag-green", "text-flag-green"];
 
 // Wait chips map to these day counts; the exact number can be typed instead.
@@ -134,28 +129,15 @@ const autoBody = (d: Draft, companyName: string) => quickStory({
   ratings: Object.fromEntries(journeyOf(d).ratings.filter((k) => d.ratings[k] > 0).map((k) => [k, d.ratings[k]])),
 });
 
-const PLACEHOLDER: Record<Outcome, [string, string]> = {
-  ghosted: ["Where did it go quiet? What was the last thing they said, and how did you follow up? No names of individuals.", "Where did it go quiet, what was the last message, and did you follow up? Please don't name individuals."],
-  rejected: ["How many rounds, what did they ask, and did they give a reason? No names of individuals.", "How many rounds, what they asked, and whether they gave a reason. Please don't name individuals."],
-  ghost_job: ["Where did you see the post, and what made it feel fake? No names of individuals.", "Where you saw the role, and what suggested it wasn't real. Please don't name individuals."],
-  offer_revoked: ["What was offered, how did they take it back, and what reason did they give? No names of individuals.", "What the offer was, how it was withdrawn, and the reason given. Please don't name individuals."],
-  offer: ["How did the process go, and what should the next candidate know? No names of individuals.", "How the process went and what the next candidate should know. Please don't name individuals."],
-};
-const PROMPTS: Record<Outcome, string[]> = {
-  ghosted: ["What they said last", "How many rounds", "How you followed up", "What would have helped"],
-  rejected: ["How many rounds", "What they asked", "The reason they gave", "What would have helped"],
-  ghost_job: ["Where you saw the post", "Signs it wasn't real", "What would have helped"],
-  offer_revoked: ["What the offer was", "How they took it back", "The reason they gave", "What would have helped"],
-  offer: ["How many rounds", "What they asked", "What would have helped"],
-};
-const JOINED_PROMPTS = ["How many rounds", "What it's like now", "Tip for the next candidate"];
-const promptsFor = (d: Draft) => (d.outcome === "offer" && d.joined === "yes" ? JOINED_PROMPTS : d.outcome ? PROMPTS[d.outcome] : []);
-const templateFor = (d: Draft) => promptsFor(d).map((p) => `### ${p}\n\n`).join("\n");
+// Writing prompts (and placeholders) come from src/content/composer-copy.ts, in the chosen language.
+const promptsIn = (C: ComposerCopy, d: Draft): string[] => (d.outcome === "offer" && d.joined === "yes" ? C.prompts.joined : d.outcome ? C.prompts[d.outcome] : []);
 
 // ---------- markdown editor ----------
 
 function MarkdownEditor({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
   const ref = useRef<HTMLTextAreaElement>(null);
+  const C = useComposer();
+  const f = useFit();
   const [tab, setTab] = useState<"write" | "preview">("write");
   const wrap = (before: string, after = before, fallback = "text") => {
     const el = ref.current; if (!el) return;
@@ -174,15 +156,15 @@ function MarkdownEditor({ value, onChange, placeholder }: { value: string; onCha
     requestAnimationFrame(() => { el.focus(); el.setSelectionRange(s + next.length, s + next.length); });
   };
   const tools: { icon: LucideIcon; label: string; run: () => void }[] = [
-    { icon: Bold, label: "Bold", run: () => wrap("**") },
-    { icon: Italic, label: "Italic", run: () => wrap("_") },
-    { icon: Strikethrough, label: "Strikethrough", run: () => wrap("~~") },
-    { icon: Heading, label: "Heading", run: () => lines(() => "### ") },
-    { icon: List, label: "Bullet list", run: () => lines(() => "- ") },
-    { icon: ListOrdered, label: "Numbered list", run: () => lines((i) => `${i + 1}. `) },
-    { icon: MessageSquareQuote, label: "Quote", run: () => lines(() => "> ") },
-    { icon: Code, label: "Inline code", run: () => wrap("`", "`", "code") },
-    { icon: SquareCode, label: "Code block", run: () => wrap("\n```\n", "\n```\n", "your code here") },
+    { icon: Bold, label: C.tools.bold, run: () => wrap("**") },
+    { icon: Italic, label: C.tools.italic, run: () => wrap("_") },
+    { icon: Strikethrough, label: C.tools.strike, run: () => wrap("~~") },
+    { icon: Heading, label: C.tools.heading, run: () => lines(() => "### ") },
+    { icon: List, label: C.tools.bullets, run: () => lines(() => "- ") },
+    { icon: ListOrdered, label: C.tools.numbers, run: () => lines((i) => `${i + 1}. `) },
+    { icon: MessageSquareQuote, label: C.tools.quote, run: () => lines(() => "> ") },
+    { icon: Code, label: C.tools.code, run: () => wrap("`", "`", "code") },
+    { icon: SquareCode, label: C.tools.block, run: () => wrap("\n```\n", "\n```\n", "your code here") },
   ];
   const onKey = (e: React.KeyboardEvent) => {
     if (!(e.metaKey || e.ctrlKey)) return;
@@ -194,34 +176,37 @@ function MarkdownEditor({ value, onChange, placeholder }: { value: string; onCha
       <div className="relative mr-1 grid grid-cols-2 rounded-full border-2 border-foreground bg-card p-0.5 text-xs font-bold">
         <motion.span aria-hidden="true" className="absolute inset-y-0.5 left-0.5 w-[calc(50%-2px)] rounded-full bg-primary" initial={false} animate={{ x: tab === "write" ? "0%" : "100%" }} transition={{ type: "spring", stiffness: 420, damping: 34 }} />
         {(["write", "preview"] as const).map((t) => <button key={t} type="button" onClick={() => setTab(t)} aria-pressed={tab === t} className={cn("relative z-10 inline-flex items-center justify-center gap-1 rounded-full px-2.5 py-1 capitalize transition-colors duration-200", tab === t ? "text-primary-foreground" : "text-foreground hover:text-primary")}>
-          {t === "write" ? <PenLine className="size-3.5" /> : <Eye className="size-3.5" />}{t}
+          {t === "write" ? <PenLine className="size-3.5" /> : <Eye className="size-3.5" />}{f.c((c) => (t === "write" ? c.write : c.preview))}
         </button>)}
       </div>
       {tab === "write" && tools.map(({ icon: Icon, label, run }) => <button key={label} type="button" onClick={run} title={label} aria-label={label} className="grid size-8 place-items-center rounded-full border-2 border-transparent text-foreground transition-colors hover:border-foreground hover:bg-card"><Icon className="size-4" /></button>)}
     </div>
     {tab === "write"
       ? <textarea ref={ref} value={value} onChange={(e) => onChange(e.target.value)} onKeyDown={onKey} maxLength={4000} rows={9} placeholder={placeholder} className="block min-h-48 w-full resize-y bg-transparent px-3 py-2.5 text-[15px] leading-relaxed outline-none placeholder:text-muted-foreground" />
-      : <div className="min-h-48 px-3 py-2.5 text-[15px]">{value.trim() ? <Markdown text={value} /> : <p className="text-muted-foreground">Nothing to preview yet.</p>}</div>}
+      : <div className="min-h-48 px-3 py-2.5 text-[15px]">{value.trim() ? <Markdown text={value} /> : <p className="text-muted-foreground">{C.nothingPreview}</p>}</div>}
   </div>;
 }
 
 // ---------- bits ----------
 
-function StepHeader({ step, title, subtitle }: { step: number; title: string; subtitle: string }) {
+function StepHeader({ step, title, subtitle }: { step: number; title: ReactNode; subtitle: ReactNode }) {
+  const C = useComposer();
   return <DialogHeader className="pr-8 text-left">
-    <p className="text-xs font-bold uppercase tracking-wide text-primary">Step {step + 1} of {STEPS.length}</p>
+    <p className="text-xs font-bold uppercase tracking-wide text-primary">{fill(C.stepOf, { n: step + 1, total: STEPS.length })}</p>
     <DialogTitle className="font-display text-2xl">{title}</DialogTitle>
     <DialogDescription>{subtitle}</DialogDescription>
   </DialogHeader>;
 }
 
 function Progress({ step, reached, onJump }: { step: number; reached: number; onJump: (i: number) => void }) {
-  return <ol className="mt-5 grid grid-cols-4 gap-1.5" aria-label="Progress">{STEPS.map((s, i) => <li key={s.id}>
+  const C = useComposer();
+  const f = useFit();
+  return <ol className="mt-5 grid grid-cols-4 gap-1.5" aria-label={C.progress}>{STEPS.map((s, i) => <li key={s.id}>
     <button type="button" disabled={i > reached} onClick={() => onJump(i)} className="group w-full text-left disabled:cursor-not-allowed" aria-current={i === step ? "step" : undefined}>
       <span className="block h-2 overflow-hidden rounded-full border-2 border-foreground bg-card">
         <motion.span className="block h-full bg-primary" initial={false} animate={{ width: i < step ? "100%" : i === step ? "55%" : "0%" }} transition={{ type: "spring", stiffness: 200, damping: 26 }} />
       </span>
-      <span className={cn("mt-1 hidden items-center gap-1 text-[11px] font-bold sm:flex", i === step ? "text-foreground" : i < step ? "text-primary" : "text-muted-foreground")}>{i < step && <Check className="size-3" />}{s.label}</span>
+      <span className={cn("mt-1 hidden items-center gap-1 text-[11px] font-bold sm:flex", i === step ? "text-foreground" : i < step ? "text-primary" : "text-muted-foreground")}>{i < step && <Check className="size-3" />}{f.c((c) => c.steps[s.id])}</span>
     </button>
   </li>)}</ol>;
 }
@@ -237,14 +222,17 @@ function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; chi
 
 function Stars({ value, onChange, label }: { value: number; onChange: (n: number) => void; label: string }) {
   const [hover, setHover] = useState(0);
+  const C = useComposer();
+  const f = useFit();
   const shown = hover || value;
   return <div className="flex items-center gap-1" onMouseLeave={() => setHover(0)}>
-    <div className="flex" role="radiogroup" aria-label={label}>{[1, 2, 3, 4, 5].map((n) => <button key={n} type="button" role="radio" aria-checked={value === n} aria-label={`${n} of 5: ${STAR_WORD[n]}`} onMouseEnter={() => setHover(n)} onFocus={() => setHover(n)} onBlur={() => setHover(0)} onClick={() => onChange(n)} className="grid size-11 place-items-center sm:size-10">
+    <div className="flex" role="radiogroup" aria-label={label}>{[1, 2, 3, 4, 5].map((n) => <button key={n} type="button" role="radio" aria-checked={value === n} aria-label={fill(C.starOf, { n, word: C.stars[n] ?? "" })} onMouseEnter={() => setHover(n)} onFocus={() => setHover(n)} onBlur={() => setHover(0)} onClick={() => onChange(n)} className="grid size-11 place-items-center sm:size-10">
       <motion.span className="block" animate={{ scale: n <= shown ? 1.12 : 1 }} transition={{ type: "spring", stiffness: 500, damping: 20 }}>
         <Star className={cn("size-6 transition-colors sm:size-7", n <= shown ? "fill-flag-amber text-foreground" : "text-muted-foreground")} strokeWidth={n <= shown ? 1.5 : 2} />
       </motion.span>
     </button>)}</div>
-    <span className={cn("w-12 text-xs font-bold", STAR_TONE[shown])}>{STAR_WORD[shown]}</span>
+    {/* Sized for the longest word in English, so the stars never shift as you hover. */}
+    <span className={cn("min-w-12 text-xs font-bold", STAR_TONE[shown])}>{shown ? f.c((c) => c.stars[shown] ?? "") : null}</span>
   </div>;
 }
 
@@ -267,6 +255,10 @@ export type StoryPreset = { company?: string; stage?: string; role?: string; out
 export function ShareModal({ open, onOpenChange, editing = null, presetCompany = null, preset = null, onPublished }: { open: boolean; onOpenChange: (v: boolean) => void; editing?: StoryModel | null; presetCompany?: string | null; preset?: StoryPreset | null; onPublished?: (storyPublicId: string | null) => void }) {
   const qc = useQueryClient();
   const tone = useTone();
+  const C = useComposer();
+  const f = useFit(); // labels keep their English size, so nothing moves when the language changes
+  const pv = (p: { sassy: string; calm: string }) => voice(tone, p.sassy, p.calm);
+  const fv = (pick: (c: typeof C) => { sassy: string; calm: string }) => f.c((c) => voice(tone, pick(c).sassy, pick(c).calm));
   const { me } = useMe();
   const { list: companyList, index } = useCompanyIndex();
   const shield = useHumanCheck();
@@ -291,19 +283,19 @@ export function ShareModal({ open, onOpenChange, editing = null, presetCompany =
     const min = x.min === "" ? null : Number(x.min), max = x.max === "" ? null : Number(x.max);
     const jj = journeyOf(x);
     return [
-      [!x.outcome && "Pick how it ended", x.outcome === "offer" && !x.joined && "Tell us whether you joined", !x.company && "Pick the company"].filter(Boolean) as string[],
-      [neverHired(x.outcome) && !x.stage && "Pick how far you got",
-        ...jj.ratings.filter((k) => !x.ratings[k]).map((k) => `Rate the ${RATING_INFO[k].label.toLowerCase()}`),
-        jj.salary && (min === null) !== (max === null) && "Add both pay numbers, or neither",
-        jj.salary && min !== null && max !== null && max < min && "The max should be at least the min",
-        jj.salary && min !== null && (min > 1000 || (max ?? 0) > 1000) && "That pay looks off (in LPA)",
-        x.days !== "" && (Number(x.days) < 0 || Number(x.days) > 730) && "Days waited should be 0 to 730"].filter(Boolean) as string[],
-      [x.title.trim().length < 5 && "Give it a title (at least 5 characters)",
-        x.body.trim().length < 40 && `Tell the story (${Math.max(0, 40 - x.body.trim().length)} more characters), or post a quick story`].filter(Boolean) as string[],
+      [!x.outcome && C.problems.outcome, x.outcome === "offer" && !x.joined && C.problems.joined, !x.company && C.problems.company].filter(Boolean) as string[],
+      [neverHired(x.outcome) && !x.stage && C.problems.stage,
+        ...jj.ratings.filter((k) => !x.ratings[k]).map((k) => fill(C.problems.rate, { what: f.lang === "en" ? C.ratings[k].label.toLowerCase() : C.ratings[k].label })),
+        jj.salary && (min === null) !== (max === null) && C.problems.bothPay,
+        jj.salary && min !== null && max !== null && max < min && C.problems.maxMin,
+        jj.salary && min !== null && (min > 1000 || (max ?? 0) > 1000) && C.problems.payOff,
+        x.days !== "" && (Number(x.days) < 0 || Number(x.days) > 730) && C.problems.daysRange].filter(Boolean) as string[],
+      [x.title.trim().length < 5 && C.problems.title,
+        x.body.trim().length < 40 && fill(C.problems.body, { n: Math.max(0, 40 - x.body.trim().length) })].filter(Boolean) as string[],
       [],
     ];
   };
-  const problems = useMemo(() => problemsOf(d), [d]);
+  const problems = useMemo(() => problemsOf(d), [d, C]); // eslint-disable-line react-hooks/exhaustive-deps
   // Presets and deep links skip ahead to the first step that still needs an answer (never past 3).
   const firstOpen = (x: Draft) => { const p = problemsOf(x); const i = p.findIndex((s) => s.length > 0); return i < 0 ? 2 : Math.min(i, 2); };
 
@@ -369,7 +361,7 @@ export function ShareModal({ open, onOpenChange, editing = null, presetCompany =
 
   const saveEdit = async () => {
     if (!editing) return;
-    if (!apiEnabled) { toast.success("Changes saved. (Preview mode: they aren't stored.)"); return close(false); }
+    if (!apiEnabled) { toast.success(C.toasts.previewSaved); return close(false); }
     setBusy(true);
     try {
       const p = payload();
@@ -377,10 +369,10 @@ export function ShareModal({ open, onOpenChange, editing = null, presetCompany =
       const body = neverHired(d.outcome) ? p : (({ daysWaited: _omit, ...rest }) => rest)(p);
       const r = await api<{ pending?: boolean; message?: string | null }>(`/v1/stories/${editing.id}`, { method: "PATCH", body });
       if (r.pending) speak(r.message ?? "Saved. Your story will be back up after a quick check.");
-      else toast.success(voice(tone, "Story updated. The record has been set straight.", "Your changes have been saved."));
+      else toast.success(pv(C.toasts.updated));
       refresh();
       close(false);
-    } catch (err) { showError(err, "Couldn't save your changes. Try again."); } finally { setBusy(false); }
+    } catch (err) { showError(err, C.toasts.saveFail); } finally { setBusy(false); }
   };
 
   const post = async () => {
@@ -405,7 +397,7 @@ export function ShareModal({ open, onOpenChange, editing = null, presetCompany =
       refresh();
     } catch (err) {
       if (err instanceof ApiRequestError && err.code === "captcha_escalate") { escalated = true; shield.escalate(); }
-      showError(err, "Couldn't share right now. Your draft is saved; try again.");
+      showError(err, C.toasts.postFail);
     } finally { if (!escalated) shield.reset(); setBusy(false); }
   };
 
@@ -418,7 +410,8 @@ export function ShareModal({ open, onOpenChange, editing = null, presetCompany =
   const outcome = OUTCOMES.find((o) => o.id === d.outcome);
   const stage = STAGES.find((s) => s.id === stageOf(d));
   const days = daysOf(d);
-  const quietLabel = d.outcome === "rejected" ? "Where were you rejected?" : d.outcome === "ghost_job" ? "How far did you get?" : "Where did they go quiet?";
+  const quietLabel = f.c((c) => (d.outcome === "rejected" ? c.quiet.rejected : d.outcome === "ghost_job" ? c.quiet.ghost_job : c.quiet.other));
+  // The outcome line on the preview card stays in English: it's how the posted story will read.
   const outcomeLine = outcome ? (d.outcome === "offer" ? (d.joined === "yes" ? "Got an offer, joined" : d.joined === "no" ? "Got an offer, didn't join" : outcome.label) : outcome.label) : "";
 
   // ---------- steps ----------
@@ -427,28 +420,28 @@ export function ShareModal({ open, onOpenChange, editing = null, presetCompany =
     // 1. What happened
     <div key="what" className="space-y-5">
       <div>
-        <Label>How did it end?</Label>
-        <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:grid-cols-3">{OUTCOMES.map(({ id, label, icon: Icon, blurb, tone: t }) => <motion.button key={id} type="button" onClick={() => pickOutcome(id)} aria-pressed={d.outcome === id} whileTap={{ scale: 0.97 }}
+        <Label>{f.c((c) => c.how)}</Label>
+        <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:grid-cols-3">{OUTCOMES.map(({ id, icon: Icon, tone: t }) => <motion.button key={id} type="button" onClick={() => pickOutcome(id)} aria-pressed={d.outcome === id} whileTap={{ scale: 0.97 }}
           className={cn("flex min-h-14 items-start gap-2.5 rounded-lg border-2 border-foreground p-3 text-left transition-colors", d.outcome === id ? "bg-primary text-primary-foreground shadow-hard-sm" : "bg-card hover:bg-muted")}>
           <Icon className={cn("mt-0.5 size-5 shrink-0", d.outcome !== id && t)} />
-          <span className="min-w-0"><span className="block text-sm font-bold">{label}</span><span className={cn("block text-xs", d.outcome === id ? "opacity-85" : "text-muted-foreground")}>{blurb}</span></span>
+          <span className="min-w-0"><span className="block text-sm font-bold">{f.c((c) => c.outcomes[id].label)}</span><span className={cn("block text-xs", d.outcome === id ? "opacity-85" : "text-muted-foreground")}>{f.c((c) => c.outcomes[id].blurb)}</span></span>
         </motion.button>)}</div>
       </div>
       <AnimatePresence initial={false}>{d.outcome === "offer" && <motion.div key="joined" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-        <Label>Did you join?</Label>
+        <Label>{f.c((c) => c.joined)}</Label>
         <div className="flex flex-wrap gap-2">
-          <Chip on={d.joined === "yes"} onClick={() => set("joined", "yes")}>Yes, I joined</Chip>
-          <Chip on={d.joined === "no"} onClick={() => set("joined", "no")}>No, I declined or didn't join</Chip>
+          <Chip on={d.joined === "yes"} onClick={() => set("joined", "yes")}>{f.c((c) => c.joinedYes)}</Chip>
+          <Chip on={d.joined === "no"} onClick={() => set("joined", "no")}>{f.c((c) => c.joinedNo)}</Chip>
         </div>
       </motion.div>}</AnimatePresence>
       <div>
-        <Label hint={editing ? "Can't be changed on an existing story" : <button type="button" onClick={() => setListing(true)} className="font-bold text-primary hover:underline">Not listed? List it</button>}>Which company?</Label>
-        <CompanyPicker value={d.company} onChange={(v) => set("company", v)} companies={companyList} disabled={!!editing} placeholder="Choose the company"
-          footer={(close, q) => <button type="button" onClick={() => { close(); setListing(true); }} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm font-bold text-primary hover:bg-muted"><Plus className="size-4" />{q ? `List “${q}” on Ghosted` : "Not listed? List it"}</button>} />
+        <Label hint={editing ? f.c((c) => c.companyLocked) : <button type="button" onClick={() => setListing(true)} className="font-bold text-primary hover:underline">{f.c((c) => c.notListed)}</button>}>{f.c((c) => c.company)}</Label>
+        <CompanyPicker value={d.company} onChange={(v) => set("company", v)} companies={companyList} disabled={!!editing} placeholder={C.chooseCompany}
+          footer={(close, q) => <button type="button" onClick={() => { close(); setListing(true); }} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm font-bold text-primary hover:bg-muted"><Plus className="size-4" />{q ? fill(C.listQ, { q }) : C.notListed}</button>} />
       </div>
       <div>
-        <Label hint={<span>Optional · <span className="tabular-nums">{d.role.length}/{ROLE_MAX}</span></span>}>Your role</Label>
-        <Input value={d.role} onChange={(e) => set("role", e.target.value)} maxLength={ROLE_MAX} placeholder="e.g. Frontend Engineer" className="h-11 border-2 border-foreground" />
+        <Label hint={<span>{f.c((c) => c.optional)} · <span className="tabular-nums">{d.role.length}/{ROLE_MAX}</span></span>}>{f.c((c) => c.role)}</Label>
+        <Input value={d.role} onChange={(e) => set("role", e.target.value)} maxLength={ROLE_MAX} placeholder={C.roleHint} className="h-11 border-2 border-foreground" />
       </div>
     </div>,
 
@@ -457,74 +450,78 @@ export function ShareModal({ open, onOpenChange, editing = null, presetCompany =
       {neverHired(d.outcome) && <>
         <div>
           <Label>{quietLabel}</Label>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">{STAGES.map(({ id, label, icon: Icon }, i) => <motion.button key={id} type="button" onClick={() => set("stage", id)} aria-pressed={d.stage === id} whileTap={{ scale: 0.96 }}
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">{STAGES.map(({ id, icon: Icon }, i) => <motion.button key={id} type="button" onClick={() => set("stage", id)} aria-pressed={d.stage === id} whileTap={{ scale: 0.96 }}
             className={cn("flex min-h-16 flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-foreground px-2 py-3 text-center text-xs font-bold transition-colors", d.stage === id ? "bg-primary text-primary-foreground shadow-hard-sm" : "bg-card hover:bg-muted", i === 4 && "col-span-2 sm:col-span-1")}>
-            <Icon className="size-5" />{label}
+            <Icon className="size-5" />{f.c((c) => c.stages[id as keyof typeof c.stages], "justify-items-center")}
           </motion.button>)}</div>
         </div>
         <div>
-          <Label hint="Optional">{d.outcome === "rejected" ? "How long until they told you?" : "How long did you wait?"}</Label>
+          <Label hint={f.c((c) => c.optional)}>{f.c((c) => (d.outcome === "rejected" ? c.waitQ.rejected : c.waitQ.other))}</Label>
           <div className="flex flex-wrap gap-2">
-            {WAITS.map((w) => <Chip key={w.days} on={days === w.days} onClick={() => set("days", days === w.days ? "" : String(w.days))}>{w.label}</Chip>)}
+            {WAITS.map((w, wi) => <Chip key={w.days} on={days === w.days} onClick={() => set("days", days === w.days ? "" : String(w.days))}>{f.c((c) => c.waits[wi] ?? w.label)}</Chip>)}
             <label className={cn(tap, "inline-flex items-center gap-2 rounded-full border-2 border-dashed border-foreground/50 px-3 text-sm font-semibold text-muted-foreground")}>
-              <span>Exact days</span>
-              <input inputMode="numeric" value={WAITS.some((w) => w.days === days) ? "" : d.days} onChange={(e) => set("days", e.target.value.replace(/\D/g, "").slice(0, 3))} placeholder="e.g. 18" aria-label="Exact days waited" className="w-14 bg-transparent text-foreground outline-none" />
+              <span>{f.c((c) => c.exact)}</span>
+              <input inputMode="numeric" value={WAITS.some((w) => w.days === days) ? "" : d.days} onChange={(e) => set("days", e.target.value.replace(/\D/g, "").slice(0, 3))} placeholder={C.exactHint} aria-label={C.exactLabel} className="w-14 bg-transparent text-foreground outline-none" />
             </label>
           </div>
         </div>
       </>}
-      {offerish(d.outcome) && <p className="rounded-lg border-2 border-foreground/20 bg-muted/50 px-3 py-2 text-sm"><b>{outcomeLine}</b> at the offer stage{company ? ` with ${company.name}` : ""}.</p>}
+      {offerish(d.outcome) && <p className="rounded-lg border-2 border-foreground/20 bg-muted/50 px-3 py-2 text-sm">{(() => {
+        const what = d.outcome === "offer" && d.joined ? (d.joined === "yes" ? C.joinedYes : C.joinedNo) : C.outcomes[d.outcome as Outcome].label;
+        const [before, after] = fill(C.atOffer, { company: company ? fill(C.withCo, { name: company.name }) : "" }).split("{outcome}");
+        return <>{before}<b>{what}</b>{after}</>;
+      })()}</p>}
 
       <div className="flex items-center gap-4 rounded-xl border-2 border-foreground bg-accent p-4">
         <AnimatePresence mode="wait" initial={false}>{flagScore !== null && allRated
           ? <motion.div key="score" initial={{ scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="shrink-0"><FlagScore score={flagScore} compact /></motion.div>
           : <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid size-16 shrink-0 place-items-center rounded-full border-2 border-dashed border-foreground/40 font-display text-xl font-bold text-muted-foreground">?</motion.div>}</AnimatePresence>
         <p className="text-sm">{flagScore === null || !allRated
-          ? voice(tone, `Rate ${j.ratings.length === 2 ? "both" : `all ${j.ratings.length}`} below and watch your Flag Score appear.`, `Rate ${j.ratings.length === 2 ? "both areas" : `all ${j.ratings.length} areas`} to see the Flag Score your story gives this company.`)
-          : <>Your story gives {company?.name ?? "them"} a <strong className={scoreTone(flagScore)}>{flagScore}</strong>. It's averaged with everyone else's.</>}</p>
+          ? fill(pv(C.rateAll), { all: j.ratings.length === 2 ? pv(C.both) : fill(pv(C.allN), { n: j.ratings.length }) })
+          : (() => { const [before, after] = fill(C.gives, { company: company?.name ?? C.them }).split("{score}"); return <>{before}<strong className={scoreTone(flagScore)}>{flagScore}</strong>{after}</>; })()}</p>
       </div>
       <div className="space-y-2">{j.ratings.map((key) => <div key={key} className={cn("flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-lg border-2 px-3 py-2 transition-colors", d.ratings[key] ? "border-foreground bg-card" : "border-foreground/20 bg-muted/50")}>
-        <span className="min-w-0"><span className="block text-sm font-bold">{RATING_INFO[key].label}</span><span className="block text-xs text-muted-foreground">{RATING_INFO[key].hint}</span></span>
-        <Stars label={RATING_INFO[key].label} value={d.ratings[key]} onChange={(n) => set("ratings", { ...d.ratings, [key]: n })} />
+        <span className="min-w-0"><span className="block text-sm font-bold">{f.c((c) => c.ratings[key].label)}</span><span className="block text-xs text-muted-foreground">{f.c((c) => c.ratings[key].hint)}</span></span>
+        <Stars label={C.ratings[key].label} value={d.ratings[key]} onChange={(n) => set("ratings", { ...d.ratings, [key]: n })} />
       </div>)}</div>
 
       {j.salary && (d.showSalary
         ? <div>
-            <Label hint="Optional, but it helps the next person a lot">{d.joined === "yes" ? "Your pay range" : "The offered pay"}</Label>
+            <Label hint={f.c((c) => c.payHint)}>{f.c((c) => (d.joined === "yes" ? c.payYours : c.payOffered))}</Label>
             <div className="grid grid-cols-2 gap-3">
-              <label className="text-xs font-bold text-muted-foreground">Min (₹ LPA)<Input inputMode="decimal" value={d.min} onChange={(e) => set("min", e.target.value.replace(/[^\d.]/g, ""))} placeholder="12" className="mt-1 h-11 border-2 border-foreground text-foreground" /></label>
-              <label className="text-xs font-bold text-muted-foreground">Max (₹ LPA)<Input inputMode="decimal" value={d.max} onChange={(e) => set("max", e.target.value.replace(/[^\d.]/g, ""))} placeholder="18" className="mt-1 h-11 border-2 border-foreground text-foreground" /></label>
+              <label className="text-xs font-bold text-muted-foreground">{f.c((c) => c.min)}<Input inputMode="decimal" value={d.min} onChange={(e) => set("min", e.target.value.replace(/[^\d.]/g, ""))} placeholder="12" className="mt-1 h-11 border-2 border-foreground text-foreground" /></label>
+              <label className="text-xs font-bold text-muted-foreground">{f.c((c) => c.max)}<Input inputMode="decimal" value={d.max} onChange={(e) => set("max", e.target.value.replace(/[^\d.]/g, ""))} placeholder="18" className="mt-1 h-11 border-2 border-foreground text-foreground" /></label>
             </div>
           </div>
-        : <button type="button" onClick={() => set("showSalary", true)} className={cn(tap, "inline-flex items-center gap-2 rounded-lg border-2 border-dashed border-foreground/50 px-3 text-sm font-bold hover:border-foreground")}><IndianRupee className="size-4" />{d.joined === "yes" ? "Add your pay range" : "Add the offered pay"}<ChevronDown className="size-4" /></button>)}
+        : <button type="button" onClick={() => set("showSalary", true)} className={cn(tap, "inline-flex items-center gap-2 rounded-lg border-2 border-dashed border-foreground/50 px-3 text-sm font-bold hover:border-foreground")}><IndianRupee className="size-4" />{f.c((c) => (d.joined === "yes" ? c.addYours : c.addOffered))}<ChevronDown className="size-4" /></button>)}
     </div>,
 
     // 3. In your words
     <div key="words" className="space-y-5">
       <button type="button" onClick={quickStory} className={cn(tap, "flex w-full items-center gap-3 rounded-xl border-2 border-foreground bg-accent p-3 text-left shadow-hard-sm transition-transform hover:-translate-y-0.5")}>
         <span className="grid size-10 shrink-0 place-items-center rounded-full border-2 border-foreground bg-card"><Zap className="size-5" /></span>
-        <span className="min-w-0"><span className="block font-bold">{voice(tone, "Skip the writing, post as a quick story", "Post as a quick story instead")}</span><span className="block text-xs text-muted-foreground">We'll write a short, plain story from your answers. No names, nothing added.</span></span>
+        <span className="min-w-0"><span className="block font-bold">{fv((c) => c.quick)}</span><span className="block text-xs text-muted-foreground">{f.c((c) => c.quickNote)}</span></span>
         <ArrowRight className="ml-auto size-4 shrink-0" />
       </button>
       <div>
-        <Label hint={<span className="tabular-nums">{d.title.length}/90</span>}>Title</Label>
+        <Label hint={<span className="tabular-nums">{d.title.length}/90</span>}>{f.c((c) => c.title)}</Label>
         <Input value={d.title} onChange={(e) => setD((s) => ({ ...s, title: e.target.value, titleTouched: true }))} maxLength={90} className="h-11 border-2 border-foreground font-semibold" />
       </div>
       <div>
-        <Label hint={<span className="tabular-nums">{d.body.trim().length < 40 ? `${40 - d.body.trim().length} more to go` : `${d.body.length}/4000`}</span>}>Tell the story</Label>
-        <div className="mb-2 flex flex-wrap gap-1.5">{promptsFor(d).map((p) => <button key={p} type="button" onClick={() => setD((s) => ({ ...s, quick: false, body: `${s.body.trimEnd()}${s.body.trim() ? "\n\n" : ""}### ${p}\n\n` }))}
+        <Label hint={<span className="tabular-nums">{d.body.trim().length < 40 ? fill(C.moreToGo, { n: 40 - d.body.trim().length }) : `${d.body.length}/4000`}</span>}>{f.c((c) => c.tell)}</Label>
+        <div className="mb-2 flex flex-wrap gap-1.5">{promptsIn(C, d).map((p) => <button key={p} type="button" onClick={() => setD((s) => ({ ...s, quick: false, body: `${s.body.trimEnd()}${s.body.trim() ? "\n\n" : ""}### ${p}\n\n` }))}
           className={cn(tap, "inline-flex items-center gap-1 rounded-full border-2 border-foreground/30 bg-card px-3 text-xs font-bold hover:border-foreground sm:min-h-9")}><Plus className="size-3.5" />{p}</button>)}</div>
-        <MarkdownEditor value={d.body} onChange={(v) => setD((s) => ({ ...s, body: v, quick: false }))} placeholder={d.outcome ? voice(tone, PLACEHOLDER[d.outcome][0], PLACEHOLDER[d.outcome][1]) : ""} />
+        <MarkdownEditor value={d.body} onChange={(v) => setD((s) => ({ ...s, body: v, quick: false }))} placeholder={d.outcome ? pv(C.placeholder[d.outcome]) : ""} />
         <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-          <span><strong className="text-foreground">Markdown works:</strong> # headings, **bold**, _italic_, - lists, &gt; quotes</span>
-          {!d.body.trim() && <button type="button" onClick={() => set("body", templateFor(d))} className="inline-flex items-center gap-1 font-bold text-primary hover:underline"><Wand2 className="size-3.5" />Give me a structure</button>}
+          <span><strong className="text-foreground">{C.markdown}</strong> {C.markdownTips}</span>
+          {!d.body.trim() && <button type="button" onClick={() => set("body", promptsIn(C, d).map((p) => `### ${p}\n\n`).join("\n"))} className="inline-flex items-center gap-1 font-bold text-primary hover:underline"><Wand2 className="size-3.5" />{f.c((c) => c.structure)}</button>}
         </div>
       </div>
     </div>,
 
     // 4. Review and post: only the fields that exist
     <div key="post" className="space-y-5">
-      <p className="text-sm text-muted-foreground">{voice(tone, "Here's exactly how it'll look in the feed. Last chance to fix that typo.", "This is how your story will appear in the feed.")}</p>
+      <p className="text-sm text-muted-foreground">{fv((c) => c.review)}</p>
       <article className="rounded-xl border-2 border-foreground bg-card p-5 shadow-hard-sm">
         <div className="flex items-start gap-3">
           <Avatar seed={me.avatarSeed} pastel={me.pastel} size="sm" label={displayName(me)} />
@@ -538,24 +535,22 @@ export function ShareModal({ open, onOpenChange, editing = null, presetCompany =
         </div>
         <h3 className="mt-3 font-bold leading-snug">{d.title.trim()}</h3>
         <Markdown text={d.body} className="mt-1.5" />
-        {d.quick && <button type="button" onClick={() => set("body", autoBody(d, company?.name ?? "the company"))} className="mt-3 inline-flex min-h-11 items-center gap-1.5 rounded-full border-2 border-foreground/30 px-3 text-xs font-bold hover:border-foreground sm:min-h-9"><Shuffle className="size-3.5" />Try different wording</button>}
-        {flagScore !== null && <p className="mt-4 border-t-2 border-dashed border-foreground/15 pt-3 text-xs font-semibold text-muted-foreground">Flag Score from this story: <span className={cn("font-display text-sm font-bold", scoreTone(flagScore))}>{flagScore}</span>{j.salary && d.min && d.max ? ` · ₹${d.min} to ${d.max} LPA` : ""}{neverHired(d.outcome) && days != null ? ` · waited ${waitPhrase(days)}` : ""}</p>}
+        {d.quick && <button type="button" onClick={() => set("body", autoBody(d, company?.name ?? "the company"))} className="mt-3 inline-flex min-h-11 items-center gap-1.5 rounded-full border-2 border-foreground/30 px-3 text-xs font-bold hover:border-foreground sm:min-h-9"><Shuffle className="size-3.5" />{f.c((c) => c.reword)}</button>}
+        {flagScore !== null && <p className="mt-4 border-t-2 border-dashed border-foreground/15 pt-3 text-xs font-semibold text-muted-foreground">{C.scoreLine} <span className={cn("font-display text-sm font-bold", scoreTone(flagScore))}>{flagScore}</span>{j.salary && d.min && d.max ? ` · ₹${d.min} to ${d.max} LPA` : ""}{neverHired(d.outcome) && days != null ? ` · waited ${waitPhrase(days)}` : ""}</p>}
       </article>
       <div className="flex items-center gap-3 rounded-lg border-2 border-foreground bg-muted/50 p-3">
         <Avatar seed={me.avatarSeed} pastel={me.pastel} size="sm" label={displayName(me)} />
-        <p className="min-w-0 flex-1 text-sm"><span className="font-bold">Posting as {displayName(me)}</span><span className="block text-xs text-muted-foreground">{isPublic(me) ? "Your public details show on all your stories." : "You're anonymous: only your handle and avatar show."} Change it any time in Settings.</span></p>
+        <p className="min-w-0 flex-1 text-sm"><span className="font-bold">{fill(C.postingAs, { name: displayName(me) })}</span><span className="block text-xs text-muted-foreground">{isPublic(me) ? C.publicNote : C.anonNote} {C.changeNote}</span></p>
       </div>
       {!editing && <HumanCheck shield={shield} />}
     </div>,
   ];
 
   const titles = [
-    { t: voice(tone, "What happened?", "What happened?"), s: voice(tone, "Start with how it ended. Everything after fits around it.", "Choose how it ended, then the company.") },
-    { t: voice(tone, "The details", "The details"), s: neverHired(d.outcome) ? voice(tone, "A few taps. Only what fits what happened to you.", "Only the questions that fit your experience.") : voice(tone, "Rate what you actually saw. Nothing you didn't.", "Only the questions that fit your experience.") },
-    { t: voice(tone, "In your words", "In your words"), s: voice(tone, "Write as much or as little as you like. Or skip it.", "Add your story, or post a quick one from your answers.") },
-    editing
-      ? { t: voice(tone, "Looking sharper?", "Review your changes"), s: voice(tone, "Save it and your story gets a little Edited badge.", "Saving marks the story as edited.") }
-      : { t: voice(tone, "Looks good?", "Review and post"), s: voice(tone, "One quick look, then it's out there helping people.", "Check your story, then post it.") },
+    { t: fv((c) => c.titles.what.t), s: fv((c) => c.titles.what.s) },
+    { t: fv((c) => c.titles.details.t), s: fv((c) => (neverHired(d.outcome) ? c.titles.details.never : c.titles.details.other)) },
+    { t: fv((c) => c.titles.words.t), s: fv((c) => c.titles.words.s) },
+    editing ? { t: fv((c) => c.titles.edit.t), s: fv((c) => c.titles.edit.s) } : { t: fv((c) => c.titles.post.t), s: fv((c) => c.titles.post.s) },
   ];
 
   return <Dialog open={open} onOpenChange={close}>
@@ -566,20 +561,20 @@ export function ShareModal({ open, onOpenChange, editing = null, presetCompany =
           {[...Array(8)].map((_, i) => <motion.span key={i} className="absolute left-1/2 top-1/2 size-2.5 rounded-full" style={{ background: ["#6D28D9", "#F59E0B", "#22C55E", "#EF4444"][i % 4] }}
             initial={{ x: 0, y: 0, opacity: 1 }} animate={{ x: Math.cos((i / 8) * Math.PI * 2) * 80, y: Math.sin((i / 8) * Math.PI * 2) * 80, opacity: 0 }} transition={{ duration: 0.9, delay: 0.15, ease: "easeOut" }} />)}
         </motion.div>
-        <DialogTitle className="mt-4 font-display text-3xl">{voice(tone, "Receipts filed.", "Story shared.")}</DialogTitle>
-        <DialogDescription className="mx-auto mt-2 max-w-sm">{apiEnabled ? voice(tone, "Now get it in front of the next candidate. The card never shows who you are.", "Thank you. Share the card below; it never shows who you are.") : "Preview mode: stories aren't saved here."}</DialogDescription>
+        <DialogTitle className="mt-4 font-display text-3xl">{fv((c) => c.done.title)}</DialogTitle>
+        <DialogDescription className="mx-auto mt-2 max-w-sm">{apiEnabled ? fv((c) => c.done.copy) : C.done.preview}</DialogDescription>
         <div className="mt-5 flex w-full justify-center"><ShareCard data={{ storyId: postedId, headline: d.title.trim() || autoTitle(d), wait: neverHired(d.outcome) && days != null ? waitPhrase(days) : null, score: flagScore, company: company?.name ?? "", foundingRank: founding?.foundingRank ?? null }} /></div>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
-          <Button variant="outline" onClick={() => { setD(EMPTY); setDone(false); setStep(0); setReached(0); }}><PenLine />Share another</Button>
-          <Button onClick={() => close(false)}><Sparkles />Back to the feed</Button>
+          <Button variant="outline" onClick={() => { setD(EMPTY); setDone(false); setStep(0); setReached(0); }}><PenLine />{f.c((c) => c.done.another)}</Button>
+          <Button onClick={() => close(false)}><Sparkles />{f.c((c) => c.done.feed)}</Button>
         </div>
       </div> : <>
         <div className={popupBody} data-lenis-prevent>
           <StepHeader step={step} title={titles[step]!.t} subtitle={titles[step]!.s} />
           <Progress step={step} reached={reached} onJump={(i) => go(i)} />
           {restored && step === 0 && <p className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border-2 border-primary bg-primary/10 px-3 py-2 text-xs font-semibold">
-            <span>{voice(tone, "Picked up where you left off. Your draft was waiting.", "Your saved draft has been restored.")}</span>
-            <button type="button" onClick={startOver} className="font-bold text-primary hover:underline">Start over</button>
+            <span>{fv((c) => c.restored)}</span>
+            <button type="button" onClick={startOver} className="font-bold text-primary hover:underline">{f.c((c) => c.startOver)}</button>
           </p>}
           <div className="relative mt-6 overflow-x-clip">
             <AnimatePresence mode="wait" initial={false} custom={dir}>
@@ -593,12 +588,12 @@ export function ShareModal({ open, onOpenChange, editing = null, presetCompany =
           </motion.ul>}</AnimatePresence>
         </div>
         <div className="flex items-center justify-between gap-2 border-t-2 border-foreground bg-card px-5 py-3 sm:px-7">
-          {step > 0 ? <Button variant="outline" className={tap} onClick={() => go(step - 1)}><ArrowLeft />Back</Button> : <span className="text-xs text-muted-foreground">{editing ? "Editing your story" : isBlank(d) ? "" : "Draft saved"}</span>}
+          {step > 0 ? <Button variant="outline" className={tap} onClick={() => go(step - 1)}><ArrowLeft />{f.c((c) => c.back)}</Button> : <span className="text-xs text-muted-foreground">{editing ? C.editingNote : isBlank(d) ? "" : C.draftSaved}</span>}
           {step < STEPS.length - 1
-            ? <Button className={tap} onClick={() => go(step + 1)}>{STEPS[step + 1]!.label}<ArrowRight /></Button>
+            ? <Button className={tap} onClick={() => go(step + 1)}>{f.c((c) => c.steps[STEPS[step + 1]!.id])}<ArrowRight /></Button>
             : editing
-              ? <Button onClick={() => void post()} disabled={busy} className={cn(tap, "min-w-36")}>{busy ? <Loader2 className="animate-spin" /> : <Check />}{busy ? "Saving…" : "Save changes"}</Button>
-              : <Button onClick={() => void post()} disabled={busy || shield.status !== "done"} className={cn(tap, "min-w-36")}>{busy ? <Loader2 className="animate-spin" /> : <Sparkles />}{busy ? "Posting…" : shield.status !== "done" ? "Checking you're human…" : "Post story"}</Button>}
+              ? <Button onClick={() => void post()} disabled={busy} className={cn(tap, "min-w-36")}>{busy ? <Loader2 className="animate-spin" /> : <Check />}{f.c((c) => (busy ? c.saving : c.save))}</Button>
+              : <Button onClick={() => void post()} disabled={busy || shield.status !== "done"} className={cn(tap, "min-w-36")}>{busy ? <Loader2 className="animate-spin" /> : <Sparkles />}{f.c((c) => (busy ? c.posting : shield.status !== "done" ? c.checking : c.post))}</Button>}
         </div>
       </>}
       <ListCompanyDialog open={listing} onOpenChange={setListing} onListed={(co) => set("company", co.id)} />

@@ -46,7 +46,24 @@ Each row is one block of the landing page. Read it on the page in that language,
 | wall (story wall) | [ ] | [ ] | [ ] |
 | privacy and cta (last two sections) | [ ] | [ ] | [ ] |
 
-Not translated on purpose, shown in English in every language:
+## Story form (`src/content/composer-copy.ts`)
+
+| Block | Hindi | Kannada | Hinglish |
+|---|---|---|---|
+| steps, step titles and subtitles (sassy and calm) | [ ] | [ ] | [ ] |
+| outcomes (5 cards) and stages (5 buttons) | [ ] | [ ] | [ ] |
+| ratings (5 labels and hints) and star words | [ ] | [ ] | [ ] |
+| wait chips, labels, pay fields | [ ] | [ ] | [ ] |
+| writing prompts (inserted as headings into the story) | [ ] | [ ] | [ ] |
+| placeholders (sassy and calm) | [ ] | [ ] | [ ] |
+| editor toolbar, review step, buttons | [ ] | [ ] | [ ] |
+| error messages (problems) and toasts | [ ] | [ ] | [ ] |
+| done screen | [ ] | [ ] | [ ] |
+
+In the story form, these stay English on purpose: the automatic title, the quick-story text, and the
+outcome and stage labels on the preview card. They're the posted story itself, which everyone reads.
+
+Not translated on purpose on the landing page, shown in English in every language:
 - The Ghost-o-meter follow-up lines and the polite poke's message: they're meant to be pasted into an email to a recruiter.
 - The 22 recruiter "slaps" in the minefield game: wordplay that needs a writer, not a translation. Add them under `mine.slaps` when ready; each falls back to English until then.
 - The decorative hero collage cards (sample text in an illustration).

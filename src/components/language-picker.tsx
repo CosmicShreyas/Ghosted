@@ -22,15 +22,17 @@ export function LanguagePicker({ variant = "compact" }: { variant?: "compact" | 
       </DropdownMenuTrigger>
       <DropdownMenuContent side="top" align="end" sideOffset={8} className="min-w-48 rounded-xl border-2 border-foreground p-1.5 shadow-hard">
         <p className="px-2.5 pb-1.5 pt-1 text-xs font-bold text-muted-foreground">{t("footer.language")}</p>
-        {LANGS.map((l) => {
+        {/* Purple only follows the pointer or keyboard (one row at a time); the current language
+            gets a soft tint and a tick, so two rows never look selected at once. */}
+        <div className="grid gap-1">{LANGS.map((l) => {
           const on = l.id === t.lang;
-          return <DropdownMenuItem key={l.id} onSelect={() => pick(l.id)} lang={l.htmlLang}
-            className={cn("flex min-h-10 cursor-pointer items-center gap-3 rounded-lg px-2.5 font-semibold", on && "bg-primary text-primary-foreground focus:bg-primary focus:text-primary-foreground")}>
+          return <DropdownMenuItem key={l.id} onSelect={() => pick(l.id)} lang={l.htmlLang} aria-current={on || undefined}
+            className={cn("group flex min-h-10 items-center gap-3 rounded-lg px-2.5 font-semibold", on && "bg-primary/10 text-primary")}>
             <span className="flex-1">{l.native}</span>
-            {l.native !== l.label && <span className={cn("text-xs font-normal", on ? "opacity-80" : "text-muted-foreground")}>{l.label}</span>}
+            {l.native !== l.label && <span className="text-xs font-normal text-muted-foreground group-focus:text-primary-foreground/85">{l.label}</span>}
             <Check className={cn("size-4", on ? "opacity-100" : "opacity-0")} aria-hidden="true" />
           </DropdownMenuItem>;
-        })}
+        })}</div>
       </DropdownMenuContent>
     </DropdownMenu>;
   }
