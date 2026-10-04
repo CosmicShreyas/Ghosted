@@ -43,7 +43,8 @@ export type Profile = {
 
 export type Notify = { relatable: boolean; chitchatReplies: boolean; newFollowers: boolean; flaggedCompanies: boolean; weeklyDigest: boolean };
 
-export type AppEnv = { Variables: { profile: Profile | null; requestId: string; accessToken: string | undefined } };
+// `sessionRead`: this request looked at the caller's session, so its response may be personal.
+export type AppEnv = { Variables: { profile: Profile | null; requestId: string; accessToken: string | undefined; sessionRead: boolean | undefined } };
 
 // ---------- client identity ----------
 
@@ -58,12 +59,30 @@ export function ipKey(c: Context) {
 type Limit = { name: string; max: number; windowSeconds: number; by?: "ip" | "user" };
 
 // Fixed-window limiter backed by Postgres, so it holds across all serverless instances.
+// Reads (GET/HEAD) count in this instance's memory: no database round trip in front of every page
+// load. Writes, sign-in and anything sensitive still count in the shared database, so those limits
+// hold across every server instance.
+const memoryHits = new Map<string, { window: number; hits: number }>();
+function memoryHit(key: string, windowSeconds: number) {
+  const window = Math.floor(Date.now() / 1000 / windowSeconds);
+  const cur = memoryHits.get(key);
+  const hits = cur && cur.window === window ? cur.hits + 1 : 1;
+  memoryHits.set(key, { window, hits });
+  if (memoryHits.size > 50_000) for (const [k, v] of memoryHits) { if (v.window !== window) memoryHits.delete(k); }
+  return hits;
+}
+
 export function rateLimit({ name, max, windowSeconds, by = "ip" }: Limit): MiddlewareHandler<AppEnv> {
   return async (c, next) => {
     const who = by === "user" && c.get("profile") ? `u:${c.get("profile")!.id}` : `ip:${ipKey(c)}`;
-    const { data, error } = await admin().rpc("rate_limit_hit", { p_key: `${name}:${who}`, p_window_seconds: windowSeconds });
-    if (error) dbFail("rate_limit_hit", error);
-    const hits = Number(data);
+    const key = `${name}:${who}`;
+    let hits: number;
+    if (c.req.method === "GET" || c.req.method === "HEAD") hits = memoryHit(key, windowSeconds);
+    else {
+      const { data, error } = await admin().rpc("rate_limit_hit", { p_key: key, p_window_seconds: windowSeconds });
+      if (error) dbFail("rate_limit_hit", error);
+      hits = Number(data);
+    }
     const windowEnd = (Math.floor(Date.now() / 1000 / windowSeconds) + 1) * windowSeconds;
     c.header("RateLimit-Limit", String(max));
     c.header("RateLimit-Remaining", String(Math.max(0, max - hits)));
@@ -105,18 +124,65 @@ async function linkInviter(userId: string, code: string, ipHash: string | null) 
 
 // Verifies the JWT with Supabase, then loads the profile. The profile is created on first use from
 // the handle/avatar chosen at sign-up (stored in user metadata), falling back to random ones.
-async function loadProfile(token: string): Promise<Profile | null> {
+// A token Supabase has verified is remembered for up to a minute (never past its own expiry), so
+// back-to-back requests skip the round trip to Supabase Auth. Signing out clears it at once on this
+// instance; elsewhere a revoked session lapses within VERIFIED_TTL. Bans are read from the profile,
+// which is always loaded fresh, so they apply immediately.
+const VERIFIED_TTL = 60_000;
+type Verified = { userId: string; until: number; user?: { id: string; user_metadata?: Record<string, unknown> } };
+const verified = new Map<string, Verified>();
+const tokenKey = (token: string) => createHmac("sha256", "ghosted-token-cache").update(token).digest("base64url");
+export function forgetUser(userId: string) { for (const [k, v] of verified) if (v.userId === userId) verified.delete(k); }
+
+// The unverified `sub` claim, only used to start loading the profile while the token is verified.
+function claimedUserId(token: string): string | null {
+  try {
+    const p = JSON.parse(Buffer.from(token.split(".")[1] ?? "", "base64url").toString()) as { sub?: unknown; exp?: unknown };
+    return typeof p.sub === "string" ? p.sub : null;
+  } catch { return null; }
+}
+function tokenExpiry(token: string) {
+  try { const p = JSON.parse(Buffer.from(token.split(".")[1] ?? "", "base64url").toString()) as { exp?: unknown }; return typeof p.exp === "number" ? p.exp * 1000 : 0; } catch { return 0; }
+}
+
+async function verifyToken(token: string) {
+  const key = tokenKey(token);
+  const hit = verified.get(key);
+  if (hit && hit.until > Date.now()) return hit;
   const { data, error } = await admin().auth.getUser(token);
-  if (error || !data.user) return null;
-  const user = data.user;
-  const { data: profile, error: pErr } = await admin().from("profiles").select("*").eq("id", user.id).maybeSingle();
-  if (pErr) dbFail("load profile", pErr);
+  if (error || !data.user) { verified.delete(key); return null; }
+  const v: Verified = { userId: data.user.id, until: Math.min(Date.now() + VERIFIED_TTL, tokenExpiry(token) || Date.now() + VERIFIED_TTL), user: data.user };
+  if (verified.size > 20_000) verified.clear();
+  verified.set(key, v);
+  return v;
+}
+
+const profileRow = async (id: string) => {
+  const { data, error } = await admin().from("profiles").select("*").eq("id", id).maybeSingle();
+  if (error) dbFail("load profile", error);
+  return data as Profile | null;
+};
+
+async function loadProfile(token: string): Promise<Profile | null> {
+  // Verification and the profile read run side by side; the profile is only used if the verified
+  // user matches the id the token claimed.
+  const claimed = claimedUserId(token);
+  const [v, early] = await Promise.all([verifyToken(token), claimed ? profileRow(claimed).catch(() => null) : Promise.resolve(null)]);
+  if (!v) return null;
+  const profile = v.userId === claimed ? early : await profileRow(v.userId);
   if (profile) {
     // Members from before Goofy existed get his welcome once, on their next visit.
-    if ((profile as Profile).goofy_welcomed === false) void welcome(profile as Profile).catch(() => undefined);
-    return profile as Profile;
+    if (profile.goofy_welcomed === false) void welcome(profile).catch(() => undefined);
+    return profile;
   }
+  // First visit after sign-up: the profile is created from the auth user's metadata.
+  if (v.user) return createProfile(v.user);
+  const { data, error } = await admin().auth.getUser(token);
+  if (error || !data.user) return null;
+  return createProfile(data.user);
+}
 
+async function createProfile(user: { id: string; user_metadata?: Record<string, unknown> }): Promise<Profile> {
   const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
   const handle = typeof meta.handle === "string" && isGeneratedHandle(meta.handle) ? meta.handle : randomHandle();
   const avatar_seed = typeof meta.avatar_seed === "string" && isAvatarSeed(meta.avatar_seed) ? meta.avatar_seed : `peep-${randomUUID().slice(0, 8)}`;
@@ -142,6 +208,7 @@ const bearer = (c: Context) => {
 // If the access token has expired but the refresh cookie is valid, it refreshes right here and sets
 // new cookies on the response, so the user stays logged in without ever seeing an error.
 async function authenticate(c: Context<AppEnv>): Promise<Profile | null> {
+  c.set("sessionRead", true);
   const header = bearer(c);
   if (header) { c.set("accessToken", header); return loadProfile(header); }
 

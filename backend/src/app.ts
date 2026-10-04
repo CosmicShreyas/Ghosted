@@ -89,10 +89,15 @@ app.use(async (c, next) => {
   }
   await next();
 });
-// Authenticated responses must never be cached by a CDN.
+// Authenticated responses must never be cached by a CDN. A response that never looked at the session
+// (logos, the company list, public stats) is the same for everyone, so it keeps its own caching even
+// when the browser happens to send cookies; anything that read the session, or has no caching rule
+// of its own, is private.
 app.use(async (c, next) => {
   await next();
-  if (c.req.header("authorization") || c.req.header("cookie") || c.get("profile")) c.header("Cache-Control", "private, no-store");
+  const personal = !!c.req.header("authorization") || !!c.get("sessionRead") || !!c.get("profile");
+  const sharedCache = (c.res.headers.get("Cache-Control") ?? "").includes("public");
+  if (personal || (c.req.header("cookie") && !sharedCache)) c.header("Cache-Control", "private, no-store");
 });
 
 app.get("/", (c) => c.json({ name: "Ghosted API", status: "ok" }));

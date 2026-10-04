@@ -49,11 +49,11 @@ function StoryPage() {
   const { me } = useMe();
   const { waiting, signedOut } = useAuthGuard("optional");
   const { logout } = useAccountActions();
-  const { index, ready } = useCompanyIndex();
+  const { index } = useCompanyIndex(); // loads alongside the story, not before it
   const [saved, toggleSave] = useSaved();
   const [share, setShare] = useState(false);
   const [confirmLogout, setConfirmLogout] = useState(false);
-  const q = useQuery({ queryKey: ["story", id], queryFn: async () => (await api<{ story: StoryDto }>(`/v1/stories/${id}`)).story, enabled: apiEnabled && ready, retry: false });
+  const q = useQuery({ queryKey: ["story", id], queryFn: async () => (await api<{ story: StoryDto }>(`/v1/stories/${id}`)).story, enabled: apiEnabled, retry: false });
   // Reactions, edits and new chitchats on this story keep its numbers fresh.
   useLive(apiEnabled ? `story:${id}` : null, () => void qc.invalidateQueries({ queryKey: ["story", id] }));
   const story: StoryModel | null = apiEnabled ? (q.data ? fromApi(q.data, index) : null) : sampleModels().find((s) => s.id === id) ?? null;
@@ -65,7 +65,7 @@ function StoryPage() {
     if (story && window.location.hash === "#chitchats") window.setTimeout(() => document.getElementById("chitchats")?.scrollIntoView({ block: "start" }), 300);
   }, [story?.id]);
 
-  if (waiting || (apiEnabled && (q.isPending || !ready))) return <Preloader />;
+  if (waiting || (apiEnabled && q.isPending)) return <Preloader />;
 
   const body = story ? <StoryLayout story={story} saved={saved.has(story.id)} onSave={() => toggleSave(story.id)} onOpenCompany={openCompany} />
     : <div className="mx-auto max-w-lg rounded-xl border-2 border-dashed border-foreground/40 p-10 text-center">

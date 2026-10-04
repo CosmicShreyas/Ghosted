@@ -75,12 +75,12 @@ function samplePage(publicId: string, rel: Relationship | null): PersonPage | nu
 
 export function usePerson(publicId: string) {
   const qc = useQueryClient();
-  const { index, ready } = useCompanyIndex();
+  const { index } = useCompanyIndex(); // loads alongside, not before
   const key = ["person", publicId];
   const q = useQuery({
     queryKey: key,
     queryFn: async () => api<PageDto>(`/v1/profiles/${publicId}`),
-    enabled: apiEnabled && ready,
+    enabled: apiEnabled,
     retry: (n, err) => !(err as { status?: number }).status && n < 2,
   });
   useLive(apiEnabled ? `person:${publicId}` : null, () => void qc.invalidateQueries({ queryKey: key }));
@@ -101,14 +101,22 @@ export function usePerson(publicId: string) {
   };
   const call = async (method: "POST" | "DELETE", path: string, body?: unknown, demo?: Relationship) => {
     if (!apiEnabled) return apply(demo!);
-    const r = await api<{ relationship: Relationship }>(`/v1/profiles/${publicId}${path}`, { method, ...(body !== undefined && { body }) });
-    apply(r.relationship);
+    // Flips at once; the server's answer confirms it (or it flips back if the request fails).
+    const before = qc.getQueryData<PageDto>(key)?.relationship;
+    if (demo) qc.setQueryData<PageDto>(key, (d) => (d ? { ...d, relationship: demo } : d));
+    try {
+      const r = await api<{ relationship: Relationship }>(`/v1/profiles/${publicId}${path}`, { method, ...(body !== undefined && { body }) });
+      apply(r.relationship);
+    } catch (err) {
+      if (before) qc.setQueryData<PageDto>(key, (d) => (d ? { ...d, relationship: before } : d));
+      throw err;
+    }
   };
   const rel = page?.relationship ?? { following: false, notify: false, muted: false };
 
   return {
     page,
-    loading: apiEnabled && (q.isPending || !ready),
+    loading: apiEnabled && q.isPending,
     notFound: apiEnabled ? (q.error as { status?: number } | null)?.status === 404 : page === null,
     error: apiEnabled && q.isError && (q.error as { status?: number }).status !== 404,
     follow: () => call("POST", "/follow", {}, { ...rel, following: true }),

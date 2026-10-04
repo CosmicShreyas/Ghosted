@@ -8,7 +8,7 @@ import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YA
 import { ArrowDownRight, ArrowUpRight, CalendarDays, ChevronRight, Download, Flame, Link2, RotateCcw, Search, Timer, Turtle, X, Zap } from "lucide-react";
 import { apiEnabled } from "@/lib/api";
 import { change, DEFAULT_FILTERS, useInsights, type Group, type InsightFilters, type Insights, type RangePreset } from "@/lib/insights";
-import { OUTCOME_LABEL, useCompanyIndex } from "@/lib/stories";
+import { logoSrc, OUTCOME_LABEL, useCompanyIndex } from "@/lib/stories";
 import { useIsTouchLayout } from "@/hooks/use-media-query";
 import { CompanyMark } from "@/components/ghosted";
 import { SlidingPill, usePill } from "@/components/sliding-pill";
@@ -302,7 +302,7 @@ function ReplierList({ list, tone, openCompany }: { list: Ranked[]; tone: "fast"
     const co = index.get(r.slug);
     return <li key={r.slug}><button type="button" disabled={!co || !openCompany} onClick={() => co && openCompany?.(co)} className="flex w-full items-center gap-3 py-2.5 text-left">
       <span className="w-4 text-sm font-bold text-muted-foreground tabular-nums">{i + 1}</span>
-      <CompanyMark size="sm" company={{ name: r.name, initial: r.name[0] ?? "?", color: r.color, logoUrl: r.logoUrl }} />
+      <CompanyMark size="sm" company={{ name: r.name, initial: r.name[0] ?? "?", color: r.color, logoUrl: logoSrc(r.slug, r.logoUrl) }} />
       <span className="min-w-0 flex-1"><span className="block truncate font-semibold">{r.name}</span><span className="text-xs text-muted-foreground">{r.stories} stories</span></span>
       <span className={cn("rounded-full px-2 py-0.5 text-sm font-bold tabular-nums", tone === "fast" ? "bg-flag-green/15 text-flag-green" : "bg-flag-red/15 text-flag-red")}>{r.medianDays}d</span>
       {co && openCompany && <ChevronRight className="size-4 text-muted-foreground" />}
@@ -467,7 +467,7 @@ export function InsightsView({ openCompany, filters = DEFAULT_FILTERS, onFilters
             return <li key={f.slug}>
               <button type="button" disabled={!co || !openCompany} onClick={() => co && openCompany?.(co)} className="flex w-full items-center gap-3 py-2.5 text-left">
                 <span className="w-4 text-sm font-bold text-muted-foreground tabular-nums">{i + 1}</span>
-                <CompanyMark size="sm" company={{ name: f.name, initial: f.name[0] ?? "?", color: f.color, logoUrl: f.logoUrl }} />
+                <CompanyMark size="sm" company={{ name: f.name, initial: f.name[0] ?? "?", color: f.color, logoUrl: logoSrc(f.slug, f.logoUrl) }} />
                 <span className="min-w-0 flex-1 truncate font-semibold">{f.name}</span>
                 <span className="font-bold text-flag-red tabular-nums">{f.flags}</span>
                 {co && openCompany && <ChevronRight className="size-4 text-muted-foreground" />}

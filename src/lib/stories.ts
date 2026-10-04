@@ -2,7 +2,8 @@
 // (mock mode). Components only ever see `StoryModel`, so switching data sources never touches
 // the UI. The author is included directly: identity is account-level, so every story shows its
 // author the way that person currently appears, with the public id their page lives at.
-import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, apiEnabled, API_URL } from "@/lib/api";
 import { companies as sampleCompanies, getCompany, getUser, stories as sampleStories, type Company, type Story } from "@/mock/data";
 
@@ -90,6 +91,9 @@ export type CompanyDto = {
   size: string | null; hqCity: string | null; founded: number | null; careersUrl: string | null;
 };
 
+// Logos go through the API's cached proxy (one origin, long CDN cache, no hotlink blocks).
+export const logoSrc = (slug: string, raw: string | null | undefined) => (raw && API_URL ? `${API_URL}/v1/companies/${slug}/logo?v=2` : raw ?? null);
+
 export function companyFromApi(c: CompanyDto): Company {
   return {
     id: c.slug, name: c.name, initial: c.initial, color: c.color, summary: c.summary ?? "", badges: c.badges,
@@ -98,7 +102,7 @@ export function companyFromApi(c: CompanyDto): Company {
     scores: c.scores ?? { hiring: 50, communication: 50, culture: 50, pay: 50, growth: 50 },
     salary: c.salary ?? [0, 0],
     storyCount: c.storyCount, avgDaysWaited: c.avgDaysWaited, ...(c.scoreCounts && { scoreCounts: c.scoreCounts }),
-    logoUrl: c.logoUrl && API_URL ? `${API_URL}/v1/companies/${c.slug}/logo?v=2` : c.logoUrl,
+    logoUrl: logoSrc(c.slug, c.logoUrl),
     website: c.website, domain: c.domain,
     about: c.about, industry: c.industry, size: c.size, hqCity: c.hqCity, founded: c.founded, careersUrl: c.careersUrl,
   };
@@ -109,7 +113,7 @@ export const isRated = (c: Company) => c.storyCount === undefined || c.storyCoun
 
 export type StoryDto = {
   publicId: string; outcome: string; stage: string; role: string | null; title: string; body: string;
-  company: { slug: string; name: string; color: string } | null;
+  company: { slug: string; name: string; color: string; logo_url?: string | null } | null;
   author: Author | null;
   counts: StoryReactionCounts & { flags: number; comments: number };
   myReaction: StoryReaction | null;
@@ -129,7 +133,8 @@ export type StoryDto = {
 export function fromApi(s: StoryDto, index: Map<string, Company>): StoryModel {
   const known = s.company ? index.get(s.company.slug) : undefined;
   const company: Company = known ?? (s.company
-    ? { id: s.company.slug, name: s.company.name, initial: s.company.name.charAt(0).toUpperCase(), color: s.company.color, score: 50, summary: "", badges: [], scores: { hiring: 50, communication: 50, culture: 50, pay: 50, growth: 50 }, salary: [0, 0] }
+    // A company outside the loaded list still gets its logo (through the same cached proxy).
+    ? { id: s.company.slug, name: s.company.name, initial: s.company.name.charAt(0).toUpperCase(), color: s.company.color, logoUrl: logoSrc(s.company.slug, s.company.logo_url ?? null), score: 50, summary: "", badges: [], scores: { hiring: 50, communication: 50, culture: 50, pay: 50, growth: 50 }, salary: [0, 0] }
     : getCompany("nimbus"));
   return {
     id: s.publicId, company, outcome: s.outcome, outcomeLabel: OUTCOME_LABEL[s.outcome] ?? s.outcome, role: s.role, title: s.title, body: s.body,
@@ -144,18 +149,38 @@ export function fromApi(s: StoryDto, index: Map<string, Company>): StoryModel {
 }
 
 // Every company with its current Flag Score, used to decorate stories and fill the share picker.
+// Smart cache: the last company index is kept on this device, so repeat visits draw names, logos
+// and scores instantly while a fresh copy loads quietly in the background.
+const INDEX_KEY = "ghosted.companyIndex.v1";
+function storedIndex(): { at: number; list: CompanyDto[] } | undefined {
+  if (typeof window === "undefined") return undefined;
+  try { const raw = localStorage.getItem(INDEX_KEY); return raw ? (JSON.parse(raw) as { at: number; list: CompanyDto[] }) : undefined; } catch { return undefined; }
+}
+let indexSeed: { at: number; list: Company[] } | null | undefined;
+const seedIndex = () => {
+  if (indexSeed === undefined) { const s = storedIndex(); indexSeed = s && Array.isArray(s.list) ? { at: s.at, list: s.list.map(companyFromApi) } : null; }
+  return indexSeed;
+};
+
 export function useCompanyIndex() {
+  const qc = useQueryClient();
+  // Seeded right after mount (not during the first render, which must match the server's HTML).
+  useEffect(() => {
+    const seed = apiEnabled ? seedIndex() : null;
+    if (seed && !qc.getQueryData(["companies", "all"])) qc.setQueryData(["companies", "all"], seed.list, { updatedAt: seed.at });
+  }, [qc]);
   const q = useQuery({
     queryKey: ["companies", "all"],
-    // Every listed company (pages of 50, up to 2,000), so the pickers can search all of them.
+    // Every listed company (pages of 500, up to 2,000), so the pickers can search all of them.
     queryFn: async () => {
       const all: CompanyDto[] = [];
       let offset: number | null = 0;
       while (offset !== null && all.length < 2000) {
-        const r: { companies: CompanyDto[]; nextOffset?: number | null } = await api(`/v1/companies?all=1&limit=50&sort=stories&offset=${offset}`);
+        const r: { companies: CompanyDto[]; nextOffset?: number | null } = await api(`/v1/companies?all=1&limit=500&sort=stories&offset=${offset}`);
         all.push(...r.companies);
         offset = r.nextOffset ?? null;
       }
+      try { localStorage.setItem(INDEX_KEY, JSON.stringify({ at: Date.now(), list: all })); } catch { /* storage full or blocked */ }
       return all.map(companyFromApi);
     },
     enabled: apiEnabled,

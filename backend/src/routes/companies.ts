@@ -20,6 +20,11 @@ import { waitingCount } from "../interest.js";
 const COLORS = ["bg-logo-violet", "bg-logo-coral", "bg-logo-blue", "bg-logo-green", "bg-logo-pink", "bg-logo-amber", "bg-logo-red"];
 const slugify = (name: string) => name.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60);
 const MIN_ACCOUNT_AGE_MINUTES = 60;
+// Logos fetched from company sites, kept in this instance's memory for a few hours (the CDN keeps
+// them far longer). Bounded, oldest out first.
+const LOGO_TTL = 6 * 3600_000;
+const logoCache = new Map<string, { type: string; body: Buffer | Uint8Array; at: number }>();
+
 const slugParam = validate("param", z.object({ slug: z.string().regex(/^[a-z0-9-]{2,60}$/) }));
 const POSITIVE = 3.6, CRITICAL = 2.4; // average stars: at or above = positive, at or below = critical
 
@@ -68,7 +73,8 @@ export const companyRoutes = new Hono<AppEnv>()
   .get("/", rateLimit({ name: "companies", max: 180, windowSeconds: 60 }), validate("query", z.object({
     sort: z.enum(["score", "worst", "stories", "recent", "az"]).default("stories"),
     q: z.string().trim().max(60).optional(),
-    limit: z.coerce.number().int().min(1).max(50).default(20),
+    // Up to 500 at once, so the full company index (pickers, logos on stories) loads in one request.
+    limit: z.coerce.number().int().min(1).max(500).default(20),
     // Pages for endless scrolling: pass back `nextOffset` from the previous page.
     offset: z.coerce.number().int().min(0).max(10_000).default(0),
     // all=1: include companies with no stories yet (the "share a story" picker, the Companies page).
@@ -142,9 +148,16 @@ export const companyRoutes = new Hono<AppEnv>()
   // visitors' browsers never contact the company's site. Cached for a day. SVGs are served with a
   // no-script policy, so a logo can never run code even if opened directly.
   .get("/:slug/logo", rateLimit({ name: "company-logo", max: 600, windowSeconds: 600 }), slugParam, async (c) => {
-    const { row } = await companyBySlug(c.req.valid("param").slug);
-    const logo = row.logo_url ? await fetchImage(row.logo_url) : null;
-    if (!logo) throw notFound("Logo");
+    const slug = c.req.valid("param").slug;
+    let logo = logoCache.get(slug);
+    if (!logo || Date.now() - logo.at > LOGO_TTL) {
+      const { row } = await companyBySlug(slug);
+      const img = row.logo_url ? await fetchImage(row.logo_url) : null;
+      if (!img) throw notFound("Logo");
+      if (logoCache.size > 400) logoCache.delete(logoCache.keys().next().value!);
+      logo = { ...img, at: Date.now() };
+      logoCache.set(slug, logo);
+    }
     c.header("Content-Type", logo.type);
     c.header("Cache-Control", "public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400");
     c.header("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; sandbox");

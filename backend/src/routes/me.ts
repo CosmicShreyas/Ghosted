@@ -6,7 +6,7 @@ import { bump, later } from "../live.js";
 import { isGeneratedHandle, randomHandle } from "../lib/handles.js";
 import { publicAuthor } from "../dto.js";
 import { hydrate, publishedStories } from "../stories.js";
-import { isAvatarSeed, isPastel, me, rateLimit, requireAuth, type AppEnv, type Profile } from "../security.js";
+import { forgetUser, isAvatarSeed, isPastel, me, rateLimit, requireAuth, type AppEnv, type Profile } from "../security.js";
 import { admin } from "../supabase.js";
 import { verifyChallenge } from "../captcha.js";
 import { detailText, fullName, validate } from "../validate.js";
@@ -157,6 +157,7 @@ export const meRoutes = new Hono<AppEnv>()
   .delete("/sessions/:publicId", rateLimit({ name: "me-session-revoke", max: 30, windowSeconds: 3600, by: "user" }), validate("param", z.object({ publicId: z.string().regex(/^\d{15}$/) })), async (c) => {
     const ok = await revokeDevice(me(c).id, c.req.valid("param").publicId);
     if (!ok) throw new ApiError(404, "session_not_found", "That device is already signed out.");
+    forgetUser(me(c).id);
     later(bump({ user: me(c).id, topics: ["sessions"] }));
     return c.json({ ok: true });
   })

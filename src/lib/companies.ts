@@ -93,9 +93,11 @@ const readDemo = (): Record<string, CompanyRelationship> => { try { return JSON.
 
 export function useCompanyPage(slug: string) {
   const qc = useQueryClient();
-  const { index, ready } = useCompanyIndex();
+  // The page loads alongside the company index (not after it): stories about other companies fill
+  // in their details as soon as the index arrives.
+  const { index } = useCompanyIndex();
   const key = ["company-page", slug];
-  const q = useQuery({ queryKey: key, queryFn: () => api<PageDto>(`/v1/companies/${slug}`), enabled: apiEnabled && ready, retry: (n, e) => !(e as { status?: number }).status && n < 2 });
+  const q = useQuery({ queryKey: key, queryFn: () => api<PageDto>(`/v1/companies/${slug}`), enabled: apiEnabled, retry: (n, e) => !(e as { status?: number }).status && n < 2 });
   // New stories, follows and edits about this company refresh the page.
   useLive(apiEnabled ? `company:${slug}` : null, () => void qc.invalidateQueries({ queryKey: key }));
 
@@ -113,14 +115,21 @@ export function useCompanyPage(slug: string) {
 
   const set = async (method: "POST" | "DELETE", body: unknown, demo: CompanyRelationship) => {
     if (!apiEnabled) { const all = readDemo(); all[slug] = demo; try { localStorage.setItem(DEMO, JSON.stringify(all)); } catch { /* storage blocked */ } setDemoRel(demo); return; }
-    const r = await api<{ relationship: CompanyRelationship }>(`/v1/companies/${slug}/follow`, { method, ...(body !== undefined && { body }) });
-    qc.setQueryData<PageDto>(key, (d) => (d ? { ...d, relationship: r.relationship } : d));
-    void qc.invalidateQueries({ queryKey: key });
+    // Flips at once; the server's answer confirms it (or it flips back if the request fails).
+    const before = qc.getQueryData<PageDto>(key)?.relationship;
+    qc.setQueryData<PageDto>(key, (d) => (d ? { ...d, relationship: demo } : d));
+    try {
+      const r = await api<{ relationship: CompanyRelationship }>(`/v1/companies/${slug}/follow`, { method, ...(body !== undefined && { body }) });
+      qc.setQueryData<PageDto>(key, (d) => (d ? { ...d, relationship: r.relationship } : d));
+    } catch (err) {
+      if (before) qc.setQueryData<PageDto>(key, (d) => (d ? { ...d, relationship: before } : d));
+      throw err;
+    }
   };
   const rel = page?.relationship ?? { following: false, notify: false };
   return {
     page,
-    loading: apiEnabled && (q.isPending || !ready),
+    loading: apiEnabled && q.isPending,
     notFound: apiEnabled ? (q.error as { status?: number } | null)?.status === 404 : page === null,
     error: apiEnabled && q.isError && (q.error as { status?: number }).status !== 404,
     follow: () => set("POST", {}, { ...rel, following: true }),

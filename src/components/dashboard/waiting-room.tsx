@@ -13,7 +13,7 @@ import {
   daysSince, isoDay, NEXT_STAGE, OUTCOME_WORD, STAGE_LABEL, useApplications, verdict,
   type Application, type NewApplication, type Outcome, type Stage, type Verdict,
 } from "@/lib/applications";
-import { useCompanyIndex } from "@/lib/stories";
+import { logoSrc, useCompanyIndex } from "@/lib/stories";
 import { CompanyMark } from "@/components/ghosted";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -152,7 +152,7 @@ function WaitingCard({ a, now, onAction }: { a: Application; now: Date; onAction
   return <motion.li layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97 }} transition={{ duration: 0.2 }} className={cn(card, "overflow-hidden")}>
     <div className="p-4 sm:p-5">
       <div className="flex items-start gap-3">
-        <CompanyMark size="sm" company={{ name: a.company.name, initial: a.company.name[0] ?? "?", color: a.company.color ?? "bg-muted", logoUrl: a.company.logoUrl }} />
+        <CompanyMark size="sm" company={{ name: a.company.name, initial: a.company.name[0] ?? "?", color: a.company.color ?? "bg-muted", logoUrl: a.company.slug ? logoSrc(a.company.slug, a.company.logoUrl) : a.company.logoUrl }} />
         <div className="min-w-0 flex-1">
           <p className="truncate font-bold">{a.company.name}</p>
           <p className="truncate text-sm text-muted-foreground">{[a.role, STAGE_LABEL[a.stage]].filter(Boolean).join(" · ")}</p>
@@ -216,7 +216,7 @@ function ClosedRow({ a, onAction }: { a: Application; onAction: (kind: "story" |
   const total = a.closedAt ? daysSince(a.appliedOn, new Date(a.closedAt)) : null;
   const good = a.outcome === "offer";
   return <motion.li layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center gap-3 py-3">
-    <CompanyMark size="sm" company={{ name: a.company.name, initial: a.company.name[0] ?? "?", color: a.company.color ?? "bg-muted", logoUrl: a.company.logoUrl }} />
+    <CompanyMark size="sm" company={{ name: a.company.name, initial: a.company.name[0] ?? "?", color: a.company.color ?? "bg-muted", logoUrl: a.company.slug ? logoSrc(a.company.slug, a.company.logoUrl) : a.company.logoUrl }} />
     <div className="min-w-0 flex-1">
       <p className="truncate font-semibold">{a.company.name}{a.role && <span className="font-normal text-muted-foreground"> · {a.role}</span>}</p>
       <p className="text-xs text-muted-foreground">{a.outcome && <span className={cn("font-bold", good ? "text-flag-green" : a.outcome === "withdrew" ? "" : "text-flag-red")}>{OUTCOME_WORD[a.outcome]}</span>}{total != null && ` · ${plural(total, "day")} start to finish`}</p>

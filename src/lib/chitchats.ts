@@ -105,11 +105,21 @@ export function useChitchats(storyId: string, me: Author, sort: ChitchatSort = "
         const c: Chitchat = { publicId: `demo-${Date.now()}`, parentPublicId: parentId ?? null, deleted: false, body, author: me, createdAt: new Date().toISOString(), editedAt: null, relatable: 0, myRelatable: false, mine: true, replies: [] };
         saveDemo([...demo, c]); return null;
       }
-      const r = await api<{ pending?: boolean; removed?: boolean; message?: string | null }>(`/v1/stories/${storyId}/comments`, { method: "POST", body: { body, ...(parentId && { parentId }) } });
+      const r = await api<{ pending?: boolean; removed?: boolean; message?: string | null; chitchat?: Chitchat }>(`/v1/stories/${storyId}/comments`, { method: "POST", body: { body, ...(parentId && { parentId }) } });
       // Held for a check, or removed by Goofy on the spot: nothing new to show, just tell the author.
       if (r.removed) return r.message ?? "Goofy: that chitchat was removed for its language.";
       if (r.pending) return r.message ?? "Saved. Your chitchat appears after a quick check.";
-      await qc.invalidateQueries({ queryKey: base });
+      // Shown straight away from the server's reply (no waiting for the whole thread to reload): a
+      // new chitchat goes on top, a reply under its top-level chitchat. A quiet refresh follows.
+      const made = r.chitchat;
+      if (made) {
+        const add = (p: Page, i: number): Page => {
+          if (!parentId) return i === 0 ? { ...p, total: p.total + 1, chitchats: [made, ...p.chitchats] } : p;
+          return { ...p, total: i === 0 ? p.total + 1 : p.total, chitchats: p.chitchats.map((t) => (t.publicId === parentId || t.replies.some((x) => x.publicId === parentId) ? { ...t, replies: [...t.replies, made] } : t)) };
+        };
+        for (const k of [[...base, "top"], [...base, "new"]]) qc.setQueryData<InfiniteData<Page>>(k, (d) => (d ? { ...d, pages: d.pages.map(add) } : d));
+      }
+      void qc.invalidateQueries({ queryKey: base });
       void qc.invalidateQueries({ queryKey: ["story", storyId] }); // the story's chitchat count
       return null;
     },
@@ -126,7 +136,9 @@ export function useChitchats(storyId: string, me: Author, sort: ChitchatSort = "
     remove: async (c: Chitchat) => {
       if (!apiEnabled) { saveDemo(demo.filter((d) => d.publicId !== c.publicId)); return; }
       await api(`/v1/stories/${storyId}/comments/${c.publicId}`, { method: "DELETE" });
-      await qc.invalidateQueries({ queryKey: base });
+      // Gone from the list at once; the refresh brings back a "deleted" placeholder if it had replies.
+      for (const k of [[...base, "top"], [...base, "new"]]) qc.setQueryData<InfiniteData<Page>>(k, (d) => (d ? { ...d, pages: d.pages.map((p) => ({ ...p, chitchats: p.chitchats.filter((t) => t.publicId !== c.publicId || t.replies.length).map((t) => ({ ...t, replies: t.replies.filter((x) => x.publicId !== c.publicId) })) })) } : d));
+      void qc.invalidateQueries({ queryKey: base });
     },
     report: async (c: Chitchat, reason: string, details: string) => {
       if (!apiEnabled) return "Thanks. In the live app, moderators review reports within 24 hours.";

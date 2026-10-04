@@ -10,7 +10,7 @@ import { plainText } from "@/components/markdown";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { api, apiEnabled } from "@/lib/api";
 import { change, useInsights, type Insights } from "@/lib/insights";
-import { fromApi, isRated, sampleModels, useCompanyIndex, type CompanyDto, type StoryDto } from "@/lib/stories";
+import { fromApi, isRated, logoSrc, sampleModels, useCompanyIndex, type CompanyDto, type StoryDto } from "@/lib/stories";
 import { useTone } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import type { Company } from "@/mock/data";
@@ -105,7 +105,7 @@ export function RedFlagsDialog({ open, onOpenChange, onOpenCompany, data }: { op
           {data.flags.topCompanies.length ? <div className="mt-3 space-y-2">{data.flags.topCompanies.map((f) => {
             const co = index.get(f.slug);
             return <button key={f.slug} type="button" disabled={!co} onClick={() => { if (co) { onOpenChange(false); onOpenCompany(co); } }} className="flex w-full items-center gap-3 rounded-lg border-2 border-foreground bg-background p-2.5 text-left transition-colors hover:bg-muted">
-              <CompanyMark company={{ name: f.name, initial: f.name.charAt(0).toUpperCase(), color: f.color, logoUrl: f.logoUrl }} size="sm" />
+              <CompanyMark company={{ name: f.name, initial: f.name.charAt(0).toUpperCase(), color: f.color, logoUrl: logoSrc(f.slug, f.logoUrl) }} size="sm" />
               <span className="min-w-0 flex-1 truncate text-sm font-bold">{f.name}</span>
               <strong className="inline-flex items-center gap-1 text-flag-red"><Flag className="size-3.5" />{f.flags}</strong>
             </button>;

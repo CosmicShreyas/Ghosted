@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { ApiError, dbFail, forbidden, notFound } from "../errors.js";
 import { AUTHOR_COLUMNS, storyAuthor, type AuthorRow, type StoryRow } from "../dto.js";
-import { hydrate, publishedStories, storyByPublicId } from "../stories.js";
+import { countsFor, hydrate, publishedStories, publishedStoryId, storyByPublicId } from "../stories.js";
 import { me, optionalAuth, rateLimit, requireAuth, type AppEnv, type Profile } from "../security.js";
 import { ensureOpen, goofyControls } from "../platform.js";
 import { verifyChallenge } from "../captcha.js";
@@ -77,19 +77,20 @@ export const storyRoutes = new Hono<AppEnv>()
     const { company, outcome, before, limit, sort } = c.req.valid("query");
     if (sort === "for_you" && !company && !outcome) return c.json(await forYou(c.get("profile"), limit, before?.startsWith("o") ? before : undefined));
     let query = publishedStories().order("created_at", { ascending: false }).limit(limit + 1);
+    // The company and your mutes ("keep them silent": never in your feed) are looked up side by side.
+    const viewer = c.get("profile");
+    const [coRes, mutedRes] = await Promise.all([
+      company ? admin().from("companies").select("id").eq("slug", company).maybeSingle() : Promise.resolve({ data: null }),
+      viewer ? admin().from("mutes").select("muted_id").eq("muter_id", viewer.id) : Promise.resolve({ data: [] as { muted_id: string }[] }),
+    ]);
     if (company) {
-      const { data: row } = await admin().from("companies").select("id").eq("slug", company).maybeSingle();
-      if (!row) throw notFound("Company");
-      query = query.eq("company_id", row.id);
+      if (!coRes.data) throw notFound("Company");
+      query = query.eq("company_id", (coRes.data as { id: string }).id);
     }
     if (outcome) query = query.eq("outcome", outcome);
     if (before && !before.startsWith("o")) query = query.lt("created_at", before);
-    // People you've muted ("keep them silent") never show up in your feed.
-    const viewer = c.get("profile");
-    if (viewer) {
-      const { data: muted } = await admin().from("mutes").select("muted_id").eq("muter_id", viewer.id);
-      if (muted?.length) query = query.not("author_id", "in", `(${muted.map((m) => m.muted_id as string).join(",")})`);
-    }
+    const muted = (mutedRes.data ?? []) as { muted_id: string }[];
+    if (muted.length) query = query.not("author_id", "in", `(${muted.map((m) => m.muted_id).join(",")})`);
     const { data, error } = await query;
     if (error) dbFail("feed", error);
     const rows = (data ?? []) as unknown as StoryRow[];
@@ -192,7 +193,7 @@ export const storyRoutes = new Hono<AppEnv>()
 
   // A person has one reaction per story. Tapping it again removes it; choosing another replaces it.
   .post("/:id/reactions", requireAuth, rateLimit({ name: "react", max: 90, windowSeconds: 60, by: "user" }), idParam, validate("json", z.object({ kind: z.enum(["relatable", "insightful", "creative", "support", "love"]) })), async (c) => {
-    const story = await storyByPublicId(c.req.valid("param").id);
+    const story = { id: await publishedStoryId(c.req.valid("param").id) };
     const { kind } = c.req.valid("json");
     const key = { story_id: story.id, user_id: me(c).id };
     const { data: removed, error } = await admin().from("reactions").delete().match(key).select("kind");
@@ -204,8 +205,7 @@ export const storyRoutes = new Hono<AppEnv>()
       if (!iErr && kind === "relatable") later(notifyRelatable(story.id, me(c).id));
     }
     later(bump({ user: me(c).id, topics: ["stories"], shared: [`story:${c.req.valid("param").id}`] }));
-    const [updated] = await hydrate([story], me(c));
-    return c.json({ counts: updated!.counts, myReaction: updated!.myReaction });
+    return c.json(await countsFor(story.id, me(c).id));
   })
 
   // Chitchats (comments): top-level ones with their replies nested (one level), relatable counts and
@@ -260,23 +260,31 @@ export const storyRoutes = new Hono<AppEnv>()
 
   // Add a chitchat, or reply to one (`parentId`: replies always attach to the top-level chitchat).
   .post("/:id/comments", requireAuth, rateLimit({ name: "comment-create", max: 30, windowSeconds: 3600, by: "user" }), idParam, validate("json", z.object({ body: text(2, 1000), parentId: publicId.optional() }).strict()), async (c) => {
-    const story = await storyByPublicId(c.req.valid("param").id);
     const { body, parentId } = c.req.valid("json");
-    type Parent = { id: string; author_id: string; parent_id: string | null };
-    let parent: Parent | null = null;
-    if (parentId) {
-      const { data: p } = await admin().from("comments").select("id, author_id, parent_id").eq("public_id", parentId).eq("story_id", story.id).maybeSingle();
-      if (!p) throw new ApiError(404, "not_found", "That chitchat isn't there any more.");
-      parent = p as unknown as Parent;
-      // Replying to a reply: join the same thread, under its top-level chitchat (but still tell the
-      // person you actually replied to).
-      if (parent.parent_id) { const { data: top } = await admin().from("comments").select("id").eq("id", parent.parent_id).single(); parent = { id: (top as { id: string }).id, author_id: parent.author_id, parent_id: null }; }
-    }
-    const { data: storyOwner } = await admin().from("stories").select("author_id").eq("id", story.id).single();
     await ensureOpen("chitchatsOpen");
     ensureCanPost(me(c));
-    const review = await reviewContent(me(c), "chitchat", body);
-    const goofy = await goofyControls();
+    // One parallel round: the story (id and author only), the chitchat being replied to, the
+    // content review and Goofy's settings.
+    type Parent = { id: string; author_id: string; parent_id: string | null; story: { public_id: number } | null };
+    const [storyRes, parentRes, review, goofy] = await Promise.all([
+      admin().from("stories").select("id, public_id, author_id").eq("public_id", c.req.valid("param").id).eq("status", "published").maybeSingle(),
+      parentId ? admin().from("comments").select("id, author_id, parent_id, story:stories(public_id)").eq("public_id", parentId).maybeSingle() : Promise.resolve({ data: null }),
+      reviewContent(me(c), "chitchat", body),
+      goofyControls(),
+    ]);
+    if (storyRes.error) dbFail("story by id", storyRes.error);
+    if (!storyRes.data) throw notFound("Story");
+    const story = storyRes.data as { id: string; public_id: number; author_id: string };
+    const storyOwner = { author_id: story.author_id };
+    let parent: Parent | null = null;
+    if (parentId) {
+      const p = parentRes.data as unknown as Parent | null;
+      if (!p || String(p.story?.public_id) !== String(story.public_id)) throw new ApiError(404, "not_found", "That chitchat isn't there any more.");
+      parent = p;
+      // Replying to a reply: join the same thread, under its top-level chitchat (but still tell the
+      // person you actually replied to). The top-level chitchat's id is the reply's parent_id.
+      if (parent.parent_id) parent = { id: parent.parent_id, author_id: parent.author_id, parent_id: null, story: parent.story };
+    }
     const goofyBlocked = review.decision === "block" && review.reasons.some((r) => GOOFY_REMOVES.has(r.code));
     // Vulgar chitchats: Goofy removes them on the spot (kept as removed for the record, never shown),
     // tells the author in their tone and counts a strike.

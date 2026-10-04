@@ -2,7 +2,7 @@ import { Hono, type Context } from "hono";
 import { z } from "zod";
 import { ApiError, dbFail } from "../errors.js";
 import { isGeneratedHandle } from "../lib/handles.js";
-import { isAvatarSeed, isPastel, me, optionalAuth, rateLimit, requireAuth, type AppEnv, type Profile } from "../security.js";
+import { forgetUser, isAvatarSeed, isPastel, me, optionalAuth, rateLimit, requireAuth, type AppEnv, type Profile } from "../security.js";
 import { verifyChallenge } from "../captcha.js";
 import { privateProfile } from "./me.js";
 import { deviceKey, recordSignIn } from "../devices.js";
@@ -182,6 +182,7 @@ export const authRoutes = new Hono<AppEnv>()
     if (sErr || !data.session) throw new ApiError(500, "server_error", "Password changed. Please log in.");
     // Anyone who knew the old password is kicked out everywhere else.
     await admin().auth.admin.signOut(data.session.access_token, "others").catch(() => undefined);
+    forgetUser(userId as string);
     startSession(c, data.session);
     signedIn(c, userId as string, data.session.access_token, { profile, email: e });
     return c.json({ ok: true });
@@ -194,6 +195,7 @@ export const authRoutes = new Hono<AppEnv>()
       const { error } = await admin().auth.admin.signOut(token, "global");
       if (error) { console.error("[auth] logout-all", error.code); throw new ApiError(500, "server_error", "Couldn't sign out other devices. Try again."); }
     }
+    forgetUser(me(c).id);
     clearSession(c);
     later(bump({ user: me(c).id, topics: ["sessions"] })); // other open pages notice and log out
     return c.json({ ok: true });
@@ -209,6 +211,7 @@ export const authRoutes = new Hono<AppEnv>()
     }
     clearSession(c);
     const profile = c.get("profile");
+    if (profile) forgetUser(profile.id);
     if (profile) later(bump({ user: profile.id, topics: ["sessions"] }));
     return c.json({ ok: true });
   });

@@ -61,6 +61,7 @@ export function FeedStory({ story, saved, onSave, onOpenCompany, full = false }:
   const [pickerOpen, setPickerOpen] = useState(false);
   const holdTimer = useRef<number | null>(null);
   const held = useRef(false);
+  const reactSeq = useRef(0);
   useEffect(() => setState({ mine: story.myReaction, counts: story.reactions }), [story.myReaction, story.reactions]);
   const toggle = async (kind: StoryReaction) => {
     const prev = state;
@@ -71,9 +72,11 @@ export function FeedStory({ story, saved, onSave, onOpenCompany, full = false }:
     setState({ mine: next, counts });
     setPickerOpen(false);
     if (!apiEnabled) return;
-    try { const r = await react(story.id, kind); setState({ mine: r.myReaction, counts: { relatable: r.counts.relatable, insightful: r.counts.insightful, creative: r.counts.creative, support: r.counts.support, love: r.counts.love } }); }
+    // Quick double taps: only the latest reply may set the counts, so an older one can't undo a newer tap.
+    const seq = ++reactSeq.current;
+    try { const r = await react(story.id, kind); if (seq !== reactSeq.current) return; setState({ mine: r.myReaction, counts: { relatable: r.counts.relatable, insightful: r.counts.insightful, creative: r.counts.creative, support: r.counts.support, love: r.counts.love } }); }
     // Signed out: the page's join prompt opens instead (api.ts), so no extra error toast.
-    catch (err) { setState(prev); if (!(err instanceof ApiRequestError && err.status === 401)) toast.error("Couldn't save that. Try again."); }
+    catch (err) { if (seq === reactSeq.current) setState(prev); if (!(err instanceof ApiRequestError && err.status === 401)) toast.error("Couldn't save that. Try again."); }
   };
   const startHold = (e: React.PointerEvent) => {
     if (e.pointerType === "mouse") return;

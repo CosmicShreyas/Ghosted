@@ -111,7 +111,7 @@ function LandingPage() {
   const rated = list.filter(isRated).sort((a, b) => b.score - a.score);
   const loved = apiEnabled ? rated.filter((c) => c.score >= 50).slice(0, 4) : companies.slice(0, 4);
   const warned = apiEnabled ? [...rated].reverse().filter((c) => c.score < 50).slice(0, 4) : companies.slice(-4).reverse();
-  const wall = useQuery({ queryKey: ["landing-stories"], queryFn: async () => (await api<{ stories: StoryDto[] }>("/v1/stories?limit=6")).stories, enabled: apiEnabled && ready, staleTime: 60_000 });
+  const wall = useQuery({ queryKey: ["landing-stories"], queryFn: async () => (await api<{ stories: StoryDto[] }>("/v1/stories?limit=6")).stories, enabled: apiEnabled, staleTime: 60_000 });
   const wallStories = (wall.data ?? []).map((s) => fromApi(s, new Map(list.map((c) => [c.id, c]))));
   useEffect(() => { if (!waiting) track("visit"); }, [waiting]);
   if (waiting) return <Preloader />;
@@ -193,7 +193,7 @@ function LandingPage() {
     <section id="stories" className="mx-auto max-w-7xl px-4 py-24 sm:px-6">
       <div className="flex flex-wrap items-end justify-between gap-4"><div><p className="mb-3 text-sm font-bold uppercase text-primary">Fresh from the community</p><h2 className="text-4xl font-bold sm:text-5xl">The story wall.</h2></div><Button variant="outline" asChild><Link to="/auth" search={{ intent: "share" }}><PenLine />Add yours</Link></Button></div>
       {apiEnabled
-        ? wallStories.length ? <div className="mt-10 columns-1 gap-5 space-y-5 md:columns-2 lg:columns-3">{wallStories.map((story) => <StoryModelCard key={story.id} story={story} />)}</div>
+        ? wallStories.length ? <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">{wallStories.map((story) => <StoryModelCard key={story.id} story={story} />)}</div>
           : <div className="mt-10 grid gap-5 rounded-xl border-2 border-foreground bg-card p-6 shadow-hard-sm sm:p-8 md:grid-cols-[1fr_auto] md:items-center">
               <div><p className="font-display text-2xl font-bold">{wall.isPending ? "Loading the latest stories…" : "Be one of the first 50 voices."}</p>{!wall.isPending && <p className="mt-2 max-w-lg text-muted-foreground">The first 50 people to share an experience are the ones who make Ghosted useful for everyone after them. Tap a few answers and you're done.</p>}</div>
               {!wall.isPending && <Button asChild><Link to="/auth" search={{ intent: "share" }}><PenLine />Share my experience</Link></Button>}

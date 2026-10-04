@@ -3,7 +3,8 @@ import type { Company, Story } from "@/mock/data";
 import type { StoryModel } from "@/lib/stories";
 import { plainText } from "@/components/markdown";
 import { getCompany, getUser } from "@/mock/data";
-import { Flag, HeartHandshake, MessageCircle, Zap } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { ArrowRight, Flag, HeartHandshake, MessageCircle, Zap } from "lucide-react";
 import { cn, formatCount } from "@/lib/utils";
 
 export function Avatar({ seed, pastel, size = "md", label = "Anonymous user" }: { seed: string; pastel: string; size?: "sm" | "md" | "lg"; label?: string }) {
@@ -60,23 +61,30 @@ export function QuickBadge() {
 
 // The company's own icon (fetched from its website when it was listed) on a white tile, or its
 // initial on a colour tile when there's no icon or it fails to load.
+// Logos that failed once this visit: later cards go straight to the initial instead of retrying.
+const BROKEN_LOGOS = new Set<string>();
 export function CompanyMark({ company, size = "md" }: { company: Pick<Company, "name" | "initial" | "color" | "logoUrl">; size?: "sm" | "md" | "lg" }) {
-  const [broken, setBroken] = useState(false);
+  const [brokenSrc, setBrokenSrc] = useState<string | null>(null);
   const box = size === "sm" ? "size-9 text-sm" : size === "lg" ? "size-16 text-2xl" : "size-12 text-xl";
-  if (company.logoUrl && !broken) return <div className={cn("grid shrink-0 place-items-center overflow-hidden rounded-lg border-2 border-foreground bg-white", box)}>
-    <img src={company.logoUrl} alt={`${company.name} logo`} loading="lazy" referrerPolicy="no-referrer" onError={() => setBroken(true)} className="size-[70%] object-contain" />
+  // Eager, not lazy: browsers often never load lazy images inside sideways-scrolling strips, which
+  // left those cards showing initials. Logos are tiny and served from a long CDN cache.
+  if (company.logoUrl && brokenSrc !== company.logoUrl && !BROKEN_LOGOS.has(company.logoUrl)) return <div className={cn("grid shrink-0 place-items-center overflow-hidden rounded-lg border-2 border-foreground bg-white", box)}>
+    <img src={company.logoUrl} alt={`${company.name} logo`} decoding="async" referrerPolicy="no-referrer" onError={() => { BROKEN_LOGOS.add(company.logoUrl!); setBrokenSrc(company.logoUrl!); }} className="size-[70%] object-contain" />
   </div>;
   return <div className={cn("grid shrink-0 place-items-center rounded-lg border-2 border-foreground font-display font-bold text-primary-foreground", company.color, box)}>{company.initial}</div>;
 }
 
 // A real story (API) on the landing page's story wall: same look as the sample cards.
 export function StoryModelCard({ story }: { story: StoryModel }) {
-  return <article className="card-lift break-inside-avoid rounded-xl border-2 border-foreground bg-card p-5 shadow-hard-sm">
+  // Every card is the same size: one-line role and title, the story capped at four lines, and
+  // "Read more" (which asks visitors to join) always in the same place.
+  return <article className="card-lift flex h-full flex-col rounded-xl border-2 border-foreground bg-card p-5 shadow-hard-sm">
     <div className="mb-4 flex items-center gap-3"><Avatar seed={story.author.avatarSeed} pastel={story.author.pastel} size="sm" label={story.author.name} /><div className="min-w-0"><p className="truncate text-sm font-bold">{story.author.name}</p><p className="truncate text-xs text-muted-foreground">about {story.company.name} · {story.timeLabel}</p></div></div>
-    <div className="mb-3 flex flex-wrap items-center gap-2"><span className="rounded-full border-2 border-foreground bg-accent px-2.5 py-0.5 text-[11px] font-bold uppercase">{story.outcomeLabel}</span>{story.role && <span className="text-xs font-semibold text-muted-foreground">{story.role}</span>}</div>
-    {story.title && <h3 className="mb-1 font-bold">{story.title}</h3>}
-    <p className="line-clamp-6 leading-relaxed">{plainText(story.body)}</p>
-    <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold">{([[HeartHandshake, story.relatable, "relatable"], [Flag, story.flags, "red flags"], [MessageCircle, story.comments, "chitchats"]] as const).map(([I, n, label]) => { const red = label === "red flags"; return <span key={label} className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1", red ? "border-flag-red text-flag-red" : "border-foreground")}><I className={cn("size-3.5", red && "fill-flag-red/20")} />{formatCount(n)} {label}</span>; })}</div>
+    <div className="mb-3 flex min-w-0 items-center gap-2"><span className="shrink-0 rounded-full border-2 border-foreground bg-accent px-2.5 py-0.5 text-[11px] font-bold uppercase">{story.outcomeLabel}</span>{story.role && <span className="truncate text-xs font-semibold text-muted-foreground">{story.role}</span>}</div>
+    <h3 className="mb-1 truncate font-bold">{story.title || `About ${story.company.name}`}</h3>
+    <p className="line-clamp-4 h-[6.5em] leading-relaxed">{plainText(story.body)}</p>
+    <Link to="/auth" className="mt-2 inline-flex w-fit items-center gap-1 rounded text-sm font-bold text-primary hover:underline focus-visible:outline-2 focus-visible:outline-ring">Read more<ArrowRight className="size-4" /></Link>
+    <div className="mt-auto flex flex-wrap gap-2 pt-4 text-xs font-semibold">{([[HeartHandshake, story.relatable, "relatable"], [Flag, story.flags, "red flags"], [MessageCircle, story.comments, "chitchats"]] as const).map(([I, n, label]) => { const red = label === "red flags"; return <span key={label} className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1", red ? "border-flag-red text-flag-red" : "border-foreground")}><I className={cn("size-3.5", red && "fill-flag-red/20")} />{formatCount(n)} {label}</span>; })}</div>
   </article>;
 }
 
