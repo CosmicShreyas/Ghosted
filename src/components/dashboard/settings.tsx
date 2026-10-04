@@ -13,6 +13,7 @@ import { displayName, isPublic, nameIsPublic, useAccountActions, useTone, voice,
 import { TwoFactorSection } from "./two-factor";
 import { DevicesList } from "./devices";
 import { ThemePicker } from "@/components/theme-picker";
+import { LanguagePicker } from "@/components/language-picker";
 import { cn } from "@/lib/utils";
 import { stories, users } from "@/mock/data";
 import { DeleteAccountDialog, LogoutDialog } from "./confirm-dialogs";
@@ -214,6 +215,7 @@ export function SettingsView({ me, onLoggedOut, onRequestLogout }: { me: Me; onL
 
         <Section icon={Palette} title="Appearance" subtitle="How Ghosted looks and talks on this device.">
           <div className="pb-4"><p className="mb-2 text-sm font-bold">Theme</p><ThemePicker /></div>
+          <div className="pb-4"><p className="text-sm font-bold">Language</p><p className="mb-2 text-xs text-muted-foreground">For the home page and the story form for now, more coming. Stories always show as their authors wrote them.</p><LanguagePicker variant="full" /></div>
           <ToggleRow title="Reduce motion" copy="Turns off animations across the site: marquees, bouncing ghosts, all of it." checked={prefs.reduceMotion} onChange={(v) => { setPrefs({ reduceMotion: v }); toast.success(v ? "Motion reduced. Very zen." : "Animations are back."); }} />
           {/* Wraps on phones: the Sassy/Calm switch drops below the text at full width instead of being squeezed. */}
           <div className="flex flex-wrap items-center justify-between gap-3 py-3">

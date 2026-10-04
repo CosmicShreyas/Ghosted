@@ -8,6 +8,7 @@ import { useAuthGuard } from "@/lib/session";
 import { FlairRing } from "@/lib/invite";
 import { organizationLd, pageHead, websiteLd } from "@/lib/meta";
 import { api, apiEnabled, track } from "@/lib/api";
+import { useT } from "@/lib/i18n";
 import { fromApi, isRated, useCompanyIndex, type StoryDto } from "@/lib/stories";
 import { Preloader } from "@/components/preloader";
 import { GhostOMeter, HiringMinefield } from "@/components/landing-games";
@@ -107,6 +108,7 @@ function Marquee({ reverse = false }: { reverse?: boolean }) {
 function LandingPage() {
   // Logged-in visitors go straight to their dashboard.
   const { waiting } = useAuthGuard("public-only");
+  const t = useT();
   const { list, ready } = useCompanyIndex();
   const rated = list.filter(isRated).sort((a, b) => b.score - a.score);
   const loved = apiEnabled ? rated.filter((c) => c.score >= 50).slice(0, 4) : companies.slice(0, 4);
@@ -120,17 +122,17 @@ function LandingPage() {
     {/* Hero: the promise, a company search (no account needed), then the ask. */}
     <section id="top-search" className="mx-auto grid max-w-7xl scroll-mt-20 items-center gap-8 overflow-x-clip px-4 py-10 sm:gap-12 sm:px-6 sm:py-14 lg:min-h-[640px] lg:grid-cols-[1.05fr_.95fr] lg:gap-16 lg:py-20">
       <div className="animate-fade-up">
-        <div className="mb-5 inline-flex items-center gap-2 rounded-full border-2 border-foreground bg-accent px-3 py-1 text-sm font-bold"><Sparkles className="size-4" />Real hiring experiences, by company</div>
+        <div className="mb-5 inline-flex items-center gap-2 rounded-full border-2 border-foreground bg-accent px-3 py-1 text-sm font-bold"><Sparkles className="size-4" />{t("hero.badge")}</div>
         {/* Exactly two lines are reserved for the typing line (h-[1.94em] at this line height), so the
     page below never moves; the lines themselves are short enough to never need a third. */}
-<h1 className="max-w-3xl text-[2.6rem] font-bold leading-[.97] min-[380px]:text-5xl sm:text-6xl lg:text-7xl">Know what happened<br /><span className="block h-[1.94em] overflow-hidden text-primary"><RetypingLine /></span></h1>
-        <p className="mt-4 max-w-xl text-lg leading-relaxed text-muted-foreground">Real candidate experiences, anonymous by default and searchable by company: the rounds, the waiting, the replies (or not), the offers and the ghosting.</p>
+<h1 className="max-w-3xl text-[2.6rem] font-bold leading-[.97] min-[380px]:text-5xl sm:text-6xl lg:text-7xl">{t("hero.title")}<br /><span className="block h-[1.94em] overflow-hidden text-primary"><RetypingLine /></span></h1>
+        <p className="mt-4 max-w-xl text-lg leading-relaxed text-muted-foreground">{t("hero.lede")}</p>
         <CompanySearch className="mt-7 max-w-xl" />
         <div className="mt-6 flex flex-wrap items-center gap-3">
-          <Button size="lg" asChild><Link to="/auth" search={{ intent: "share" }}><PenLine />Share my experience <ArrowRight /></Link></Button>
-          <Button size="lg" variant="outline" asChild><a href="#ghost-o-meter"><Hourglass />Waiting on a reply?</a></Button>
+          <Button size="lg" asChild><Link to="/auth" search={{ intent: "share" }}><PenLine />{t("hero.share")} <ArrowRight /></Link></Button>
+          <Button size="lg" variant="outline" asChild><a href="#ghost-o-meter"><Hourglass />{t("hero.waiting")}</a></Button>
         </div>
-        <p className="mt-4 flex max-w-lg items-center gap-2 text-sm font-semibold"><ShieldCheck className="size-4 shrink-0 text-flag-green" />No name. No company email. About 30 seconds to share.</p>
+        <p className="mt-4 flex max-w-lg items-center gap-2 text-sm font-semibold"><ShieldCheck className="size-4 shrink-0 text-flag-green" />{t("hero.trust")}</p>
       </div>
       {/* The collage is designed at 512×500 and scaled to fit smaller screens (66% on phones, 85% on
           small tablets). The outer box reserves the scaled height so nothing overlaps below it. */}

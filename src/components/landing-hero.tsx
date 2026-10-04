@@ -8,6 +8,7 @@ import { ArrowRight, Building2, Hourglass, Loader2, PenLine, Search, ShieldCheck
 import { CompanyMark, FlagScore } from "@/components/ghosted";
 import { Button } from "@/components/ui/button";
 import { apiEnabled, track } from "@/lib/api";
+import { useT } from "@/lib/i18n";
 import { useSearch } from "@/lib/search";
 import { isRated, useCompanyIndex } from "@/lib/stories";
 import { cn, formatCount } from "@/lib/utils";
@@ -19,6 +20,7 @@ const POPULAR = ["Accenture", "TCS", "Infosys", "Wipro", "Amazon", "Microsoft", 
 
 export function CompanySearch({ size = "lg", autoFocus = false, className }: { size?: "lg" | "md"; autoFocus?: boolean; className?: string }) {
   const navigate = useNavigate();
+  const t = useT();
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
@@ -39,10 +41,10 @@ export function CompanySearch({ size = "lg", autoFocus = false, className }: { s
     <form role="search" onSubmit={(e) => { e.preventDefault(); if (results[0]) go(results[0]); }}>
       <label className={cn("flex items-center gap-2 rounded-xl border-2 border-foreground bg-card shadow-hard-sm focus-within:shadow-hard", size === "lg" ? "h-16 pl-4 pr-3" : "h-14 pl-3.5 pr-2.5")}>
         <Search className="size-5 shrink-0 text-muted-foreground" />
-        <span className="sr-only">Search a company</span>
+        <span className="sr-only">{t("search.label")}</span>
         <input value={q} onChange={(e) => { setQ(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)} autoFocus={autoFocus} type="text" inputMode="search" enterKeyHint="search" autoComplete="off"
-          placeholder="Search a company, e.g. Accenture" className={cn("min-w-0 flex-1 bg-transparent outline-none placeholder:text-muted-foreground", size === "lg" ? "text-lg" : "text-base")} />
-        {loading ? <Loader2 className="size-5 animate-spin text-muted-foreground" /> : <Button type="submit" size="sm" className="hidden min-h-10 sm:inline-flex" disabled={!results[0]}>Search</Button>}
+          placeholder={t("search.placeholder")} className={cn("min-w-0 flex-1 bg-transparent outline-none placeholder:text-muted-foreground", size === "lg" ? "text-lg" : "text-base")} />
+        {loading ? <Loader2 className="size-5 animate-spin text-muted-foreground" /> : <Button type="submit" size="sm" className="hidden min-h-10 sm:inline-flex" disabled={!results[0]}>{t("search.button")}</Button>}
       </label>
     </form>
     <AnimatePresence>{show && <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.12 }}
@@ -54,7 +56,7 @@ export function CompanySearch({ size = "lg", autoFocus = false, className }: { s
       </button></li>)}</ul>
         : !loading && <div className="p-4 text-sm"><p className="font-bold">No company called “{q.trim()}” yet.</p><p className="mt-1 text-muted-foreground">Been through their hiring? Add it and share what happened.</p><Button size="sm" className="mt-3 min-h-10" asChild><Link to="/auth" search={{ intent: "share" }}><PenLine />Add it anonymously</Link></Button></div>}
     </motion.div>}</AnimatePresence>
-    {popular.length > 0 && <div className="mt-3 flex flex-wrap items-center gap-2 text-sm"><span className="text-muted-foreground">Try:</span>{popular.map((c) => <Link key={c.id} to="/c/$slug" params={{ slug: c.id }} className="inline-flex min-h-9 items-center rounded-full border-2 border-foreground/20 bg-card px-3 font-semibold hover:border-foreground">{c.name}</Link>)}</div>}
+    {popular.length > 0 && <div className="mt-3 flex flex-wrap items-center gap-2 text-sm"><span className="text-muted-foreground">{t("search.try")}</span>{popular.map((c) => <Link key={c.id} to="/c/$slug" params={{ slug: c.id }} className="inline-flex min-h-9 items-center rounded-full border-2 border-foreground/20 bg-card px-3 font-semibold hover:border-foreground">{c.name}</Link>)}</div>}
   </div>;
 }
 
