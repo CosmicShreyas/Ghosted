@@ -81,10 +81,20 @@ export function otpEmail({ purpose = "signup", code, name, appUrl, minutes, tone
   const html = layout({
     appUrl, subject, banner: t.banner, heading: t.heading(first), ...(t.tagline && { tagline: t.tagline }), intro: t.intro,
     preheader: `Your code is ${code}. It expires in ${minutes} minutes.`,
+    // The digit boxes, then a copy strip: the whole code as one unbroken string that a single tap or
+    // click selects (user-select: all), since email can't run a real copy button. The plain-text
+    // part says "Your code: 123456", the pattern Gmail and iOS look for to offer their own Copy.
     body: `<tr><td align="center" style="padding:0 28px 12px;"><table role="presentation" cellpadding="0" cellspacing="0"><tr>${digits}</tr></table></td></tr>
+        <tr><td align="center" style="padding:6px 28px 4px;">
+          <table role="presentation" cellpadding="0" cellspacing="0" style="border:2px dashed ${C.violet};border-radius:999px;background:${C.card};"><tr>
+            <td style="padding:8px 6px 8px 16px;font-family:${BODY};font-size:12px;font-weight:700;color:${C.muted};white-space:nowrap;">Copy code</td>
+            <td style="padding:8px 16px 8px 6px;font-family:${FONT};font-size:18px;font-weight:700;letter-spacing:3px;color:${C.ink};white-space:nowrap;-webkit-user-select:all;-moz-user-select:all;user-select:all;cursor:text;">${code}</td>
+          </tr></table>
+        </td></tr>
+        <tr><td align="center" style="padding:2px 28px 6px;font-family:${BODY};font-size:12px;color:${C.muted};">Tap the code above to select it, then copy.</td></tr>
         <tr><td align="center" style="padding:4px 28px 28px;font-family:${BODY};font-size:13px;color:${C.muted};">${t.expiry(minutes)}</td></tr>`,
     footnote: `${escape(t.ignore)}<br>Ghosted will <strong style="color:${C.red};">never</strong> ask for this code by phone, chat or DM, and we never share your identity with employers.`,
   });
-  const text = [t.heading(first).replace(/<[^>]+>/g, ""), "", `    ${code.split("").join(" ")}`, "", t.expiry(minutes).replace(/<[^>]+>/g, ""), "", t.ignore, "Ghosted will never ask for this code by phone, chat or DM.", "", `Ghosted: ${appUrl}`].join("\n");
+  const text = [t.heading(first).replace(/<[^>]+>/g, ""), "", `Your code: ${code}`, "", t.expiry(minutes).replace(/<[^>]+>/g, ""), "", t.ignore, "Ghosted will never ask for this code by phone, chat or DM.", "", `Ghosted: ${appUrl}`].join("\n");
   return { subject, html, text };
 }

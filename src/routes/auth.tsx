@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { PasswordStrength } from "@/components/password-strength";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { toast } from "sonner";
 import { ApiRequestError, apiEnabled, authApi, type MfaMethod } from "@/lib/api";
@@ -318,7 +319,7 @@ function AuthPage() {
               <Field label="Email"><Input required type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@somewhere.com" maxLength={254} className={inputClass} /></Field>
               <div>
                 <div className="mb-1.5 flex items-center justify-between"><span className="text-sm font-bold">Password</span><button type="button" onClick={startRecovery} className="text-xs font-semibold text-primary hover:underline">Forgot password?</button></div>
-                <Input required type="password" aria-label="Password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Your password" maxLength={72} className={inputClass} />
+                <PasswordInput required aria-label="Password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Your password" maxLength={72} className={inputClass} />
               </div>
             </motion.div>}
 
@@ -333,7 +334,7 @@ function AuthPage() {
                 <SentTo email={email} onChange={() => { setRecover("email"); setNotice(null); }} />
                 <CodeInput value={code} onChange={setCode} />
                 <Resend cooldown={cooldown} disabled={loading} onResend={() => void sendReset()} />
-                <Field label="New password" hint="At least 10 characters. A short sentence works great."><Input required type="password" autoComplete="new-password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="At least 10 characters" minLength={10} maxLength={72} className={inputClass} /></Field>
+                <Field label="New password" hint="At least 10 characters. A short sentence works great."><PasswordInput required autoComplete="new-password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="At least 10 characters" minLength={10} maxLength={72} className={inputClass} /></Field>
                 <PasswordStrength password={newPassword} personal={[email]} />
                 {resetNeedsAuth && <Field label="Authenticator code" hint="Your account has an authenticator app, so resetting needs it too. A recovery code also works."><Input autoComplete="one-time-code" value={mfaCode} onChange={(e) => setMfaCode(e.target.value)} placeholder="123456 or xxxx-xxxx" maxLength={9} className={cn(inputClass, "font-mono tracking-wider")} /></Field>}
               </>}
@@ -356,7 +357,7 @@ function AuthPage() {
 
                 {step === "account" && <motion.div key="account" {...stepMotion} className="space-y-4">
                   <p className="flex items-center gap-2 rounded-lg border-2 border-foreground bg-card p-3 text-sm"><Check className="size-4 shrink-0 text-flag-green" strokeWidth={3} /><span className="truncate"><strong>{email}</strong> verified</span></p>
-                  <Field label="Create a password" hint="At least 10 characters. A short sentence works great."><Input required type="password" autoComplete="new-password" autoFocus value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 10 characters" minLength={10} maxLength={72} className={inputClass} /></Field>
+                  <Field label="Create a password" hint="At least 10 characters. A short sentence works great."><PasswordInput required autoComplete="new-password" autoFocus value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 10 characters" minLength={10} maxLength={72} className={inputClass} /></Field>
                   <PasswordStrength password={password} personal={[fullName, email]} />
                   <div className="rounded-xl border-2 border-foreground bg-card p-4">
                     <div className="flex items-center justify-between">

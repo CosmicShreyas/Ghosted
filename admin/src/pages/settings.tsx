@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { ThemePicker } from "@/components/theme-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { ApiRequestError } from "@/lib/api";
 import { randomHandle } from "@/lib/handles";
@@ -111,8 +112,8 @@ function Password() {
   };
   return <Panel title="Password" icon={KeyRound}>
     <form onSubmit={(e) => void go(e)} className="space-y-3">
-      <label className="block"><span className="mb-1 block text-sm font-bold">Current password</span><Input type="password" autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} className={field} required /></label>
-      <label className="block"><span className="mb-1 block text-sm font-bold">New password (14+ characters)</span><Input type="password" autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} className={field} required /></label>
+      <label className="block"><span className="mb-1 block text-sm font-bold">Current password</span><PasswordInput autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} className={field} required /></label>
+      <label className="block"><span className="mb-1 block text-sm font-bold">New password (14+ characters)</span><PasswordInput autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} className={field} required /></label>
       <Button type="submit" disabled={busy}>{busy ? <Loader2 className="animate-spin" /> : <KeyRound />}Change password</Button>
     </form>
   </Panel>;
@@ -168,7 +169,7 @@ function TwoStep({ me, recoveryLeft, onChanged }: { me: AdminMe; recoveryLeft: n
           <Button variant="ghost" size="sm" onClick={reset}>Cancel</Button>
         </motion.div>
       : mode === "off" || mode === "recovery" ? <motion.form key="pw" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-4 space-y-3" onSubmit={(e) => { e.preventDefault(); withPassword(mode === "off" ? "/me/mfa/disable" : "/me/mfa/recovery"); }}>
-          <label className="block"><span className="mb-1 block text-sm font-bold">Your password</span><Input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} className={field} required /></label>
+          <label className="block"><span className="mb-1 block text-sm font-bold">Your password</span><PasswordInput autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} className={field} required /></label>
           <div className="flex gap-2"><Button type="submit" variant={mode === "off" ? "destructive" : "default"} disabled={busy}>{mode === "off" ? "Turn two-step off" : "Make new recovery codes"}</Button><Button type="button" variant="ghost" onClick={reset}>Cancel</Button></div>
         </motion.form>
       : <motion.div key="menu" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-4 flex flex-wrap gap-2">

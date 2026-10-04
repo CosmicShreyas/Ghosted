@@ -27,7 +27,7 @@ export function GameBreak({ line: lines, className }: { line: string | { sassy: 
           <p className="font-display text-base font-bold leading-snug">{line}</p>
           <p className="mt-0.5 text-xs text-[#F2E9D8]/75">{best > 0 ? `Your best: ${best.toLocaleString("en-IN")} Experience. Beat it.` : "Blast bad hiring practices, grab offers, earn Experience."}</p>
         </div>
-        <Button size="sm" className="min-h-11 w-full shrink-0 @md:w-auto" onClick={() => setOpen(true)}><Play />Play</Button>
+        <Button size="sm" className="min-h-11 w-full shrink-0 shadow-[3px_3px_0_0_#F2E9D8] transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-[4px_4px_0_0_#F2E9D8] active:translate-y-0 active:shadow-none @md:w-auto" onClick={() => setOpen(true)}><Play />Play</Button>
       </div>
     </div>
     {/* The game in a big popup. Closing it ends the run (the game stops with the popup). */}

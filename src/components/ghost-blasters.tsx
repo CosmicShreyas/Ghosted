@@ -130,7 +130,7 @@ export function GhostBlastersGame({ compact = false, className, onClose }: { com
       </div> : <span />}
       <div className="flex shrink-0 gap-2">
         {(state === "playing" || state === "paused") && <button type="button" onClick={togglePause} aria-label={state === "paused" ? "Resume" : "Pause"} className="pointer-events-auto grid size-10 place-items-center rounded-full border-2 border-foreground bg-card text-foreground shadow-hard-sm">{state === "paused" ? <Play className="size-4" /> : <Pause className="size-4" />}</button>}
-        {onClose && <button type="button" onClick={onClose} aria-label="Close game" className="pointer-events-auto grid size-10 place-items-center rounded-full border-2 border-foreground bg-card text-foreground shadow-hard-sm"><X className="size-4" /></button>}
+        {onClose && <button type="button" onClick={onClose} aria-label="Close game" className="pointer-events-auto grid size-10 place-items-center rounded-lg border-2 border-foreground bg-card text-foreground shadow-hard-sm"><X className="size-4" /></button>}
       </div>
     </div>
 
