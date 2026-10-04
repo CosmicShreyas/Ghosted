@@ -4,12 +4,12 @@ import { Link } from "@tanstack/react-router";
 import { motion } from "motion/react";
 import { ArrowRight, Bot, Check, Crown, EyeOff, Hourglass, Pin, Ruler, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { landingObjection } from "@/mock/data";
+import { useLanding } from "@/content/landing-copy";
 
 const ICONS = [Pin, Crown, Hourglass, Ruler, EyeOff, Bot];
 
 export function LandingObjection() {
-  const o = landingObjection;
+  const o = useLanding().objection;
   return <section id="why-now" className="border-b-2 border-foreground bg-background py-24">
     <div className="mx-auto max-w-7xl px-4 sm:px-6">
       <p className="mb-4 inline-flex rounded-full border-2 border-foreground bg-accent px-3 py-1 text-sm font-bold uppercase">{o.eyebrow}</p>
@@ -52,7 +52,7 @@ export function LandingObjection() {
 
       {/* How one story compounds: a real sequence, so it's numbered as one. */}
       <div className="mt-16 rounded-xl border-2 border-foreground bg-secondary p-6 shadow-hard sm:p-8">
-        <h3 className="font-display text-2xl font-bold sm:text-3xl">What one story does</h3>
+        <h3 className="font-display text-2xl font-bold sm:text-3xl">{o.compounds}</h3>
         <ol className="mt-6 grid gap-6 md:grid-cols-4">{o.timeline.map((t, i) => <motion.li key={t.when} initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.12 }} className="relative">
           <div className="flex items-center gap-3">
             <span className="grid size-9 shrink-0 place-items-center rounded-full border-2 border-foreground bg-primary font-display font-bold text-primary-foreground">{i + 1}</span>

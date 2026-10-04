@@ -4,6 +4,7 @@ import { Check, Copy, Hand, Heart, HeartCrack, Mail, PenLine, RotateCcw, Search,
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { track } from "@/lib/api";
+import { useLanding } from "@/content/landing-copy";
 import { cn } from "@/lib/utils";
 import { ghostStages, recruiterSlaps } from "@/mock/data";
 
@@ -22,6 +23,9 @@ export function GhostOMeter() {
   const [days, setDays] = useState(9);
   const [copied, setCopied] = useState(false);
   const stage = [...ghostStages].reverse().find((s) => days >= s.from) ?? ghostStages[0];
+  // Wording in the page's language (the follow-up stays English: it's meant for a recruiter's inbox).
+  const M = useLanding().meter;
+  const words = M.stages[ghostStages.indexOf(stage)] ?? stage;
   const chance = replyChance(days);
 
   useEffect(() => {
@@ -37,16 +41,16 @@ export function GhostOMeter() {
   };
 
   return <section className="mx-auto max-w-7xl px-4 py-24 sm:px-6">
-    <SectionTitle eyebrow="The Ghost-o-meter" title="How ghosted are you, exactly?" aside="Slide to how many days it's been since they said “we'll get back to you”. We'll tell you where you stand, and hand you a follow-up to send." />
+    <SectionTitle eyebrow={M.eyebrow} title={M.title} aside={M.aside} />
     <div className="mt-10 grid gap-5 lg:grid-cols-2">
       <div className="flex flex-col rounded-xl border-2 border-foreground bg-card p-6 shadow-hard sm:p-8">
-        <p className="text-xs font-bold uppercase text-muted-foreground">Step 1 · Days since their last reply</p>
+        <p className="text-xs font-bold uppercase text-muted-foreground">{M.step1}</p>
         <div className="mt-3 flex items-end gap-3">
-          <span className="font-display text-7xl font-bold leading-none tabular-nums sm:text-8xl">{days}</span><span className="pb-2 font-display text-2xl font-bold text-muted-foreground">{days === 1 ? "day" : "days"}</span>
+          <span className="font-display text-7xl font-bold leading-none tabular-nums sm:text-8xl">{days}</span><span className="pb-2 font-display text-2xl font-bold text-muted-foreground">{days === 1 ? M.day : M.days}</span>
           {/* Phones and tablets: one-tap nudges, easier than dragging a thin slider. */}
           <span className="ml-auto flex gap-2 pb-1 lg:hidden">
-            <button type="button" onClick={() => setDays((d) => Math.max(0, d - 1))} aria-label="One day fewer" className="grid size-11 place-items-center rounded-full border-2 border-foreground bg-card font-display text-xl font-bold active:bg-muted">−</button>
-            <button type="button" onClick={() => setDays((d) => Math.min(MAX_DAYS, d + 1))} aria-label="One day more" className="grid size-11 place-items-center rounded-full border-2 border-foreground bg-card font-display text-xl font-bold active:bg-muted">+</button>
+            <button type="button" onClick={() => setDays((d) => Math.max(0, d - 1))} aria-label={M.fewer} className="grid size-11 place-items-center rounded-full border-2 border-foreground bg-card font-display text-xl font-bold active:bg-muted">−</button>
+            <button type="button" onClick={() => setDays((d) => Math.min(MAX_DAYS, d + 1))} aria-label={M.more} className="grid size-11 place-items-center rounded-full border-2 border-foreground bg-card font-display text-xl font-bold active:bg-muted">+</button>
           </span>
         </div>
         <input type="range" min={0} max={MAX_DAYS} value={days} onChange={(e) => { setDays(Number(e.target.value)); track("ghostometer"); }} aria-label="Days since their last reply" className="mt-6 h-3 w-full cursor-pointer accent-primary sm:mt-8 lg:h-2" />
@@ -57,23 +61,23 @@ export function GhostOMeter() {
           {ghostStages.map((s, i) => { const next = ghostStages[i + 1]?.from ?? MAX_DAYS; const active = s === stage; return <button key={s.name} type="button" onClick={() => setDays(s.from)} style={{ left: `${(s.from / MAX_DAYS) * 100}%`, width: `${((next - s.from) / MAX_DAYS) * 100}%` }} className={cn("absolute top-0 h-full border-l-2 border-foreground px-1.5 text-left text-[11px] font-bold leading-8 transition-colors", active ? "bg-foreground text-background" : "text-muted-foreground hover:bg-muted")}><span className="block truncate">{s.name}</span></button>; })}
         </div>
         <div className="mt-8 flex-1 rounded-lg border-2 border-foreground bg-background p-5">
-          <p className="text-xs font-bold uppercase text-muted-foreground">Your status</p>
-          <AnimatePresence mode="wait"><motion.div key={stage.name} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }}><p className={cn("mt-1 font-display text-3xl font-bold", stage.tone)}>{stage.name}</p><p className="mt-1">{stage.verdict}</p></motion.div></AnimatePresence>
+          <p className="text-xs font-bold uppercase text-muted-foreground">{M.status}</p>
+          <AnimatePresence mode="wait"><motion.div key={stage.name} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }}><p className={cn("mt-1 font-display text-3xl font-bold", stage.tone)}>{words.name}</p><p className="mt-1">{words.verdict}</p></motion.div></AnimatePresence>
         </div>
       </div>
 
       <div className="flex flex-col rounded-xl border-2 border-foreground bg-foreground p-6 text-background shadow-hard sm:p-8">
-        <p className="text-xs font-bold uppercase opacity-70">Step 2 · Odds they reply on their own</p>
+        <p className="text-xs font-bold uppercase opacity-70">{M.step2}</p>
         <div className="mt-3 flex items-center gap-6">
           <div className="relative grid size-28 shrink-0 place-items-center rounded-full border-2 border-background/30 bg-[radial-gradient(circle,var(--primary)_0%,transparent_70%)]">
             <motion.img src="/ghosted-mark.png" alt="" animate={{ y: [0, -6, 0] }} transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }} style={{ opacity: 0.3 + (chance / 100) * 0.7 }} className="size-20 object-contain" />
           </div>
-          <div className="min-w-0 flex-1"><p className="font-display text-6xl font-bold tabular-nums">{chance}%</p><div className="mt-2 h-2.5 overflow-hidden rounded-full bg-background/20"><motion.div className="h-full rounded-full bg-primary" animate={{ width: `${chance}%` }} transition={{ type: "spring", stiffness: 160, damping: 22 }} /></div><p className="mt-2 text-xs opacity-70">The ghost fades as their interest does.</p></div>
+          <div className="min-w-0 flex-1"><p className="font-display text-6xl font-bold tabular-nums">{chance}%</p><div className="mt-2 h-2.5 overflow-hidden rounded-full bg-background/20"><motion.div className="h-full rounded-full bg-primary" animate={{ width: `${chance}%` }} transition={{ type: "spring", stiffness: 160, damping: 22 }} /></div><p className="mt-2 text-xs opacity-70">{M.fade}</p></div>
         </div>
         <div className="mt-8 flex flex-1 flex-col rounded-lg border-2 border-background/30 p-5">
-          <p className="flex items-center gap-2 text-xs font-bold uppercase opacity-70"><Mail className="size-4" />Step 3 · Send them this follow-up</p>
+          <p className="flex items-center gap-2 text-xs font-bold uppercase opacity-70"><Mail className="size-4" />{M.step3}</p>
           <AnimatePresence mode="wait"><motion.p key={stage.followUp} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }} className="mt-3 flex-1 font-display text-lg font-bold">“{stage.followUp}”</motion.p></AnimatePresence>
-          <Button type="button" variant="outline" className="mt-5 w-full bg-background text-foreground" onClick={copy}>{copied ? <><Check />Copied. Paste it into your email</> : <><Copy />Copy this message</>}</Button>
+          <Button type="button" variant="outline" className="mt-5 w-full bg-background text-foreground" onClick={copy}>{copied ? <><Check />{M.copied}</> : <><Copy />{M.copy}</>}</Button>
         </div>
       </div>
     </div>
@@ -120,7 +124,6 @@ function plant(first: number): Cell[] {
   return board;
 }
 
-const GAUNTLET = ["Applied", "Screening call", "Take-home", "Tech round", "Final round", "Offer"];
 
 // Danger escalates: 1 calm, 2 careful, 3+ run.
 const adjTone = ["", "text-primary", "text-flag-amber", "text-flag-red", "text-flag-red"];
@@ -173,13 +176,17 @@ export function HiringMinefield() {
     setStatus(next.filter((c) => c.open && !c.mine).length === SAFE ? "won" : "playing");
   };
 
-  const message = status === "won" ? "Offer in hand! Pending “final approvals”, obviously." : status === "lost" ? "Three red flags. They've “moved forward with other candidates”." : status === "idle" ? "Tap any tile to send your application. The first step is always safe." : "Each number counts the red flags hiding next door. A green tick means every neighbour is safe.";
+  const W = useLanding().mine;
+  const GAUNTLET = W.gauntlet;
+  // A slap in the page's language (falls back to English per slap).
+  const say = (s: Slap) => W.slaps[recruiterSlaps.indexOf(s)] ?? s;
+  const message = status === "won" ? W.won : status === "lost" ? W.lost : status === "idle" ? W.idle : W.playing;
   // How far through the hiring process the cleared tiles have carried you.
   const reached = Math.min(GAUNTLET.length - 1, Math.floor((cleared / SAFE) * GAUNTLET.length));
 
   return <section id="gauntlet" className="border-y-2 border-foreground bg-accent py-24">
     <div className="mx-auto max-w-7xl px-4 sm:px-6">
-      <SectionTitle eyebrow="The interview gauntlet" title="Can you survive a hiring process?" aside="Every tile is a step in the process. Most are fine. Some are red flags, and a recruiter will hit you with their finest move. Clear the board to reach the offer. Three red flags and you're out, just like real life." />
+      <SectionTitle eyebrow={W.eyebrow} title={W.title} aside={W.aside} />
       {/* The process you're fighting through, lighting up as you clear tiles. */}
       <ol className="mt-8 flex flex-wrap items-center gap-x-2 gap-y-2" aria-label="Your progress through the hiring process">{GAUNTLET.map((s, i) => {
         const done = status === "won" || (status !== "idle" && i < reached), now = status === "playing" && i === reached;
@@ -195,32 +202,32 @@ export function HiringMinefield() {
               {c.open && (c.mine ? <motion.span initial={{ scale: 0, rotate: -50 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: "spring", stiffness: 500, damping: 12 }}><Hand className="size-6 sm:size-8" strokeWidth={2.5} /></motion.span> : c.adj || <Check className="size-6 sm:size-8" strokeWidth={3} />)}
             </motion.button>)}
           </div>
-          <AnimatePresence>{hit && <motion.div key={slaps.length} initial={{ opacity: 0, scale: 0.6, rotate: -8 }} animate={{ opacity: 1, scale: 1, rotate: -3 }} exit={{ opacity: 0, scale: 1.08 }} transition={{ type: "spring", stiffness: 420, damping: 14 }} className="absolute inset-0 z-10 m-auto flex h-fit max-w-sm flex-col items-center rounded-xl border-2 border-foreground bg-flag-red p-6 text-center text-primary-foreground shadow-hard"><Hand className="size-10" strokeWidth={2.5} /><p className="mt-2 font-display text-4xl font-bold">SLAP!</p><p className="mt-1 text-sm font-bold uppercase opacity-90">{hit.title}</p><p className="mt-2 font-semibold">{hit.line}</p></motion.div>}</AnimatePresence>
+          <AnimatePresence>{hit && <motion.div key={slaps.length} initial={{ opacity: 0, scale: 0.6, rotate: -8 }} animate={{ opacity: 1, scale: 1, rotate: -3 }} exit={{ opacity: 0, scale: 1.08 }} transition={{ type: "spring", stiffness: 420, damping: 14 }} className="absolute inset-0 z-10 m-auto flex h-fit max-w-sm flex-col items-center rounded-xl border-2 border-foreground bg-flag-red p-6 text-center text-primary-foreground shadow-hard"><Hand className="size-10" strokeWidth={2.5} /><p className="mt-2 font-display text-4xl font-bold">SLAP!</p><p className="mt-1 text-sm font-bold uppercase opacity-90">{say(hit).title}</p><p className="mt-2 font-semibold">{say(hit).line}</p></motion.div>}</AnimatePresence>
         </motion.div>
 
         {/* On desktop the panel is pinned to the board's height, so the board never gets padded out. */}
         <div className="relative min-h-[28rem] lg:min-h-0">
         <aside className="absolute inset-0 flex flex-col rounded-xl border-2 border-foreground bg-card p-5 shadow-hard sm:p-6">
           <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-lg border-2 border-foreground bg-background p-3"><p className="text-[11px] font-bold uppercase text-muted-foreground">Patience left</p><div className="mt-2 flex gap-1.5" aria-label={`${lives} of ${LIVES} lives left`}>{Array.from({ length: LIVES }, (_, i) => i < lives ? <Heart key={i} className="size-6 fill-flag-red text-flag-red" /> : <HeartCrack key={i} className="size-6 text-muted-foreground" />)}</div></div>
-            <div className="rounded-lg border-2 border-foreground bg-background p-3"><p className="text-[11px] font-bold uppercase text-muted-foreground">Tiles cleared</p><p className="mt-1 font-sans text-2xl font-bold tabular-nums">{cleared}<span className="text-base text-muted-foreground">/{SAFE}</span></p></div>
+            <div className="rounded-lg border-2 border-foreground bg-background p-3"><p className="text-[11px] font-bold uppercase text-muted-foreground">{W.patience}</p><div className="mt-2 flex gap-1.5" aria-label={`${lives} of ${LIVES} lives left`}>{Array.from({ length: LIVES }, (_, i) => i < lives ? <Heart key={i} className="size-6 fill-flag-red text-flag-red" /> : <HeartCrack key={i} className="size-6 text-muted-foreground" />)}</div></div>
+            <div className="rounded-lg border-2 border-foreground bg-background p-3"><p className="text-[11px] font-bold uppercase text-muted-foreground">{W.cleared}</p><p className="mt-1 font-sans text-2xl font-bold tabular-nums">{cleared}<span className="text-base text-muted-foreground">/{SAFE}</span></p></div>
           </div>
           <div className="mt-3 h-2.5 overflow-hidden rounded-full border-2 border-foreground bg-muted"><motion.div className="h-full bg-flag-green" animate={{ width: `${(cleared / SAFE) * 100}%` }} transition={{ type: "spring", stiffness: 120, damping: 20 }} /></div>
           <p className={cn("mt-4 flex items-start gap-2 text-sm font-semibold", status === "won" && "text-flag-green", status === "lost" && "text-flag-red")} aria-live="polite">{status === "won" && <Trophy className="size-4 shrink-0" />}{message}</p>
           <div className="mt-4 flex min-h-0 flex-1 flex-col border-t-2 border-foreground pt-4">
-            <p className="flex items-center justify-between text-[11px] font-bold uppercase text-muted-foreground"><span>Slap log</span>{slaps.length > 0 && <span>{slaps.length} {slaps.length === 1 ? "slap" : "slaps"}</span>}</p>
-            {slaps.length === 0 ? <p className="mt-3 text-sm text-muted-foreground">Clean record so far. Enjoy it while HR is on leave.</p> : <ul data-lenis-prevent className="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-1">{slaps.map((s, i) => <motion.li key={slaps.length - i} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="flex gap-2.5 rounded-lg border-2 border-foreground bg-background p-2.5 text-sm"><Hand className="mt-0.5 size-4 shrink-0 text-flag-red" /><span><strong className="block">{s.title}</strong>{s.line}</span></motion.li>)}</ul>}
+            <p className="flex items-center justify-between text-[11px] font-bold uppercase text-muted-foreground"><span>{W.log}</span>{slaps.length > 0 && <span>{slaps.length} {slaps.length === 1 ? W.slapOne : W.slapMany}</span>}</p>
+            {slaps.length === 0 ? <p className="mt-3 text-sm text-muted-foreground">{W.clean}</p> : <ul data-lenis-prevent className="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-1">{slaps.map((s, i) => <motion.li key={slaps.length - i} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="flex gap-2.5 rounded-lg border-2 border-foreground bg-background p-2.5 text-sm"><Hand className="mt-0.5 size-4 shrink-0 text-flag-red" /><span><strong className="block">{say(s).title}</strong>{say(s).line}</span></motion.li>)}</ul>}
           </div>
-          <Button type="button" variant={over ? "default" : "outline"} className="mt-4 w-full" onClick={reset}><RotateCcw />{over ? "Apply again (you will)" : "Start over"}</Button>
+          <Button type="button" variant={over ? "default" : "outline"} className="mt-4 w-full" onClick={reset}><RotateCcw />{over ? W.again : W.restart}</Button>
         </aside>
         </div>
       </div>
       {/* The game ends where the product starts: real candidates have mapped real minefields. */}
       <AnimatePresence>{over && <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mt-5 flex flex-wrap items-center gap-4 rounded-xl border-2 border-foreground bg-card p-5 shadow-hard-sm">
-        <p className="min-w-0 flex-1 font-display text-lg font-bold">{status === "won" ? "Nice run. Real processes don't come with numbers on the tiles, though." : "Real candidates have already stepped on these. Check the map before you apply."}</p>
+        <p className="min-w-0 flex-1 font-display text-lg font-bold">{status === "won" ? W.endWon : W.endLost}</p>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" asChild><a href="#top-search"><Search />Search a company</a></Button>
-          <Button asChild><Link to="/auth" search={{ intent: "share" }}><PenLine />Share your real run</Link></Button>
+          <Button variant="outline" asChild><a href="#top-search"><Search />{W.search}</a></Button>
+          <Button asChild><Link to="/auth" search={{ intent: "share" }}><PenLine />{W.shareRun}</Link></Button>
         </div>
       </motion.div>}</AnimatePresence>
     </div>

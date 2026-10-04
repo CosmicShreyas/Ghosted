@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { motion, useScroll, useTransform, type MotionValue } from "motion/react";
 import { ArrowRight, EyeOff, Receipt, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { landingPitch } from "@/mock/data";
+import { useLanding } from "@/content/landing-copy";
 
 const pillarIcons = [Receipt, EyeOff, ShieldCheck];
 
@@ -16,7 +16,7 @@ function ManifestoLine({ text, index, total, progress, last }: { text: string; i
 
 // Landing-page billboard: the marketing pitch (copy in mock/data.ts → landingPitch).
 export function LandingPitch() {
-  const p = landingPitch;
+  const p = useLanding().pitch;
   const ref = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start 80%", "end 45%"] });
 

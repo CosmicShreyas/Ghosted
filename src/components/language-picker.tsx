@@ -1,6 +1,7 @@
 // Language switch: a compact dropdown in the footer, a row of choices in Settings. Saved on this
 // device with the other preferences.
-import { Languages } from "lucide-react";
+import { Check, ChevronDown, Languages } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { LANGS, setLang, translate, useT, type Lang } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -9,13 +10,30 @@ export function LanguagePicker({ variant = "compact" }: { variant?: "compact" | 
   const t = useT();
   const pick = (l: Lang) => { setLang(l); if (variant === "full") toast.success(`${LANGS.find((x) => x.id === l)!.native}`); };
 
-  if (variant === "compact") return <label className="inline-flex items-center gap-2 font-semibold">
-    <Languages className="size-4" aria-hidden="true" />
-    <span className="sr-only">{t("footer.language")}</span>
-    <select value={t.lang} onChange={(e) => pick(e.target.value as Lang)} className="h-9 rounded-full border-2 border-foreground bg-card px-3 text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring">
-      {LANGS.map((l) => <option key={l.id} value={l.id} lang={l.htmlLang}>{l.native}</option>)}
-    </select>
-  </label>;
+  // Footer: a pill that opens a small themed menu (upward, since it sits at the bottom of the page).
+  if (variant === "compact") {
+    const current = LANGS.find((l) => l.id === t.lang)!;
+    return <DropdownMenu>
+      <DropdownMenuTrigger aria-label={`${t("footer.language")}: ${current.native}`}
+        className="group inline-flex h-9 items-center gap-2 rounded-full border-2 border-foreground bg-card pl-3 pr-2.5 text-sm font-bold shadow-hard-sm transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-hard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:translate-y-0 data-[state=open]:shadow-none">
+        <Languages className="size-4 text-primary" aria-hidden="true" />
+        <span lang={current.htmlLang}>{current.native}</span>
+        <ChevronDown className="size-4 transition-transform group-data-[state=open]:rotate-180" aria-hidden="true" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent side="top" align="end" sideOffset={8} className="min-w-48 rounded-xl border-2 border-foreground p-1.5 shadow-hard">
+        <p className="px-2.5 pb-1.5 pt-1 text-xs font-bold text-muted-foreground">{t("footer.language")}</p>
+        {LANGS.map((l) => {
+          const on = l.id === t.lang;
+          return <DropdownMenuItem key={l.id} onSelect={() => pick(l.id)} lang={l.htmlLang}
+            className={cn("flex min-h-10 cursor-pointer items-center gap-3 rounded-lg px-2.5 font-semibold", on && "bg-primary text-primary-foreground focus:bg-primary focus:text-primary-foreground")}>
+            <span className="flex-1">{l.native}</span>
+            {l.native !== l.label && <span className={cn("text-xs font-normal", on ? "opacity-80" : "text-muted-foreground")}>{l.label}</span>}
+            <Check className={cn("size-4", on ? "opacity-100" : "opacity-0")} aria-hidden="true" />
+          </DropdownMenuItem>;
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>;
+  }
 
   return <div role="radiogroup" aria-label={translate(t.lang, "sassy", "footer.language")} className="flex flex-wrap gap-2">
     {LANGS.map((l) => <button key={l.id} type="button" role="radio" aria-checked={t.lang === l.id} lang={l.htmlLang} onClick={() => pick(l.id)}
