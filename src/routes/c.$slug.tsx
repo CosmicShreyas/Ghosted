@@ -23,6 +23,7 @@ import { useAccountActions, useAuthGuard, useMe, useTone, voice } from "@/lib/se
 import { cn } from "@/lib/utils";
 import type { Company } from "@/mock/data";
 import { GameBreak } from "@/components/game-break";
+import { PillSelect } from "@/components/pill-select";
 
 // A company's page, addressed by its slug. Same layout as people pages: header, what people say,
 // stories (filterable), and the stats rail.
@@ -60,7 +61,6 @@ export const Route = createFileRoute("/c/$slug")({
 const FILTERS = [{ id: "all", label: "All stories" }, { id: "positive", label: "Positive" }, { id: "critical", label: "Critical" }] as const;
 type Filter = (typeof FILTERS)[number]["id"];
 const STAGE_FILTERS = [["application", "Application"], ["screening", "Recruiter call"], ["technical", "Technical"], ["final", "Final round"], ["offer", "Offer"]] as const;
-const selectCls = "h-9 rounded-full border-2 border-foreground bg-card px-3 text-xs font-bold outline-none focus-visible:ring-2 focus-visible:ring-ring";
 // Sample stories have no ratings; approximate sentiment from how they ended.
 const sampleSentiment = (outcome: string) => (outcome === "offer" ? "positive" : outcome === "rejected" ? "mixed" : "critical");
 
@@ -155,13 +155,8 @@ function CompanyPageRoute() {
           </div>
         </div>
         <div className="-mt-1 mb-4 flex flex-wrap gap-2">
-          <select aria-label="Round" value={stage} onChange={(e) => setStage(e.target.value as typeof stage)} className={selectCls}>
-            <option value="">Every round</option>
-            {STAGE_FILTERS.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
-          </select>
-          <select aria-label="When" value={since} onChange={(e) => setSince(e.target.value as typeof since)} className={selectCls}>
-            <option value="">Any time</option><option value="90d">Last 3 months</option><option value="1y">Last year</option>
-          </select>
+          <PillSelect label="Round" value={stage} onChange={setStage} options={[{ id: "", label: "Every round" }, ...STAGE_FILTERS.map(([id, label]) => ({ id, label }))]} />
+          <PillSelect label="When" value={since} onChange={setSince} options={[{ id: "", label: "Any time" }, { id: "90d", label: "Last 3 months" }, { id: "1y", label: "Last year" }]} />
           {(stage || since) && <button type="button" onClick={() => { setStage(""); setSince(""); }} className="h-9 rounded-full px-3 text-xs font-bold text-primary hover:underline">Clear</button>}
         </div>
         {list.length === 0 && !feed.loadingFirst
