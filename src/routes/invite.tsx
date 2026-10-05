@@ -104,11 +104,12 @@ function YourInvite() {
         <h2 className="mt-1 font-display text-3xl font-bold">{data.voices ? `${formatCount(data.voices)} ${data.voices === 1 ? "voice" : "voices"} brought in` : "Bring your first voice"}</h2>
         <p className="mt-1 text-sm text-muted-foreground">{data.voices >= 1 && <span className="mr-1 rounded-full border-2 border-foreground bg-accent px-2 py-0.5 text-xs font-bold text-foreground">Invite Level {data.voices >= 10 ? 3 : data.voices >= 3 ? 2 : 1}</span>}{next ? `${next - data.voices} more ${next - data.voices === 1 ? "voice" : "voices"} to reach Invite Level ${VOICE_TIERS.indexOf(next) + 1}.` : "You're at the top level. Thank you."}</p>
         {link ? <>
-          <div className="mt-5 flex flex-wrap items-center gap-2 rounded-xl border-2 border-foreground bg-background p-2">
-            <code className="min-w-0 flex-1 truncate px-2 font-mono text-sm">{link}</code>
-            <Button className="min-h-10" onClick={() => void copy()}>{copied ? <Check /> : <Copy />}{copied ? "Copied" : "Copy"}</Button>
+          {/* One row at every width: the link shortens with an ellipsis instead of pushing Copy onto its own line. */}
+          <div className="mt-5 flex min-w-0 items-center gap-2 rounded-xl border-2 border-foreground bg-background p-1.5 sm:p-2">
+            <code className="min-w-0 flex-1 truncate px-2 font-mono text-xs sm:text-sm" title={link}>{link.replace(/^https?:\/\//, "")}</code>
+            <Button className="min-h-10 shrink-0 px-3" onClick={() => void copy()} aria-label="Copy invite link">{copied ? <Check /> : <Copy />}<span className="hidden min-[380px]:inline">{copied ? "Copied" : "Copy"}</span></Button>
           </div>
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
             <Button variant="outline" className="min-h-10" onClick={() => void share()}><Share2 />Share</Button>
             <Button variant="outline" className="min-h-10" asChild><a href={`https://wa.me/?text=${msg}%20${encodeURIComponent(link)}`} target="_blank" rel="noopener noreferrer"><MessageCircle />WhatsApp</a></Button>
             <Button variant="outline" className="min-h-10" asChild><a href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(link)}`} target="_blank" rel="noopener noreferrer"><Linkedin />LinkedIn</a></Button>

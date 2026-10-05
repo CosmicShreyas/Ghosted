@@ -93,7 +93,7 @@ export function InviteCard() {
         <h2 className="font-display text-xl font-bold">{data.voices ? `You've brought ${formatCount(data.voices)} ${data.voices === 1 ? "voice" : "voices"}` : "Invite someone who's been through it"}</h2>
         <p className="text-sm text-muted-foreground">{next ? `${next - data.voices} more ${next - data.voices === 1 ? "voice" : "voices"} to reach Invite Level ${VOICE_TIERS.indexOf(next as 1 | 3 | 10) + 1}. A voice is someone who joins with your link and shares a story.` : "You're at Invite Level 3, the top level. Thank you for growing Ghosted."}</p>
       </div>
-      <div className="flex flex-wrap gap-2">
+      <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap">
         <Button className="min-h-11" onClick={() => void copy()}>{copied ? <Check /> : <Copy />}{copied ? "Copied" : "Copy invite link"}</Button>
         <Button className="min-h-11" variant="outline" asChild><Link to="/invite">How it works</Link></Button>
       </div>

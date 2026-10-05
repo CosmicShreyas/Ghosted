@@ -7,3 +7,6 @@ dist
 .vercel
 email-preview.html
 email-previews/
+
+.vercel
+.env*

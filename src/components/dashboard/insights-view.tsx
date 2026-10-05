@@ -24,6 +24,7 @@ import { card } from "./widgets";
 import { INDUSTRY_LABEL } from "./global-widgets";
 import { activeDot, axis, ChartTooltip, grid, lineCursor } from "./chart-kit";
 import { toast } from "sonner";
+import { GhostedWrapped } from "./wrapped";
 
 const SERIES = { ghosted: "var(--chart-violet)", offers: "var(--chart-cyan)" };
 const STAGE_NAME: Record<string, string> = { application: "Application", screening: "Screening", technical: "Technical", final: "Final round", offer: "Offer" };
@@ -361,6 +362,7 @@ export function InsightsView({ openCompany, filters = DEFAULT_FILTERS, onFilters
 
   return <div className="space-y-4 sm:space-y-5">
     {head}
+    <GhostedWrapped />
     <Controls data={data} filters={active} onFilters={update} />
 
     <div className={cn("space-y-4 transition-opacity sm:space-y-5", refreshing && "opacity-60")}>
