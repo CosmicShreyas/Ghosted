@@ -4,8 +4,10 @@
 //   access token   15 minutes, kept only in this tab's memory (never written to storage)
 //   refresh token  swapped for a new pair whenever the access token runs out; every swap retires the
 //                  old one, and reusing a retired one revokes the session on the server
-// The refresh token lives in sessionStorage, so it dies with the tab. The server ends every session
-// 8 hours after sign-in no matter what. Anything the server doesn't trust gets a plain 404.
+// The refresh token lives in localStorage, so the panel stays signed in across visits and tabs
+// (it used to be sessionStorage, which signed you out every time the tab closed). The server still
+// ends every session 7 days after sign-in, and "Sign out" or revoking a device ends it at once.
+// Anything the server doesn't trust gets a plain 404.
 import { API_URL, ApiRequestError } from "@/lib/api";
 import type { Permission } from "./perms";
 
@@ -17,12 +19,20 @@ type Stored = { refreshToken: string; sessionExpiresAt: string };
 let access: { token: string; expiresAt: number } | null = null;
 
 export const session = {
-  get(): Stored | null { try { const s = JSON.parse(sessionStorage.getItem(KEY) ?? "null") as Stored | null; return s && new Date(s.sessionExpiresAt).getTime() > Date.now() ? s : null; } catch { return null; } },
+  get(): Stored | null {
+    try {
+      // A session saved by the older tab-only version is picked up once, then lives in localStorage.
+      const legacy = sessionStorage.getItem(KEY);
+      if (legacy && !localStorage.getItem(KEY)) { localStorage.setItem(KEY, legacy); sessionStorage.removeItem(KEY); }
+      const s = JSON.parse(localStorage.getItem(KEY) ?? "null") as Stored | null;
+      return s && new Date(s.sessionExpiresAt).getTime() > Date.now() ? s : null;
+    } catch { return null; }
+  },
   set(t: Tokens) {
     access = { token: t.token, expiresAt: new Date(t.expiresAt).getTime() };
-    try { sessionStorage.setItem(KEY, JSON.stringify({ refreshToken: t.refreshToken, sessionExpiresAt: t.sessionExpiresAt } satisfies Stored)); } catch { /* storage blocked: this tab only */ }
+    try { localStorage.setItem(KEY, JSON.stringify({ refreshToken: t.refreshToken, sessionExpiresAt: t.sessionExpiresAt } satisfies Stored)); } catch { /* storage blocked: this tab only */ }
   },
-  clear() { access = null; try { sessionStorage.removeItem(KEY); } catch { /* storage blocked */ } window.dispatchEvent(new Event("ghosted:admin-signed-out")); },
+  clear() { access = null; try { localStorage.removeItem(KEY); sessionStorage.removeItem(KEY); } catch { /* storage blocked */ } window.dispatchEvent(new Event("ghosted:admin-signed-out")); },
 };
 
 const call = (path: string, method: string, body: unknown, token?: string) => fetch(`${API_URL}/v1/admin${path}`, {
@@ -40,9 +50,14 @@ export function refresh(): Promise<boolean> {
     const s = session.get();
     if (!s) return false;
     const res = await call("/refresh", "POST", { refreshToken: s.refreshToken }).catch(() => null);
-    if (!res?.ok) return false;
-    session.set((await res.json()) as Tokens);
-    return true;
+    if (res?.ok) { session.set((await res.json()) as Tokens); return true; }
+    // Another tab refreshed first and saved a newer token: use that one instead of signing out.
+    const now = session.get();
+    if (now && now.refreshToken !== s.refreshToken) {
+      const again = await call("/refresh", "POST", { refreshToken: now.refreshToken }).catch(() => null);
+      if (again?.ok) { session.set((await again.json()) as Tokens); return true; }
+    }
+    return false;
   })().finally(() => { refreshing = null; });
   return refreshing;
 }

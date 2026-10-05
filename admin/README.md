@@ -13,9 +13,10 @@ part of the public site's bundle. Nothing on ghosted links to it.
   the account for 15 minutes; there's also a per-IP limit. Unknown emails take as long as real ones,
   so timing doesn't reveal who's an admin.
 - **Sessions** use an access token (15 minutes, kept only in memory) and a refresh token (kept in
-  `sessionStorage`, gone when the tab closes). Every refresh retires the old refresh token; if a
-  retired one is ever used again, the session is revoked on the spot. Sessions end 8 hours after
-  sign-in regardless. Only hashes of the tokens are stored. Nothing renders until the server
+  `localStorage`, so you stay signed in across visits and tabs). Every refresh retires the old
+  refresh token; if a retired one is used again more than a minute later, the session is revoked on
+  the spot (within a minute it's two tabs racing, and the slower tab picks up the new token).
+  Sessions end 7 days after sign-in regardless, and Sign out or revoking the device ends them at once. Only hashes of the tokens are stored. Nothing renders until the server
   confirms the session, and the sign-in screen isn't reachable while you're signed in.
 - **Two-step sign-in** (Settings): authenticator app or email codes, plus one-time recovery codes.
 - **Roles and permissions** (Team): owner, admin, moderator, viewer, each with a default set of

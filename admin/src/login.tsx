@@ -88,7 +88,7 @@ function SignIn({ onSignedIn, onSetup, notice }: { onSignedIn: (a: AdminMe) => v
     {error && <p role="alert" className="mt-4 rounded-lg border-2 border-flag-red bg-flag-red/10 p-3 text-sm font-semibold text-flag-red">{error}</p>}
     <Button type="submit" size="lg" className="mt-5 w-full" disabled={busy}>{busy ? <Loader2 className="animate-spin" /> : <Lock />}Sign in</Button>
     <button type="button" onClick={() => onSetup(email)} className="mt-4 w-full text-center text-sm font-semibold text-primary hover:underline">First time here, or forgot your password?</button>
-    <p className="mt-4 flex items-start gap-1.5 text-xs text-muted-foreground"><ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-flag-green" />Five wrong passwords lock the account for 15 minutes. Sessions end after 8 hours or when you close this tab.</p>
+    <p className="mt-4 flex items-start gap-1.5 text-xs text-muted-foreground"><ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-flag-green" />Five wrong passwords lock the account for 15 minutes. You stay signed in on this browser for up to 7 days, or until you sign out.</p>
   </form>;
 }
 

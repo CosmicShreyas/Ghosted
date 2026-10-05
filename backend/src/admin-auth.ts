@@ -2,7 +2,7 @@
 //
 //   passwords   scrypt (N=2^15, r=8, p=1, 64-byte key, 16-byte salt), compared in constant time
 //   lockout     5 wrong passwords → 15 minutes locked (per account), on top of an IP rate limit
-//   sessions    a random 256-bit bearer token; only its SHA-256 is stored. 8 hours, revocable
+//   sessions    a random 256-bit bearer token; only its SHA-256 is stored. 7 days at most, revocable
 //   gate        requireAdmin: the request must come from an ADMIN_ORIGINS origin AND carry a live
 //               session for an active admin. Anything else is a plain 404, so the admin API
 //               can't even be confirmed to exist.
@@ -16,7 +16,9 @@ import type { Role } from "./admin-perms.js";
 
 const scrypt = promisify(scryptCb) as (pw: string, salt: Buffer, len: number, opts: { N: number; r: number; p: number; maxmem: number }) => Promise<Buffer>;
 const PARAMS = { N: 2 ** 15, r: 8, p: 1, maxmem: 64 * 1024 * 1024 };
-export const SESSION_HOURS = 8;
+// How long a sign-in lasts at most (the panel remembers it across visits until then). Access
+// tokens still expire every 15 minutes and refresh tokens rotate on every use.
+export const SESSION_HOURS = 7 * 24;
 
 export async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(16);
@@ -41,7 +43,7 @@ export const ADMIN_COLS = "id, email, name, role, active, permissions, avatar_se
 export type AdminEnv = { Variables: { admin: AdminUser; adminSession: string } };
 
 // Access token: 15 minutes, kept only in the panel's memory. Refresh token: rotated on every use,
-// kept for the tab's lifetime. The whole session ends SESSION_HOURS after sign-in, whatever happens.
+// remembered by the browser. The whole session ends SESSION_HOURS after sign-in, whatever happens.
 export const ACCESS_MINUTES = 15;
 const newToken = () => randomBytes(32).toString("base64url");
 const pair = () => ({ token: newToken(), refreshToken: newToken(), expiresAt: new Date(Date.now() + ACCESS_MINUTES * 60_000).toISOString() });
@@ -67,9 +69,13 @@ export async function rotateSession(c: Context, refreshToken: string) {
   const { data } = await db().from("admin_sessions").select("id, admin_id, revoked_at, session_expires_at, rotations, admin:admin_users(active, disabled_at)").eq("refresh_hash", h).maybeSingle();
   const s = data as unknown as { id: string; admin_id: string; revoked_at: string | null; session_expires_at: string | null; rotations: number; admin: { active: boolean; disabled_at: string | null } | null } | null;
   if (!s) {
-    const { data: reused } = await db().from("admin_sessions").select("id, admin_id").eq("prev_refresh_hash", h).is("revoked_at", null).maybeSingle();
+    const { data: reused } = await db().from("admin_sessions").select("id, admin_id, last_used_at").eq("prev_refresh_hash", h).is("revoked_at", null).maybeSingle();
     if (reused) {
-      const r = reused as { id: string; admin_id: string };
+      const r = reused as { id: string; admin_id: string; last_used_at: string | null };
+      // Two tabs of the same browser refreshing at the same moment: the second one arrives with the
+      // token the first just retired. Within a minute that's a race, not theft: no revocation, the
+      // tab picks up the new token from storage and carries on.
+      if (r.last_used_at && Date.now() - new Date(r.last_used_at).getTime() < 60_000) return null;
       await db().from("admin_sessions").update({ revoked_at: new Date().toISOString() }).eq("id", r.id);
       await db().from("admin_audit").insert({ admin_id: r.admin_id, action: "session_reuse_blocked", detail: { note: "an old refresh token was used again; session revoked" } });
     }
