@@ -8,6 +8,7 @@ import { sendMail } from "./mail/mailer.js";
 import { button, escape, layout } from "./mail/otp-email.js";
 import { addNotification } from "./notify.js";
 import { admin } from "./supabase.js";
+import { pushEnabled, quietHoursIST, sendPush } from "./push.js";
 
 const DAY = 86400_000;
 type App = { id: string; user_id: string; company_id: string | null; company_name: string; stage: string; waiting_since: string; company: { slug: string } | null; profile: { handle: string; tone: "sassy" | "calm"; email_theme: "light" | "dark" | null; notify: { weeklyDigest?: boolean } | null } | null };
@@ -28,6 +29,37 @@ function nudgeEmail({ appUrl, handle, company, days, link, tone }: { appUrl: str
 
 // The Waiting Room's own "ghosted" rule: twice the usual wait, and never before 30 days.
 export const isGhosted = (days: number, usual: number | null | undefined) => days >= Math.max(30, (usual ?? 14) * 2);
+
+// Day 7 and day 14 of silence on an open application: one push each, "Time for a polite follow-up".
+// Counted from waiting_since (the last time they heard anything), so moving to a new round or
+// restarting the clock starts the reminders over: reminder_since remembers which wait they were
+// for. Never during quiet hours (the daily job runs in the morning, India time). An application
+// already past day 20 when this first sees it is marked done without a push, so nobody gets a pile
+// of stale reminders.
+export async function remindFollowups() {
+  if (!pushEnabled() || quietHoursIST()) return { sent: 0, skipped: "quiet hours or push off" };
+  const cutoff = new Date(Date.now() - 7 * DAY).toISOString().slice(0, 10);
+  const { data, error } = await admin().from("applications")
+    .select("id, user_id, company_name, waiting_since, reminder_level, reminder_since")
+    .eq("status", "waiting").lte("waiting_since", cutoff).limit(2000);
+  if (error) { console.error("[remind] list (run the Waiting Room reminders section of init_database.sql)", error.message); return { sent: 0 }; }
+  let sent = 0;
+  for (const a of (data ?? []) as { id: string; user_id: string; company_name: string; waiting_since: string; reminder_level: number | null; reminder_since: string | null }[]) {
+    const days = Math.floor((Date.now() - new Date(a.waiting_since).getTime()) / DAY);
+    const done = a.reminder_since === a.waiting_since ? a.reminder_level ?? 0 : 0;
+    const due = days >= 14 ? 2 : days >= 7 ? 1 : 0;
+    if (due <= done) continue;
+    // Marked first, so a second run can never send the same reminder twice.
+    const { error: markErr } = await admin().from("applications").update({ reminder_level: due, reminder_since: a.waiting_since }).eq("id", a.id);
+    if (markErr || days > 20) continue;
+    const body = due === 1
+      ? `A week of silence from ${a.company_name}. A short, friendly check-in often gets things moving.`
+      : `Two weeks and still nothing from ${a.company_name}. One polite follow-up, then you can let them go.`;
+    await sendPush(a.user_id, { kind: "reminder", body, url: "/dashboard?view=waiting", tag: `ghosted-reminder-${a.id}` });
+    sent++;
+  }
+  return { sent };
+}
 
 export async function nudgeQuietApplications() {
   const cutoff = new Date(Date.now() - 30 * DAY).toISOString().slice(0, 10);

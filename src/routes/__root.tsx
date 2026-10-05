@@ -11,6 +11,7 @@ import { useEffect, type ReactNode } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { CookieConsent } from "@/components/cookie-consent";
 import { IosInstallHint } from "@/components/ios-install";
+import { PushPrompt } from "@/components/push-prompt";
 import { Preloader } from "@/components/preloader";
 import { useSigningOut, useTone } from "@/lib/session";
 import { AnnouncementBar } from "@/components/announcement";
@@ -191,6 +192,7 @@ function RootComponent() {
       {/* Asked once; any choice is remembered for a year. Footer → Cookie settings reopens it. */}
       <CookieConsent />
       <IosInstallHint />
+      <PushPrompt />
       <SigningOutSplash />
     </QueryClientProvider>
   );

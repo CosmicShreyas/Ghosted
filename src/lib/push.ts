@@ -44,20 +44,25 @@ async function save(sub: PushSubscription) {
 }
 
 // The current state for this device, and turning it on or off.
-export function usePush() {
+// `auto: false` skips the check on mount (the prompt only checks when it's asked to show).
+export function usePush({ auto = true }: { auto?: boolean } = {}) {
   const [state, setState] = useState<PushState>("loading");
   const [busy, setBusy] = useState(false);
 
-  const check = useCallback(async () => {
-    if (!apiEnabled || !supported()) { setState(isIos() && !isStandalone() ? "ios-install" : "unsupported"); return; }
-    if (isIos() && !isStandalone()) { setState("ios-install"); return; }
-    if (!(await serverKey())) { setState("unavailable"); return; }
-    if (Notification.permission === "denied") { setState("denied"); return; }
-    const reg = await navigator.serviceWorker.getRegistration("/");
-    const sub = await reg?.pushManager.getSubscription();
-    setState(sub && Notification.permission === "granted" ? "on" : "off");
+  const check = useCallback(async (): Promise<PushState> => {
+    const next: PushState = await (async () => {
+      if (!apiEnabled || !supported()) return isIos() && !isStandalone() ? "ios-install" : "unsupported";
+      if (isIos() && !isStandalone()) return "ios-install";
+      if (!(await serverKey())) return "unavailable";
+      if (Notification.permission === "denied") return "denied";
+      const reg = await navigator.serviceWorker.getRegistration("/");
+      const sub = await reg?.pushManager.getSubscription();
+      return sub && Notification.permission === "granted" ? "on" : "off";
+    })();
+    setState(next);
+    return next;
   }, []);
-  useEffect(() => { void check(); }, [check]);
+  useEffect(() => { if (auto) void check(); }, [auto, check]);
 
   // Must run from a tap: browsers only show the permission prompt in response to one.
   const enable = async () => {
@@ -96,6 +101,16 @@ export async function unsubscribeThisDevice() {
     await api("/v1/push/unsubscribe", { method: "POST", body: { endpoint: sub.endpoint } }).catch(() => undefined);
     await sub.unsubscribe();
   } catch { /* nothing to undo */ }
+}
+
+// Asking at the right moment: right after you track an application or follow a company, never on
+// first load. This only raises the in-app card (components/push-prompt.tsx); the browser's own
+// permission prompt appears when you tap "Turn on" there.
+export type PushReason = "waiting" | "follow";
+export const PUSH_ASK_EVENT = "ghosted:ask-push";
+export function askForPush(reason: PushReason) {
+  if (!isBrowser()) return;
+  window.dispatchEvent(new CustomEvent<PushReason>(PUSH_ASK_EVENT, { detail: reason }));
 }
 
 // On every app start: if notifications are on for this device, make sure the server still has it

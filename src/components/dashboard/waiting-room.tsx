@@ -14,6 +14,7 @@ import {
   type Application, type NewApplication, type Outcome, type Stage, type Verdict,
 } from "@/lib/applications";
 import { logoSrc, useCompanyIndex } from "@/lib/stories";
+import { askForPush } from "@/lib/push";
 import { CompanyMark } from "@/components/ghosted";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -286,6 +287,7 @@ export function WaitingRoomView() {
     else {
       const n: NewApplication = { ...(f.company === OTHER ? { companyName: f.other.trim() } : { companySlug: f.company }), role, stage: f.stage, appliedOn: f.applied, waitingSince: f.since, note };
       await add(n);
+      askForPush("waiting");
     }
     toast.success(dialog.editing ? "Saved." : "Clock started. We'll keep count.");
   };

@@ -18,10 +18,19 @@ export function pushEnabled() {
 export const pushPublicKey = () => (pushEnabled() ? env().VAPID_PUBLIC_KEY! : null);
 
 export type NotificationKind = "relatable" | "reply" | "company" | "system" | "following" | "follower" | "goofy";
-const TITLE: Record<NotificationKind, string> = {
+// "reminder" is push-only (Waiting Room follow-ups, nudges.ts); it has no in-app notification row.
+type PushKind = NotificationKind | "reminder";
+const TITLE: Record<PushKind, string> = {
   relatable: "Your story is helping someone", reply: "New reply", company: "Company update", system: "Ghosted",
-  following: "New story from someone you follow", follower: "New follower", goofy: "Goofy",
+  following: "New story from someone you follow", follower: "New follower", goofy: "Goofy", reminder: "Time for a polite follow-up",
 };
+
+// Quiet hours: no phone buzzing between 9 PM and 8 AM India time. The in-app notification still
+// lands; only the push is skipped. The daily job runs in the morning, so reminders are never lost.
+export function quietHoursIST(now = new Date()) {
+  const h = (now.getUTCHours() + 5 + Math.floor((now.getUTCMinutes() + 30) / 60)) % 24;
+  return h >= 21 || h < 8;
+}
 
 // Where tapping the notification goes: the story, the company, the person, or the notifications.
 export function pushUrl(n: { storyPublicId?: number | string | null; companySlug?: string | null; profilePublicId?: number | string | null }) {
@@ -33,13 +42,13 @@ export function pushUrl(n: { storyPublicId?: number | string | null; companySlug
 
 type Sub = { id: string; endpoint: string; p256dh: string; auth: string };
 
-export async function sendPush(userId: string, msg: { kind: NotificationKind; body: string; url: string }) {
-  if (!pushEnabled()) return;
+export async function sendPush(userId: string, msg: { kind: PushKind; body: string; url: string; tag?: string }) {
+  if (!pushEnabled() || quietHoursIST()) return;
   try {
     const { data, error } = await admin().from("push_subscriptions").select("id, endpoint, p256dh, auth").eq("user_id", userId).limit(10);
     if (error || !data?.length) return; // no devices (or the table isn't created yet)
     // `tag` groups notifications of the same kind, so a burst of reactions doesn't stack ten alerts.
-    const payload = JSON.stringify({ title: TITLE[msg.kind], body: msg.body, url: msg.url, tag: `ghosted-${msg.kind}` });
+    const payload = JSON.stringify({ title: TITLE[msg.kind], body: msg.body, url: msg.url, tag: msg.tag ?? `ghosted-${msg.kind}` });
     await Promise.all((data as Sub[]).map(async (s) => {
       try {
         await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload, { TTL: 24 * 3600, urgency: msg.kind === "system" || msg.kind === "goofy" ? "high" : "normal" });

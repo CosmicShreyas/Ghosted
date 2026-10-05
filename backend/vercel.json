@@ -7,7 +7,7 @@
     },
     {
       "path": "/v1/cron/automation",
-      "schedule": "15 21 * * *"
+      "schedule": "15 4 * * *"
     }
   ]
 }

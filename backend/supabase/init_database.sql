@@ -1520,4 +1520,16 @@ alter table public.push_subscriptions enable row level security;
 revoke all on public.push_subscriptions from anon, authenticated;
 grant select, insert, update, delete on public.push_subscriptions to service_role;
 
+-- ============================================================================
+-- Waiting Room reminders.
+--   applications.reminder_level   follow-up pushes already sent for the current wait: 0 none, 1 the
+--                                 day-7 one, 2 the day-14 one
+--   applications.reminder_since   the waiting_since those reminders were for; when the clock restarts
+--                                 (a new round, or "heard back"), they start over
+-- Safe to run again.
+-- ============================================================================
+alter table public.applications add column if not exists reminder_level smallint not null default 0 check (reminder_level between 0 and 2);
+alter table public.applications add column if not exists reminder_since date;
+create index if not exists applications_reminders on public.applications (waiting_since) where status = 'waiting';
+
 commit;

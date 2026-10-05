@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, apiEnabled } from "@/lib/api";
 import { useLive } from "@/lib/live";
+import { askForPush } from "@/lib/push";
 import { companyFromApi, fromApi, sampleModels, useCompanyIndex, type CompanyDto, type StoryDto, type StoryModel } from "@/lib/stories";
 import { companies as sampleCompanies, type Company } from "@/mock/data";
 
@@ -128,6 +129,7 @@ export function useCompanyPage(slug: string) {
     try {
       const r = await api<{ relationship: CompanyRelationship }>(`/v1/companies/${slug}/follow`, { method, ...(body !== undefined && { body }) });
       qc.setQueryData<PageDto>(key, (d) => (d ? { ...d, relationship: r.relationship } : d));
+      if (method === "POST") askForPush("follow"); // the moment notifications make sense, never on first load
     } catch (err) {
       if (before) qc.setQueryData<PageDto>(key, (d) => (d ? { ...d, relationship: before } : d));
       throw err;

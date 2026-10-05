@@ -9,6 +9,7 @@ import { Share, SquarePlus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const KEY = "ghosted.ios-install";
+export const IOS_INSTALL_EVENT = "ghosted:ios-install";
 const DELAY = { site: 20_000, app: 8_000 };
 type Where = keyof typeof DELAY;
 
@@ -40,7 +41,15 @@ export function IosInstallHint() {
     const t = window.setTimeout(() => setOpen(true), DELAY[where]);
     return () => window.clearTimeout(t);
   }, [where]);
-  const dismiss = () => { setOpen(false); try { localStorage.setItem(`${KEY}.${where}`, "1"); } catch { /* storage blocked */ } };
+  // Asked to show because notifications need the Home Screen app (components/push-prompt.tsx): opens
+  // now, even if the hint was closed before, with copy about notifications.
+  const [forPush, setForPush] = useState(false);
+  useEffect(() => {
+    const show = () => { if (isIosSafari()) { setForPush(true); setOpen(true); } };
+    window.addEventListener(IOS_INSTALL_EVENT, show);
+    return () => window.removeEventListener(IOS_INSTALL_EVENT, show);
+  }, []);
+  const dismiss = () => { setOpen(false); setForPush(false); try { localStorage.setItem(`${KEY}.${where}`, "1"); } catch { /* storage blocked */ } };
 
   return <AnimatePresence>{open && <motion.aside role="dialog" aria-label="Add Ghosted to your home screen"
     initial={reduce ? { opacity: 0 } : { opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={reduce ? { opacity: 0 } : { opacity: 0, y: 24 }} transition={{ type: "spring", stiffness: 320, damping: 30 }}
@@ -50,8 +59,8 @@ export function IosInstallHint() {
     <div className="flex items-start gap-3">
       <img src="/apple-touch-icon.png" alt="" className="size-12 shrink-0 rounded-xl border-2 border-foreground" />
       <div className="min-w-0 flex-1">
-        <p className="font-display text-base font-bold">{where === "app" ? "Keep your dashboard one tap away" : "Get Ghosted on your home screen"}</p>
-        <p className="mt-1 text-sm text-muted-foreground">Opens full screen, like an app.</p>
+        <p className="font-display text-base font-bold">{forPush ? "Add Ghosted to get notifications" : where === "app" ? "Keep your dashboard one tap away" : "Get Ghosted on your home screen"}</p>
+        <p className="mt-1 text-sm text-muted-foreground">{forPush ? "iPhone only sends notifications to Home Screen apps. Add it, open it from there, then turn them on in Settings." : "Opens full screen, like an app."}</p>
       </div>
       <button type="button" onClick={dismiss} aria-label="Not now" className="-m-1 grid size-10 shrink-0 place-items-center rounded-full hover:bg-muted"><X className="size-4" /></button>
     </div>

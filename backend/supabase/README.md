@@ -179,6 +179,11 @@ Phone and browser notifications (Web Push), from the "Phone notifications" secti
 - `endpoint` (unique), `p256dh`, `auth`: the push address and keys the browser issued.
 - `device`: rough label such as "Android app"; `created_at`, `last_used_at`.
 - Rows are removed on sign-out, when turned off, and automatically when the push service reports the address gone (404/410). Service role only.
+- No pushes between 9 PM and 8 AM IST (the in-app notification still arrives).
+
+### Waiting Room reminders
+
+From the "Waiting Room reminders" section: `applications.reminder_level` (0, 1 = day-7 push sent, 2 = day-14 push sent) and `applications.reminder_since` (the `waiting_since` those reminders were for, so a restarted clock starts them over). The daily automation job sends them at 09:45 IST.
 
 ## Sessions, mail safety and live updates
 
