@@ -7,6 +7,8 @@ import { FeedStory } from "@/components/dashboard/widgets";
 import { ShareModal } from "@/components/dashboard/share-story";
 import { ChitchatThread } from "@/components/dashboard/chitchats";
 import { ContentRequestDialog, RepReplySlot } from "@/components/company-voice";
+import { ImpactLadder } from "@/components/impact-ladder";
+import { AskHrShare, AskToRespond } from "@/components/demand";
 import { CompanyRail, StoryCompanyCard } from "@/components/dashboard/company-page";
 import { LogoutDialog } from "@/components/dashboard/confirm-dialogs";
 import { Preloader } from "@/components/preloader";
@@ -88,6 +90,7 @@ function StoryPage() {
 
 function StoryLayout({ story, saved, onSave, onOpenCompany }: { story: StoryModel; saved: boolean; onSave: () => void; onOpenCompany: (c: Company) => void }) {
   const navigate = useNavigate();
+  const { me } = useMe();
   const company = useCompanyPage(story.company.id);
   const page = company.page;
   const [requesting, setRequesting] = useState(false);
@@ -96,8 +99,14 @@ function StoryLayout({ story, saved, onSave, onOpenCompany }: { story: StoryMode
       <BackButton />
       <FeedStory story={story} saved={saved} onSave={onSave} onOpenCompany={onOpenCompany} full />
 
+      {/* What happened next: seen by the team, heard, looked into, changed (impact-ladder.tsx). */}
+      {apiEnabled && <ImpactLadder storyPublicId={story.id} createdAt={story.createdAt} isAuthor={!!me.publicId && story.author.publicId === me.publicId} />}
+
       {/* Right of Reply: the company's one official reply to this story, clearly labelled. */}
       <RepReplySlot slug={story.company.id} companyName={story.company.name} storyPublicId={story.id} />
+      <AskToRespond slug={story.company.id} name={story.company.name} />
+      {/* The author can point the company's HR at this story, without saying who they are. */}
+      {apiEnabled && !!me.publicId && story.author.publicId === me.publicId && <AskHrShare slug={story.company.id} name={story.company.name} storyId={story.id} />}
       <p className="text-xs text-muted-foreground"><button type="button" onClick={() => setRequesting(true)} className="inline-flex items-start gap-1.5 text-left font-bold hover:text-foreground hover:underline"><FileWarning className="mt-px size-3.5 shrink-0" />Something wrong with this story? Request a correction or removal</button></p>
       <ContentRequestDialog open={requesting} onOpenChange={setRequesting} targetUrl={typeof window === "undefined" ? "" : window.location.href} />
 

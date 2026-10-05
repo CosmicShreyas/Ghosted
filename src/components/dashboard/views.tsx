@@ -25,6 +25,9 @@ import { SlidingPill, usePill } from "@/components/sliding-pill";
 import { FoundingProgress } from "@/lib/founding";
 import { BlockerCard, Spotlight } from "./momentum";
 import { LevelCard } from "./level-card";
+import { ImpactStrip } from "@/components/impact-ladder";
+import { PledgeChip } from "@/components/pledge";
+import { useMyImpact } from "@/lib/company-voice";
 
 // Two-series chart colours, validated for colour-blind separation and contrast (dataviz validator).
 const SERIES = { ghosted: "var(--chart-violet)", offers: "var(--chart-cyan)" };
@@ -230,7 +233,7 @@ function SearchResults({ search, query, ...c }: Common & { search: ReturnType<ty
     {understood.length > 0 && <p className="-mt-2 text-xs text-muted-foreground">Searching {understood.join(" · ")}</p>}
     {search.loading || !d ? <StorySkeletons count={3} /> : <>
       {d.companies.length > 0 && <div className="no-scrollbar -mx-1 flex gap-3 overflow-x-auto px-1 pb-1">{d.companies.map((co) => <button key={co.id} type="button" onClick={() => c.openCompany(co)} className={cn(card, "flex shrink-0 items-center gap-3 p-3 pr-4 text-left transition-transform hover:-translate-y-0.5")}>
-        <CompanyMark company={co} size="sm" /><span><span className="block font-bold">{co.name}</span><span className="text-xs text-muted-foreground">{co.storyCount ? `${formatCount(co.storyCount)} ${co.storyCount === 1 ? "story" : "stories"}` : "No stories yet"}</span></span>{isRated(co) && <FlagScore score={co.score} compact />}
+        <CompanyMark company={co} size="sm" /><span><span className="block font-bold">{co.name}</span><span className="text-xs text-muted-foreground">{co.storyCount ? `${formatCount(co.storyCount)} ${co.storyCount === 1 ? "story" : "stories"}` : "No stories yet"}</span>{co.pledge && <PledgeChip pledge={co.pledge} className="mt-1 flex w-fit" />}</span>{isRated(co) && <FlagScore score={co.score} compact />}
       </button>)}</div>}
       {d.stories.length ? <div className="space-y-4">{d.stories.map((s) => <FeedStory key={s.id} story={s} saved={c.saved.has(s.id)} onSave={() => c.toggleSave(s.id)} onOpenCompany={c.openCompany} />)}</div>
         : <Empty title="No stories match" copy="Try fewer words, or search a company name. Tips: “exact phrase”, company:acme, outcome:ghosted, -word to exclude." action={<Button onClick={c.onShare}><PenLine />Share a story</Button>} />}
@@ -254,11 +257,16 @@ export function MineView(c: Common) {
   const all = apiEnabled ? (q.data ?? []).map((s) => fromApi(s, index)) : sampleModels().filter((s) => s.author.publicId === samplePublicId("u1"));
   const mine = all.filter((s) => matches(s, c.query));
   const helped = mine.reduce((n, s) => n + s.relatable, 0);
+  const impact = useMyImpact();
   if (apiEnabled && q.isPending) return <div className="space-y-6"><SectionHead eyebrow="Your receipts" title="My stories" /><StorySkeletons count={2} /></div>;
   return <div className="space-y-6">
     <SectionHead eyebrow="Your receipts" title="My stories" action={<Button onClick={c.onShare}><PenLine />New story</Button>} />
     <div className="grid gap-4 sm:grid-cols-3">{[["Stories shared", formatCount(mine.length)], ["People who related", formatCount(helped)], ["Red flags raised", formatCount(mine.reduce((n, s) => n + s.flags, 0))]].map(([l, n]) => <div key={l} className={cn(card, "p-4")}><p className="text-xs font-bold uppercase text-muted-foreground">{l}</p><p className="mt-1 font-display text-3xl font-bold">{n}</p></div>)}</div>
-    {mine.length ? <StoryList list={mine} {...c} /> : <Empty title="No stories yet" copy="Your first story could save someone six rounds and a surprise take-home." action={<Button onClick={c.onShare}><PenLine />Share your first story</Button>} />}
+    {/* Each story with its impact ladder underneath: seen by the team, heard, looked into, changed. */}
+    {mine.length ? <div className="space-y-4">{mine.map((s) => <div key={s.id} className="space-y-1.5">
+      <FeedStory story={s} saved={c.saved.has(s.id)} onSave={() => c.toggleSave(s.id)} onOpenCompany={c.openCompany} />
+      {apiEnabled && <ImpactStrip impact={impact[s.id]} createdAt={s.createdAt} company={s.company.name} storyPublicId={s.id} />}
+    </div>)}</div> : <Empty title="No stories yet" copy="Your first story could save someone six rounds and a surprise take-home." action={<Button onClick={c.onShare}><PenLine />Share your first story</Button>} />}
   </div>;
 }
 

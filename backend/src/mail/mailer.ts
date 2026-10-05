@@ -18,6 +18,16 @@ export async function sendMail(to: string, input: Message, { theme = "light" }: 
 
 let transport: Transporter | undefined;
 
+// A From address on a different domain than the account that sends it fails DMARC alignment, and
+// Gmail files that as spam (or rewrites the sender). Logged once per instance, never the addresses.
+let warned = false;
+function warnIfMisaligned(from: string, user: string | undefined) {
+  if (warned || !user) return;
+  warned = true;
+  const domain = (s: string) => s.split("@")[1]?.toLowerCase() ?? "";
+  if (domain(from) && domain(user) && domain(from) !== domain(user)) console.warn("[mail] MAIL_FROM_EMAIL and SMTP_USER are on different domains: emails will likely fail SPF/DMARC alignment and land in spam. Send from an address on the SMTP account's own domain, or use a provider that signs for your domain (see backend/README.md).");
+}
+
 async function sendSmtp(to: string, message: Message) {
   const e = env();
   transport ??= nodemailer.createTransport({
@@ -28,10 +38,20 @@ async function sendSmtp(to: string, message: Message) {
     requireTLS: !!e.SMTP_USER && !(e.SMTP_SECURE ?? e.SMTP_PORT === 465),
     ...(e.SMTP_USER ? { auth: { user: e.SMTP_USER, pass: e.SMTP_PASS } } : {}),
   });
+  warnIfMisaligned(e.MAIL_FROM_EMAIL, e.SMTP_USER);
+  const site = e.FRONTEND_URL.replace(/\/$/, "");
+  const unsubscribeTo = e.MAIL_REPLY_TO_EMAIL ?? e.MAIL_FROM_EMAIL;
   await transport.sendMail({
     from: `"${e.MAIL_FROM_NAME}" <${e.MAIL_FROM_EMAIL}>`, to, ...message,
     ...(e.MAIL_REPLY_TO_EMAIL ? { replyTo: `"${e.MAIL_REPLY_TO_NAME ?? e.MAIL_FROM_NAME}" <${e.MAIL_REPLY_TO_EMAIL}>` } : {}),
-    headers: { "X-Entity-Ref-ID": crypto.randomUUID() },
+    headers: {
+      "X-Entity-Ref-ID": crypto.randomUUID(), // no threading: every code arrives as its own email
+      // What Gmail and Outlook look for from a well-behaved sender: an unsubscribe route (they show
+      // their own "Unsubscribe" link instead of people hitting "Report spam"), and a clear signal
+      // that this is automated mail, not a person.
+      "List-Unsubscribe": `<mailto:${unsubscribeTo}?subject=unsubscribe>, <${site}/dashboard?view=settings>`,
+      "Auto-Submitted": "auto-generated",
+    },
     // The logo travels inside the email and is referenced as cid:ghosted-logo in the HTML.
     attachments: [{ filename: "ghosted.png", content: Buffer.from(EMAIL_LOGO_BASE64, "base64"), cid: EMAIL_LOGO_CID, contentType: "image/png", contentDisposition: "inline" }],
   });

@@ -13,7 +13,8 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { INDUSTRY_GROUPS } from "@/lib/industries";
 import { Textarea } from "@/components/ui/textarea";
 import { api, ApiRequestError, apiEnabled, askToJoin } from "@/lib/api";
 import { liveNudge } from "@/lib/live";
@@ -21,7 +22,6 @@ import { companyFromApi, type CompanyDto } from "@/lib/stories";
 import { cn } from "@/lib/utils";
 import { useMe, useTone, voice } from "@/lib/session";
 import type { Company } from "@/mock/data";
-import { INDUSTRY_LABEL } from "./global-widgets";
 import { popup, popupBody } from "./ui-kit";
 
 type Site = { homepage: string; domain: string; title: string | null; siteName: string | null; description: string | null; iconUrl: string | null; readable?: boolean };
@@ -327,7 +327,8 @@ export function ListCompanyDialog({ open, onOpenChange, onListed, requestName, i
               <Field id="lc-industry" label={<>Industry <span className="text-flag-red">*</span>{auto("industry")}</>} error={show("industry")}>
                 <Select value={f.industry} onValueChange={(v) => { edit("industry")(v); touch("industry"); }}>
                   <SelectTrigger id="lc-industry" aria-invalid={!!show("industry")} className="h-10 w-full min-w-0 border-2 border-foreground"><SelectValue placeholder="Choose industry" /></SelectTrigger>
-                  <SelectContent>{Object.entries(INDUSTRY_LABEL).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
+                  {/* Grouped, so 70-odd industries stay easy to scan. */}
+                  <SelectContent className="max-h-80">{INDUSTRY_GROUPS.map((g) => <SelectGroup key={g.label}><SelectLabel className="text-xs font-bold uppercase text-muted-foreground">{g.label}</SelectLabel>{g.items.map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectGroup>)}</SelectContent>
                 </Select>
               </Field>
               <Field id="lc-size" label={<>Company size <span className="text-flag-red">*</span>{auto("size")}</>} error={show("size")}>

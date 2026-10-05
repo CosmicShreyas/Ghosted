@@ -7,6 +7,8 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { parseQuery, search, searchCompanies, type SearchDoc } from "../algorithms/index.js";
 import { AUTHOR_COLUMNS, companyDto, storyAuthor, type AuthorRow, type CompanyScoreRow, type StoryRow } from "../dto.js";
+import { shieldFor } from "../rep-guard.js";
+import { pledgesFor } from "../pledges.js";
 import { dbFail } from "../errors.js";
 import { fromBytea } from "../lib/compression.js";
 import { hydrate, publishedStories } from "../stories.js";
@@ -80,8 +82,10 @@ export const searchRoutes = new Hono<AppEnv>().get("/", optionalAuth, rateLimit(
   const order = new Map(ids.map((id, i) => [id, i]));
   const rows = ((data ?? []) as unknown as StoryRow[]).sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
   const companies = parsed.terms.length || parsed.company ? searchCompanies((cos.data ?? []) as CompanyScoreRow[], parsed.company ?? q, 5) : [];
-  const peopleWithRows = searchPeople((profiles.data ?? []) as unknown as SearchableProfile[], q);
   const viewer = c.get("profile");
+  // A company rep never finds the people who wrote about that company (rep-guard.ts).
+  const shield = await shieldFor(viewer?.id);
+  const peopleWithRows = searchPeople((profiles.data ?? []) as unknown as SearchableProfile[], q).filter(({ row }) => !shield?.ids.has(row.id));
   const peopleIds = peopleWithRows.map(({ row }) => row.id);
   const followed = new Set<string>();
   if (viewer && peopleIds.length) {
@@ -90,9 +94,14 @@ export const searchRoutes = new Hono<AppEnv>().get("/", optionalAuth, rateLimit(
     if (followError) dbFail("search relationships", followError);
     for (const follow of (follows ?? []) as { followee_id: string }[]) followed.add(follow.followee_id);
   }
+  // Reply pledge badges for the companies found (pledges.ts), shown next to each result.
+  const slugs = companies.map((co) => co.slug);
+  const { data: coIds } = slugs.length ? await admin().from("companies").select("id, slug").in("slug", slugs) : { data: [] };
+  const idBySlug = new Map(((coIds ?? []) as { id: string; slug: string }[]).map((r) => [r.slug, r.id]));
+  const pledges = await pledgesFor([...idBySlug.values()]);
   return c.json({
     stories: await hydrate(rows, c.get("profile")),
-    companies: companies.map(companyDto),
+    companies: companies.map((co) => ({ ...companyDto(co), pledge: pledges.get(idBySlug.get(co.slug) ?? "") ?? null })),
     people: peopleWithRows.map(({ row, author }) => ({
       ...author,
       isMe: viewer?.id === row.id,

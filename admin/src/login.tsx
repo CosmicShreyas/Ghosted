@@ -42,6 +42,7 @@ function SecondStep({ method, ticket, onBack, onSignedIn }: { method: "totp" | "
     <span className="grid size-12 place-items-center rounded-xl border-2 border-foreground bg-accent"><Smartphone className="size-5" /></span>
     <h1 className="mt-4 font-display text-3xl font-bold">Two-step sign-in</h1>
     <p className="mt-1 text-sm text-muted-foreground">{recovery ? "Enter one of the recovery codes you saved. Each works once." : method === "totp" ? "Password: correct. Now the 6-digit code from your authenticator app." : "Password: correct. Now the 6-digit code we just emailed you."}</p>
+    {method !== "totp" && !recovery && <p role="note" className="mt-3 rounded-lg border-2 border-foreground bg-[#FDF3B4] p-3 text-sm text-[#141110]"><mark className="rounded bg-[#FACC15] px-1 font-bold text-[#141110]">Can't see it? Check your Spam and Promotions folders.</mark> Mark it "Not spam" so the next one reaches your inbox. Still nothing? Go back and sign in again for a new code.</p>}
     <div className="mt-6">{recovery
       ? <Input value={code} onChange={(e) => setCode(e.target.value.toLowerCase().slice(0, 9))} placeholder="abcd-2345" autoComplete="one-time-code" className={cn(field, "font-mono")} autoFocus />
       : <InputOTP maxLength={6} value={code} onChange={(v) => { const d = v.replace(/\D/g, ""); setCode(d); if (d.length === 6) void submit(d); }} inputMode="numeric" pattern="^[0-9]*$" autoFocus containerClassName="justify-between" aria-label="6-digit code">
@@ -135,7 +136,8 @@ function SetPassword({ initialEmail, onBack, onDone }: { initialEmail: string; o
         {error && <p role="alert" className="mt-4 rounded-lg border-2 border-flag-red bg-flag-red/10 p-3 text-sm font-semibold text-flag-red">{error}</p>}
         <Button type="submit" size="lg" className="mt-5 w-full" disabled={busy || !email}>{busy ? <Loader2 className="animate-spin" /> : <MailCheck />}Email me a code</Button>
       </motion.form> : <motion.form key="code" onSubmit={(e) => void finish(e)} initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }}>
-        <p className="mt-1 text-sm text-muted-foreground">We sent a code to <span className="font-semibold text-foreground">{email}</span> (check spam too). It works for 15 minutes.</p>
+        <p className="mt-1 text-sm text-muted-foreground">We sent a code to <span className="font-semibold text-foreground">{email}</span>. It works for 15 minutes.</p>
+        <p role="note" className="mt-3 rounded-lg border-2 border-foreground bg-[#FDF3B4] p-3 text-sm text-[#141110]"><mark className="rounded bg-[#FACC15] px-1 font-bold text-[#141110]">Can't see it? Check your Spam and Promotions folders.</mark> Mark it "Not spam" so the next one reaches your inbox. Still nothing? Use "Send a new code" below.</p>
         <div className="mt-6"><span className="mb-1.5 block text-sm font-bold">6-digit code</span>
           {/* Same boxes as the site's sign-in codes. */}
           <InputOTP maxLength={6} value={code} onChange={(v) => setCode(v.replace(/\D/g, ""))} inputMode="numeric" pattern="^[0-9]*$" autoFocus containerClassName="justify-between" aria-label="6-digit code">

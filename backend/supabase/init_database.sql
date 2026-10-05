@@ -1713,4 +1713,171 @@ end $$;
 revoke all on function public.award_xp(uuid, text, text, integer, integer) from public, anon, authenticated;
 grant execute on function public.award_xp(uuid, text, text, integer, integer) to service_role;
 
+-- ============================================================================
+-- Impact ladder: a candidate's story visibly leading somewhere (backend/src/impact.ts).
+--   rep_story_views    a verified rep of the story's company opened it; once per rep per story.
+--                      Authors see the count, never which rep.
+--   story_responses    append-only steps a rep sets: heard, looking_into_it, fixed. Each step once
+--                      per story (unique), forward only (checked by the API), never edited or deleted
+--                      (no update/delete grants beyond the service role, and the API has no route).
+--                      An optional short note goes through review: note_status pending until checked.
+--   notifications      new kind 'rep_update' for every step of the ladder.
+--   xp_events          new kind 'impact' (a company responded to, or cited, your story).
+-- Safe to run again.
+-- ============================================================================
+create table if not exists public.rep_story_views (
+  story_id      uuid not null references public.stories (id) on delete cascade,
+  rep_user_id   uuid not null references public.profiles (id) on delete cascade,
+  company_id    uuid not null references public.companies (id) on delete cascade,
+  first_seen_at timestamptz not null default now(),
+  primary key (story_id, rep_user_id)
+);
+create index if not exists rep_story_views_company on public.rep_story_views (company_id, first_seen_at desc);
+alter table public.rep_story_views enable row level security;
+revoke all on public.rep_story_views from anon, authenticated;
+grant select, insert on public.rep_story_views to service_role;
+
+create table if not exists public.story_responses (
+  id          uuid primary key default gen_random_uuid(),
+  story_id    uuid not null references public.stories (id) on delete cascade,
+  company_id  uuid not null references public.companies (id) on delete cascade,
+  rep_user_id uuid not null references public.profiles (id) on delete cascade,
+  status      text not null check (status in ('heard','looking_into_it','fixed')),
+  note_z      bytea check (note_z is null or octet_length(note_z) between 2 and 2048),
+  note_status text check (note_status is null or note_status in ('published','pending','removed')),
+  moderation  jsonb,
+  created_at  timestamptz not null default now(),
+  unique (story_id, status)
+);
+create index if not exists story_responses_company on public.story_responses (company_id, created_at desc);
+create index if not exists story_responses_notes on public.story_responses (note_status) where note_status = 'pending';
+alter table public.story_responses enable row level security;
+revoke all on public.story_responses from anon, authenticated;
+-- Moderators may only hide a note (note_status), never change or remove the step itself.
+grant select, insert on public.story_responses to service_role;
+grant update (note_status) on public.story_responses to service_role;
+
+alter table public.notifications drop constraint if exists notifications_kind_check;
+alter table public.notifications add constraint notifications_kind_check check (kind in ('relatable','reply','company','system','following','follower','goofy','rep_update'));
+
+alter table public.xp_events drop constraint if exists xp_events_kind_check;
+alter table public.xp_events add constraint xp_events_kind_check check (kind in ('read','react','chitchat','story','follow','invite_join','invite','daily','welcome','milestone','impact'));
+
+-- Written at sign-in (devices.ts) but never declared: added here so it always exists.
+alter table public.session_devices add column if not exists ip_masked text check (ip_masked is null or char_length(ip_masked) <= 64);
+
+-- ============================================================================
+-- You said, we did (backend/src/changes.ts): a verified rep's public note about what changed,
+-- linked to the candidate stories behind it.
+--   company_changes        the note (reviewed; held as 'pending' if unsure). No edits: the API has
+--                          no edit or delete route; only moderators set status 'removed'.
+--   company_change_stories 1 to 5 cited stories per note, only stories about that company (the
+--                          API checks both, and the trigger below caps the count).
+-- At most 4 notes per rep per calendar month (India time), checked by the API. Safe to run again.
+-- ============================================================================
+create table if not exists public.company_changes (
+  id             uuid primary key default gen_random_uuid(),
+  public_id      bigint not null unique default gen_public_id(),
+  company_id     uuid not null references public.companies (id) on delete cascade,
+  rep_user_id    uuid not null references public.profiles (id) on delete cascade,
+  body_z         bytea not null check (octet_length(body_z) between 2 and 4096),
+  status         text not null default 'published' check (status in ('published','pending','removed')),
+  moderation     jsonb,
+  removed_reason text check (removed_reason is null or char_length(removed_reason) <= 300),
+  created_at     timestamptz not null default now()
+);
+create index if not exists company_changes_company on public.company_changes (company_id, created_at desc) where status = 'published';
+create index if not exists company_changes_rep_month on public.company_changes (rep_user_id, created_at desc);
+alter table public.company_changes enable row level security;
+revoke all on public.company_changes from anon, authenticated;
+grant select, insert on public.company_changes to service_role;
+grant update (status, removed_reason) on public.company_changes to service_role;
+
+create table if not exists public.company_change_stories (
+  change_id uuid not null references public.company_changes (id) on delete cascade,
+  story_id  uuid not null references public.stories (id) on delete cascade,
+  primary key (change_id, story_id)
+);
+create index if not exists company_change_stories_story on public.company_change_stories (story_id);
+alter table public.company_change_stories enable row level security;
+revoke all on public.company_change_stories from anon, authenticated;
+grant select, insert on public.company_change_stories to service_role;
+
+-- No more than 5 stories on one note, and only stories about the note's company.
+create or replace function public.company_change_stories_check() returns trigger language plpgsql as $$
+begin
+  if (select count(*) from public.company_change_stories where change_id = new.change_id) >= 5 then
+    raise exception 'A change note can cite at most 5 stories';
+  end if;
+  if not exists (select 1 from public.company_changes ch join public.stories s on s.company_id = ch.company_id where ch.id = new.change_id and s.id = new.story_id) then
+    raise exception 'A change note can only cite stories about its own company';
+  end if;
+  return new;
+end $$;
+drop trigger if exists company_change_stories_check on public.company_change_stories;
+create trigger company_change_stories_check before insert on public.company_change_stories for each row execute function public.company_change_stories_check();
+
+-- ============================================================================
+-- Demand (backend/src/demand.ts): "Ask {company} to respond", one per member per company, can be
+-- taken back. Shown as "N candidates asked" only from 3. Safe to run again.
+-- ============================================================================
+create table if not exists public.response_requests (
+  company_id uuid not null references public.companies (id) on delete cascade,
+  user_id    uuid not null references public.profiles (id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (company_id, user_id)
+);
+alter table public.response_requests enable row level security;
+revoke all on public.response_requests from anon, authenticated;
+grant select, insert, delete on public.response_requests to service_role;
+
+-- ============================================================================
+-- Reply pledges (backend/src/pledges.ts, badge rules in backend/src/lib/pledge.ts): a verified rep
+-- publicly pledges that candidates hear back within 7, 14 or 30 days. The badge (made, holding,
+-- mixed, slipping, withdrawn) is computed nightly from candidate stories posted after the pledge,
+-- always labelled "Based on N candidate stories, not verified by the company". One live pledge per
+-- company; withdrawing keeps the row and shows "Pledge withdrawn". Never purchasable.
+-- Also: the funnel counts the company side of the loop. Safe to run again.
+-- ============================================================================
+create table if not exists public.company_pledges (
+  id           uuid primary key default gen_random_uuid(),
+  company_id   uuid not null references public.companies (id) on delete cascade,
+  rep_user_id  uuid references public.profiles (id) on delete set null,
+  days         smallint not null check (days in (7, 14, 30)),
+  made_at      timestamptz not null default now(),
+  withdrawn_at timestamptz,
+  withdrawn_by text check (withdrawn_by is null or withdrawn_by in ('rep','moderator')),
+  badge        text not null default 'made' check (badge in ('made','holding','mixed','slipping','withdrawn')),
+  stories_n    integer not null default 0 check (stories_n >= 0),
+  kept_n       integer not null default 0 check (kept_n >= 0),
+  computed_at  timestamptz
+);
+create unique index if not exists company_pledges_one_live on public.company_pledges (company_id) where withdrawn_at is null;
+create index if not exists company_pledges_company on public.company_pledges (company_id, made_at desc);
+alter table public.company_pledges enable row level security;
+revoke all on public.company_pledges from anon, authenticated;
+grant select, insert on public.company_pledges to service_role;
+grant update (withdrawn_at, withdrawn_by, badge, stories_n, kept_n, computed_at) on public.company_pledges to service_role;
+
+alter table public.funnel_daily drop constraint if exists funnel_daily_event_check;
+alter table public.funnel_daily add constraint funnel_daily_event_check check (event in ('visit','ghostometer','timeline_check','followup','company_search','signup','first_story','invite_open',
+  'rep_start','rep_verified','rep_viewed_story','rep_status','change_posted','ask_response','pledge_made'));
+
+-- ============================================================================
+-- More company industries (keep in step with backend/src/lib/industries.ts). Every original value
+-- is still allowed, so existing companies keep theirs; this only adds new ones. Safe to run again.
+-- ============================================================================
+alter table public.companies drop constraint if exists companies_industry_check;
+alter table public.companies add constraint companies_industry_check check (industry is null or industry in (
+  'software','it_services','ai_ml','cybersecurity','cloud','semiconductors','electronics','robotics','iot','gaming','crypto','gcc',
+  'fintech','payments','bfsi','lending','insurtech','wealth','accounting',
+  'ecommerce','quick_commerce','d2c','retail','fmcg','fashion','beauty','food_beverage','foodtech',
+  'healthtech','hospitals','pharma','medical_devices','fitness',
+  'edtech','education','hrtech','staffing',
+  'media','entertainment','publishing','advertising','social',
+  'manufacturing','automotive','aerospace','chemicals','metals_mining','textiles','construction','real_estate','energy','renewables','oil_gas','climate','agritech',
+  'logistics','mobility','aviation','travel','hospitality',
+  'consulting','bpo','kpo','legal','telecom','government','nonprofit','research',
+  'other'));
+
 commit;

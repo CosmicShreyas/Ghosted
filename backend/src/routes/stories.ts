@@ -20,6 +20,8 @@ import { checkJourney } from "../score.js";
 import { notifyWaiting } from "../interest.js";
 import { notifyInviter } from "../referral.js";
 import { award } from "../levels.js";
+import { forgetShield, isEverRepOf, maskAuthor, shieldFor } from "../rep-guard.js";
+import { recordRepView } from "../impact.js";
 
 const rating = z.number().int().min(1).max(5);
 
@@ -108,7 +110,11 @@ export const storyRoutes = new Hono<AppEnv>()
   })
 
   .get("/:id", optionalAuth, rateLimit({ name: "story", max: 180, windowSeconds: 60 }), idParam, async (c) => {
-    const [story] = await hydrate([await storyByPublicId(c.req.valid("param").id)], c.get("profile"));
+    const row = await storyByPublicId(c.req.valid("param").id);
+    const [story] = await hydrate([row], c.get("profile"));
+    // A verified rep of this story's company opening it: "Seen by the team" (impact.ts, once per rep).
+    const viewer = c.get("profile");
+    if (viewer) later(recordRepView(viewer.id, row.id));
     return c.json({ story });
   })
 
@@ -117,6 +123,8 @@ export const storyRoutes = new Hono<AppEnv>()
     await verifyChallenge(c, body.captchaToken);
     const { data: company } = await admin().from("companies").select("id, name").eq("slug", body.companySlug).eq("status", "listed").maybeSingle();
     if (!company) throw new ApiError(400, "unknown_company", "Pick a company from the list, or add it first.");
+    // A company's own rep (now or before) can't post a candidate story about it: a conflict of interest.
+    if (await isEverRepOf(me(c).id, company.id as string)) throw new ApiError(403, "rep_conflict", "You're verified as a representative of this company, so you can't post a candidate story about it. Your official reply is the place for the company's side.");
     // One story per person per company per 30 days keeps scores from being stuffed.
     const since = new Date(Date.now() - 30 * 86400_000).toISOString();
     const { count } = await admin().from("stories").select("id", { count: "exact", head: true }).eq("author_id", me(c).id).eq("company_id", company.id).gte("created_at", since);
@@ -155,6 +163,7 @@ export const storyRoutes = new Hono<AppEnv>()
     later(notifyWaiting(company.id as string));
     later(notifyInviter(me(c) as { id: string; referred_by?: string | null }));
     award(me(c).id, "story", String(data.public_id));
+    forgetShield(); // a new author about this company: reps' shields are rebuilt (rep-guard.ts)
     const [story] = await hydrate([await storyByPublicId(String(data.public_id))], me(c));
     later(bump({ user: me(c).id, topics: ["stories"], shared: ["feed", `person:${me(c).public_id}`] })); // every open feed, your other devices, your page
     later(notifyFollowers(me(c), story!.publicId, body.title)); // followers who rang your bell
@@ -249,6 +258,7 @@ export const storyRoutes = new Hono<AppEnv>()
     type Row = { id: string; public_id: number; parent_id: string | null; body_z: string; status: string; created_at: string; edited_at: string | null; author: AuthorRow };
     const rows = (data ?? []) as unknown as Row[];
     const viewer = c.get("profile");
+    const shield = await shieldFor(viewer?.id); // reps never see who chitchatted, if they wrote about the company
     const ids = rows.map((r) => r.id);
     const [{ data: reacts }, { data: mineR }] = ids.length ? await Promise.all([
       admin().from("comment_reactions").select("comment_id").in("comment_id", ids),
@@ -264,7 +274,7 @@ export const storyRoutes = new Hono<AppEnv>()
       parentPublicId: r.parent_id ? String(byId.get(r.parent_id)?.public_id ?? "") || null : null,
       deleted: !live(r),
       body: live(r) ? fromBytea(r.body_z) : null,
-      author: live(r) ? storyAuthor(r.author) : null,
+      author: live(r) ? maskAuthor(storyAuthor(r.author), shield) : null,
       createdAt: r.created_at, editedAt: r.edited_at,
       relatable: counts.get(r.id) ?? 0, myRelatable: mine.has(r.id),
       mine: live(r) && !!viewer && r.author.public_id === viewer.public_id,
@@ -331,7 +341,10 @@ export const storyRoutes = new Hono<AppEnv>()
     later(notifyReply(story.id, me(c).id, body));
     award(me(c).id, "chitchat", data.id as string);
     // The person being replied to hears about it too (unless it's the story's author, told above, or you).
-    if (parent && parent.author_id !== me(c).id && parent.author_id !== (storyOwner?.author_id as string | undefined)) later(addNotification(parent.author_id, "reply", `${storyAuthor(me(c)).name} replied to your chitchat: “${body.slice(0, 80)}”`, String(story.public_id)));
+    if (parent && parent.author_id !== me(c).id && parent.author_id !== (storyOwner?.author_id as string | undefined)) {
+      const hidden = (await shieldFor(parent.author_id))?.ids.has(me(c).id); // the person told is a rep this author wrote about
+      later(addNotification(parent.author_id, "reply", `${hidden ? "A candidate" : storyAuthor(me(c)).name} replied to your chitchat: “${body.slice(0, 80)}”`, String(story.public_id)));
+    }
     later(bump({ shared: [`story:${c.req.valid("param").id}`] }));
     return c.json({ chitchat: { publicId: String(data.public_id), parentPublicId: parentId ?? null, deleted: false, body, author: storyAuthor(me(c)), createdAt: data.created_at, editedAt: null, relatable: 0, myRelatable: false, mine: true, replies: [] } }, 201);
   })

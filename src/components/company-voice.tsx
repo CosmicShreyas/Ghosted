@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { BadgeCheck, CheckCircle2, Clock, FileWarning, Loader2, MailCheck, MessageCircleQuestion, Pencil, Pin, PinOff, ShieldCheck, Trash2, UserRound, Users } from "lucide-react";
 import { CodeInput } from "@/components/code-input";
+import { SpamHint } from "@/components/spam-hint";
 import { toast } from "sonner";
 import { Markdown } from "@/components/markdown";
 import { HumanCheck, useHumanCheck } from "@/components/human-check";
@@ -172,7 +173,7 @@ export function RepVerifyDialog({ open, onOpenChange, slug, name }: { open: bool
             <button type="button" onClick={() => { setStep("email"); setCode(""); }} className="inline-flex shrink-0 items-center gap-1 text-xs font-bold text-primary hover:underline"><Pencil className="size-3" />Change</button>
           </div>
           <CodeInput value={code} onChange={setCode} onComplete={(v) => { if (!busy) void verify(v); }} />
-          <p className="text-xs text-muted-foreground">No email, or the code stopped working? Check spam, or <button type="button" disabled={busy || cooldown > 0} onClick={() => void start(true)} className="font-bold text-primary hover:underline disabled:cursor-not-allowed disabled:text-muted-foreground disabled:no-underline">{cooldown > 0 ? `send a new code in ${cooldown}s` : "send a new code"}</button>.</p>
+          <SpamHint cooldown={cooldown} disabled={busy} onResend={() => void start(true)} />
           <Button type="submit" className="w-full" disabled={busy || code.length !== 6}>{busy && <Loader2 className="animate-spin" />}Verify</Button>
         </form>}
         {step === "done" && <div className="mt-5 rounded-lg border-2 border-flag-green bg-flag-green/10 p-4 text-sm">

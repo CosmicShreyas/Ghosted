@@ -2,7 +2,9 @@
 // sign-ups and first stories. Only totals per day are stored (funnel_daily); never who.
 import { admin } from "./supabase.js";
 
-export const FUNNEL_EVENTS = ["visit", "ghostometer", "timeline_check", "followup", "company_search", "signup", "first_story", "invite_open"] as const;
+// The rep_* / change / ask / pledge events count the company side of the loop (anonymous totals too).
+export const FUNNEL_EVENTS = ["visit", "ghostometer", "timeline_check", "followup", "company_search", "signup", "first_story", "invite_open",
+  "rep_start", "rep_verified", "rep_viewed_story", "rep_status", "change_posted", "ask_response", "pledge_made"] as const;
 export type FunnelEvent = (typeof FUNNEL_EVENTS)[number];
 
 // Best effort: a missing table (before the SQL runs) or a hiccup never breaks the request.

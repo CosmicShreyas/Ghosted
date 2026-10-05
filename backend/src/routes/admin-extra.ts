@@ -24,6 +24,9 @@ import { inspectWebsite, SiteCheckError } from "../lib/site-check.js";
 import { gatherFacts } from "../lib/company-facts.js";
 import { offsetQ, PAGE, paged } from "../admin-paging.js";
 import { funnel } from "../funnel.js";
+import { publishChangeEffects } from "../changes.js";
+import { withdrawPledge } from "../pledges.js";
+import { INDUSTRIES } from "../lib/industries.js";
 
 const DAY = 86400_000;
 const pid = z.string().regex(/^\d{15}$/);
@@ -78,7 +81,7 @@ const median = (xs: number[]) => { if (!xs.length) return null; const s = [...xs
 const STAGE_NAME: Record<string, string> = { application: "applying", screening: "a screening call", technical: "a technical round", final: "a final round", offer: "the offer stage" };
 
 // ---------- companies: listing by hand, one or many ----------
-const INDUSTRIES = ["software", "it_services", "fintech", "ecommerce", "edtech", "healthtech", "media", "consulting", "manufacturing", "bfsi", "telecom", "gaming", "logistics", "other"] as const;
+// The full list lives in lib/industries.ts.
 const SIZES = ["1-10", "11-50", "51-200", "201-1000", "1001-5000", "5000+"] as const;
 const companyInput = z.object({
   name: z.string().trim().min(2).max(80),
@@ -124,6 +127,8 @@ async function listCompany(c: CompanyInput, by: string): Promise<{ name: string;
 // Rough sizes per row, used only when the storage function (init_database.sql) isn't installed yet.
 const ROW_BYTES: Record<string, number> = { stories: 2200, comments: 700, reactions: 120, notifications: 400, profiles: 900, companies: 1500, story_counts: 100, session_devices: 350, rate_limits: 120, feedback: 900, applications: 400, admin_audit: 400, company_follows: 90, follows: 90 };
 
+const VOICE_TABLE = { rep_reply: "rep_replies", question: "company_questions", answer: "company_answers", change: "company_changes" } as const;
+
 export const adminExtraRoutes = new Hono<AdminEnv>()
   // ---------- voice: removal / correction requests, company reps' replies, held Q&A ----------
   // Requests: oldest first, with how long they've waited against the 24 h / 15 day promise.
@@ -147,9 +152,9 @@ export const adminExtraRoutes = new Hono<AdminEnv>()
     return c.json({ ok: true, request: data });
   })
   // Company reps' replies and held questions/answers: what's waiting, and the live replies.
-  .get("/voice/items", validate("query", z.object({ kind: z.enum(["rep_reply", "question", "answer"]), status: z.enum(["pending", "published"]).default("pending"), offset: offsetQ })), async (c) => {
+  .get("/voice/items", validate("query", z.object({ kind: z.enum(["rep_reply", "question", "answer", "change"]), status: z.enum(["pending", "published"]).default("pending"), offset: offsetQ })), async (c) => {
     const { kind, status, offset } = c.req.valid("query");
-    const table = kind === "rep_reply" ? "rep_replies" : kind === "question" ? "company_questions" : "company_answers";
+    const table = VOICE_TABLE[kind];
     const cols = kind === "answer" ? "public_id, body_z, status, created_at, question:company_questions(company:companies(name, slug))" : "public_id, body_z, status, created_at, company:companies(name, slug)";
     const { data, error } = await db().from(table).select(cols).eq("status", status).order("created_at", { ascending: status === "pending" }).range(offset, offset + PAGE);
     if (error) dbFail(`voice ${kind}`, error);
@@ -157,16 +162,76 @@ export const adminExtraRoutes = new Hono<AdminEnv>()
     return c.json(paged(((data ?? []) as unknown as Row[]).map((r) => ({ publicId: String(r.public_id), body: fromBytea(r.body_z), status: r.status, createdAt: r.created_at, company: r.company ?? r.question?.company ?? null })), offset));
   })
   // Approve a held item, or remove one (the only way a company rep's reply ever comes down).
-  .post("/voice/items/:kind/:id", validate("param", z.object({ kind: z.enum(["rep_reply", "question", "answer"]), id: z.string().regex(/^\d{15}$/) })), validate("json", z.object({ action: z.enum(["approve", "remove"]), reason: z.string().trim().max(300).optional() }).strict()), async (c) => {
+  .post("/voice/items/:kind/:id", validate("param", z.object({ kind: z.enum(["rep_reply", "question", "answer", "change"]), id: z.string().regex(/^\d{15}$/) })), validate("json", z.object({ action: z.enum(["approve", "remove"]), reason: z.string().trim().max(300).optional() }).strict()), async (c) => {
     const { kind, id } = c.req.valid("param");
     const { action, reason } = c.req.valid("json");
-    const table = kind === "rep_reply" ? "rep_replies" : kind === "question" ? "company_questions" : "company_answers";
-    const patch: Record<string, unknown> = { status: action === "approve" ? "published" : "removed", ...(kind === "rep_reply" && action === "remove" && { removed_reason: reason ?? null }) };
-    const { error } = await db().from(table).update(patch).eq("public_id", id);
+    const table = VOICE_TABLE[kind];
+    const patch: Record<string, unknown> = { status: action === "approve" ? "published" : "removed", ...((kind === "rep_reply" || kind === "change") && action === "remove" && { removed_reason: reason ?? null }) };
+    const { data: updated, error } = await db().from(table).update(patch).eq("public_id", id).select("id");
     if (error?.code === "23505") throw new ApiError(409, "already_replied", "This company already has a live reply there.");
     if (error) dbFail(`voice ${action}`, error);
+    // An approved change note: tell the cited authors and pay their impact XP now.
+    if (kind === "change" && action === "approve" && updated?.[0]) await publishChangeEffects((updated[0] as { id: string }).id);
     await bump({ shared: ["companies"] });
     await audit(c, `${kind}_${action}`, { kind, ref: id }, reason ? { reason } : undefined);
+    return c.json({ ok: true });
+  })
+  // Notes reps attached to impact steps (story_responses). Moderators can only publish or hide the
+  // note; the step itself is permanent. Addressed by the story's public id and the step.
+  .get("/voice/notes", validate("query", z.object({ status: z.enum(["pending", "published"]).default("pending"), offset: offsetQ })), async (c) => {
+    const { status, offset } = c.req.valid("query");
+    const { data, error } = await db().from("story_responses").select("status, note_z, note_status, created_at, story:stories(public_id, title), company:companies(name, slug)").eq("note_status", status).order("created_at", { ascending: status === "pending" }).range(offset, offset + PAGE);
+    if (error) dbFail("rep notes (run the Impact ladder section of init_database.sql)", error);
+    type Row = { status: string; note_z: string; note_status: string; created_at: string; story: { public_id: number; title: string } | null; company: { name: string; slug: string } | null };
+    return c.json(paged(((data ?? []) as unknown as Row[]).map((r) => ({ storyPublicId: String(r.story?.public_id ?? ""), storyTitle: r.story?.title ?? null, step: r.status, body: fromBytea(r.note_z), status: r.note_status, createdAt: r.created_at, company: r.company })), offset));
+  })
+  .post("/voice/notes/:story/:step", validate("param", z.object({ story: z.string().regex(/^\d{15}$/), step: z.enum(["heard", "looking_into_it", "fixed"]) })), validate("json", z.object({ action: z.enum(["approve", "remove"]) }).strict()), async (c) => {
+    const { story, step } = c.req.valid("param");
+    const { data: s } = await db().from("stories").select("id").eq("public_id", story).maybeSingle();
+    if (!s) throw new ApiError(404, "not_found", "That story isn't there.");
+    const { error } = await db().from("story_responses").update({ note_status: c.req.valid("json").action === "approve" ? "published" : "removed" }).eq("story_id", (s as { id: string }).id).eq("status", step);
+    if (error) dbFail("rep note", error);
+    await bump({ shared: [`story:${story}`] });
+    await audit(c, `rep_note_${c.req.valid("json").action}`, { kind: "story", ref: story }, { step });
+    return c.json({ ok: true });
+  })
+  // Reply pledges: every one, live and withdrawn. Moderators can withdraw a pledge (it then shows
+  // "Pledge withdrawn", never disappears).
+  .get("/voice/pledges", validate("query", z.object({ offset: offsetQ })), async (c) => {
+    const { offset } = c.req.valid("query");
+    const { data, error } = await db().from("company_pledges").select("days, made_at, withdrawn_at, withdrawn_by, badge, stories_n, kept_n, company:companies(name, slug)").order("made_at", { ascending: false }).range(offset, offset + PAGE);
+    if (error) dbFail("pledges (run the Reply pledges section of init_database.sql)", error);
+    return c.json(paged((data ?? []) as unknown as Record<string, unknown>[], offset));
+  })
+  .post("/voice/pledges/:slug/withdraw", validate("param", z.object({ slug: z.string().regex(/^[a-z0-9-]{2,60}$/) })), validate("json", z.object({ reason: z.string().trim().max(300).optional() }).strict()), async (c) => {
+    const { slug } = c.req.valid("param");
+    const { data: co } = await db().from("companies").select("id").eq("slug", slug).maybeSingle();
+    if (!co) throw new ApiError(404, "not_found", "No such company.");
+    await withdrawPledge((co as { id: string }).id, slug, "moderator");
+    await audit(c, "pledge_withdraw", { kind: "company", ref: slug }, c.req.valid("json").reason ? { reason: c.req.valid("json").reason } : undefined);
+    return c.json({ ok: true });
+  })
+  // Verified company representatives, and revoking one. Revoking ends their access (replies, steps,
+  // notes, Pulse) but keeps everything they posted, and they stay shielded from that company's
+  // authors for good (rep-guard.ts).
+  .get("/voice/reps", validate("query", z.object({ status: z.enum(["active", "revoked"]).default("active"), offset: offsetQ })), async (c) => {
+    const { status, offset } = c.req.valid("query");
+    let q = db().from("company_reps").select("email_domain, verified_at, revoked_at, profile:profiles(public_id, handle), company:companies(name, slug)").order("verified_at", { ascending: false }).range(offset, offset + PAGE);
+    q = status === "active" ? q.is("revoked_at", null) : q.not("revoked_at", "is", null);
+    const { data, error } = await q;
+    if (error) dbFail("reps", error);
+    type Row = { email_domain: string; verified_at: string; revoked_at: string | null; profile: { public_id: number; handle: string } | null; company: { name: string; slug: string } | null };
+    return c.json(paged(((data ?? []) as unknown as Row[]).map((r) => ({ userPublicId: String(r.profile?.public_id ?? ""), handle: r.profile?.handle ?? null, domain: r.email_domain, verifiedAt: r.verified_at, revokedAt: r.revoked_at, company: r.company })), offset));
+  })
+  .post("/voice/reps/:user/:slug/revoke", validate("param", z.object({ user: z.string().regex(/^\d{15}$/), slug: z.string().regex(/^[a-z0-9-]{2,60}$/) })), validate("json", z.object({ reason: z.string().trim().min(3).max(300) }).strict()), async (c) => {
+    const { user, slug } = c.req.valid("param");
+    const [{ data: p }, { data: co }] = await Promise.all([db().from("profiles").select("id").eq("public_id", user).maybeSingle(), db().from("companies").select("id").eq("slug", slug).maybeSingle()]);
+    if (!p || !co) throw new ApiError(404, "not_found", "No such representative.");
+    const { data, error } = await db().from("company_reps").update({ revoked_at: new Date().toISOString() }).eq("user_id", (p as { id: string }).id).eq("company_id", (co as { id: string }).id).is("revoked_at", null).select("user_id");
+    if (error) dbFail("revoke rep", error);
+    if (!data?.length) throw new ApiError(409, "not_active", "That representative is already revoked.");
+    await bump({ user: (p as { id: string }).id, topics: ["me"], shared: [`company:${slug}`] });
+    await audit(c, "rep_revoke", { kind: "company", ref: slug }, { user, reason: c.req.valid("json").reason });
     return c.json({ ok: true });
   })
   // The growth funnel: visits → free tools → company searches → sign-ups → first stories.

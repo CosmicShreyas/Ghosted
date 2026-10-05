@@ -24,6 +24,17 @@ import { cn } from "@/lib/utils";
 import type { Company } from "@/mock/data";
 import { GameBreak } from "@/components/game-break";
 import { PillSelect } from "@/components/pill-select";
+import { YouSaidWeDid } from "@/components/you-said-we-did";
+import { AskToRespond } from "@/components/demand";
+import { PledgePanel } from "@/components/pledge";
+import { useRepReplies } from "@/lib/company-voice";
+
+// For the company's verified reps: the way into Company Pulse (aggregates only).
+function RepTools({ slug, name }: { slug: string; name: string }) {
+  const r = useRepReplies(slug);
+  if (!r.data?.viewerIsRep) return null;
+  return <Link to="/pulse/$slug" params={{ slug }} className="inline-flex items-center gap-1.5 rounded-lg border-2 border-sky-700 px-3 py-1.5 text-sm font-bold text-sky-800 hover:bg-sky-50 dark:border-sky-400 dark:text-sky-300 dark:hover:bg-sky-950/40">Open {name}'s Company Pulse</Link>;
+}
 import { AskCandidates, ContentRequestDialog, RepReplySlot, RepVerifyDialog } from "@/components/company-voice";
 import { TypicalProcess } from "@/components/typical-process";
 import { ShoutoutDialog } from "@/components/green-flag";
@@ -155,10 +166,16 @@ function CompanyPageRoute() {
       {/* Right of Reply: the company's one official page reply (or, for a verified rep, the box to
           write it), and the two fair routes: get verified, or ask for a correction. */}
       <RepReplySlot slug={slug} companyName={name} />
+      <PledgePanel slug={slug} name={name} />
+      <AskToRespond slug={slug} name={name} />
+      <RepTools slug={slug} name={name} />
       <p className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
         <button type="button" onClick={() => (signedOut ? askToJoin() : setVerifying(true))} className="inline-flex items-start gap-1.5 text-left font-bold hover:text-foreground hover:underline"><BadgeCheck className="mt-px size-3.5 shrink-0" />Work at {name}? Reply as the company, free</button>
         <button type="button" onClick={() => setRequesting(true)} className="inline-flex items-start gap-1.5 text-left font-bold hover:text-foreground hover:underline"><FileWarning className="mt-px size-3.5 shrink-0" />Something wrong? Request a correction</button>
       </p>
+
+      {/* What the company says it changed because of candidates' stories, receipts linked. */}
+      <YouSaidWeDid slug={slug} name={name} stories={list} />
 
       <AskCandidates slug={slug} name={name} />
 

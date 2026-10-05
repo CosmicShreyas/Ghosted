@@ -9,7 +9,9 @@ import { companies as sampleCompanies, getCompany, getUser, stories as sampleSto
 
 // foundingRank: "Founding contributor #N" for the first 50 people to publish (null otherwise).
 // level: their Ghosted level, shown as the LV badge (src/lib/levels.tsx).
-export type Author = { publicId: string; name: string; avatarSeed: string; pastel: string; revealed: Revealed | null; foundingRank?: number | null; level?: number | null };
+// hidden: you're a rep of the company they wrote about, so the server shows "A candidate" with no
+// link (backend/src/rep-guard.ts); publicId is empty.
+export type Author = { publicId: string; name: string; avatarSeed: string; pastel: string; revealed: Revealed | null; foundingRank?: number | null; level?: number | null; hidden?: boolean };
 export type Revealed = { name: string | null; role: string | null; experience: string | null; city: string | null; linkedin: string | null };
 
 export const STORY_REACTIONS = ["relatable", "insightful", "creative", "support", "love"] as const;
@@ -48,6 +50,8 @@ export type StoryModel = {
   daysWaited?: number | null;
   // Set when the story is a green flag shout-out (shown with the green card style).
   greenFlags?: GreenFlag[] | null;
+  // The company cited it in a "You said, we did" note: the small "Changed" chip.
+  changed?: boolean;
 };
 
 // Green flag shout-outs: the things a company can be thanked for. Same ids as the API.
@@ -97,7 +101,10 @@ export type CompanyDto = {
   scores: Company["scores"] | null; scoreCounts?: Record<keyof Company["scores"], number>; salary: [number, number] | null; storyCount: number; avgDaysWaited: number | null;
   domain: string | null; website: string | null; logoUrl: string | null; about: string | null; industry: string | null;
   size: string | null; hqCity: string | null; founded: number | null; careersUrl: string | null;
+  // Search results carry the company's reply pledge badge (backend pledges.ts).
+  pledge?: Pledge | null;
 };
+export type Pledge = { days: number; madeAt: string; withdrawnAt: string | null; badge: "made" | "holding" | "mixed" | "slipping" | "withdrawn"; stories: number; kept: number };
 
 // Logos go through the API's cached proxy (one origin, long CDN cache, no hotlink blocks).
 export const logoSrc = (slug: string, raw: string | null | undefined) => (raw && API_URL ? `${API_URL}/v1/companies/${slug}/logo?v=2` : raw ?? null);
@@ -113,6 +120,7 @@ export function companyFromApi(c: CompanyDto): Company {
     logoUrl: logoSrc(c.slug, c.logoUrl),
     website: c.website, domain: c.domain,
     about: c.about, industry: c.industry, size: c.size, hqCity: c.hqCity, founded: c.founded, careersUrl: c.careersUrl,
+    ...(c.pledge && { pledge: c.pledge }),
   };
 }
 
@@ -138,6 +146,8 @@ export type StoryDto = {
   flagScore?: number | null;
   salary?: [number, number] | null;
   daysWaited?: number | null;
+  // Cited in one of the company's "You said, we did" notes.
+  changed?: boolean;
 };
 
 export function fromApi(s: StoryDto, index: Map<string, Company>): StoryModel {
@@ -154,7 +164,7 @@ export function fromApi(s: StoryDto, index: Map<string, Company>): StoryModel {
     myReaction: s.myReaction,
     editedAt: s.editedAt ?? null, goofy: s.goofy ?? null, stage: s.stage,
     ...(s.ratings && { ratings: s.ratings }), joined: s.joined ?? null, quick: s.quick ?? false, flagScore: s.flagScore ?? null,
-    salary: s.salary ?? null, daysWaited: s.daysWaited ?? null, greenFlags: s.greenFlags ?? null,
+    salary: s.salary ?? null, daysWaited: s.daysWaited ?? null, greenFlags: s.greenFlags ?? null, changed: !!s.changed,
   };
 }
 

@@ -191,6 +191,31 @@ From the "Levels, XP and streaks" section. Replaces invite levels, missions and 
 - The section backfills existing stories, reactions, chitchats, follows and invites once, at base XP.
 - The follow-up section "Levels: streak freezes, milestones and the invite welcome bonus" adds `profiles.streak_freezes` (one per 7 streak days, up to 2, spent automatically on a single missed day), the `welcome` (+25 XP for joining through an invite) and `milestone` (7, 30, 100 and 365 streak days) kinds, and replaces `award_xp` with the version that handles them.
 
+### Impact ladder
+
+From the "Impact ladder" section (`backend/src/impact.ts`): what happened after a story was posted.
+
+- `rep_story_views`: a verified rep of the story's company opened it, once per rep per story. Authors see the count, never which rep.
+- `story_responses`: append-only steps a rep sets (`heard`, `looking_into_it`, `fixed`), each once per story (`unique (story_id, status)`), forward only (checked by the API). An optional short note is reviewed; `note_status` is the only column moderators may change.
+- Notifications kind `rep_update` (each ladder step, and official replies) and XP kind `impact` (once per story when a rep first responds; never when the rep and author share a connection or device).
+- Also declares `session_devices.ip_masked`, which sign-in already writes.
+
+Reps (current or revoked) can't reach any author with a published story about their company: person pages answer 404, and their name shows as "A candidate" in stories, chitchats and search (`backend/src/rep-guard.ts`). A rep can't post a candidate story about their own company.
+
+### You said, we did
+
+From the "You said, we did" section (`backend/src/changes.ts`). `company_changes` is a verified rep's public note about what changed (reviewed; no edits; moderators alone set `removed`). `company_change_stories` links each note to 1 to 5 stories about the same company (a trigger enforces both). The API allows 4 notes per rep per calendar month. Once live, cited authors are told and earn impact XP; cited stories show a "Changed" chip and their ladder shows "Cited in a change note".
+
+### Demand
+
+From the "Demand" section (`backend/src/demand.ts`): `response_requests (company_id, user_id)`, one "Ask {company} to respond" per member per company, removable. Counts are shown only from 3 (`backend/src/lib/aggregate.ts`), on company pages, `/for-hr` and Company Pulse.
+
+### Reply pledges
+
+From the "Reply pledges" section (`backend/src/pledges.ts`, rules in `backend/src/lib/pledge.ts`). `company_pledges`: a verified rep's public promise to reply within 7, 14 or 30 days; one live pledge per company (`company_pledges_one_live`). The badge (`made`, `holding`, `mixed`, `slipping`, `withdrawn`) and its counts are recomputed nightly from candidate stories posted after the pledge. Withdrawing (by a rep or a moderator) keeps the row. The section also extends `funnel_daily` with `rep_start`, `rep_verified`, `rep_viewed_story`, `rep_status`, `change_posted`, `ask_response` and `pledge_made`.
+
+Revoking a rep (admin app) sets `company_reps.revoked_at`: their access ends, their posts stay, and they remain shielded from the company's authors.
+
 ### Waiting Room reminders
 
 From the "Waiting Room reminders" section: `applications.reminder_level` (0, 1 = day-7 push sent, 2 = day-14 push sent) and `applications.reminder_since` (the `waiting_since` those reminders were for, so a restarted clock starts them over). The daily automation job sends them at 09:45 IST.

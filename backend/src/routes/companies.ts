@@ -18,6 +18,7 @@ import { reportAs } from "../goofy/index.js";
 import { goofyControls } from "../platform.js";
 import { waitingCount } from "../interest.js";
 import { award } from "../levels.js";
+import { INDUSTRIES } from "../lib/industries.js";
 
 const COLORS = ["bg-logo-violet", "bg-logo-coral", "bg-logo-blue", "bg-logo-green", "bg-logo-pink", "bg-logo-amber", "bg-logo-red"];
 const slugify = (name: string) => name.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60);
@@ -53,7 +54,7 @@ const about = z.string().transform(clean).pipe(z.string()
   .refine((s) => !/(.)\1{5,}/.test(s) && new Set(s.toLowerCase().split(/\s+/)).size >= 8, "That looks repetitive. Describe what the company actually does")
   .refine((s) => (s.match(/\p{Lu}/gu)?.length ?? 0) / Math.max(1, s.match(/\p{L}/gu)?.length ?? 1) < 0.5, "Please don't write in ALL CAPS"));
 
-const INDUSTRIES = ["software", "it_services", "fintech", "ecommerce", "edtech", "healthtech", "media", "consulting", "manufacturing", "bfsi", "telecom", "gaming", "logistics", "other"] as const;
+// The full list lives in lib/industries.ts (shared with the admin app's routes and the database check).
 const SIZES = ["1-10", "11-50", "51-200", "201-1000", "1001-5000", "5000+"] as const;
 const year = new Date().getFullYear();
 

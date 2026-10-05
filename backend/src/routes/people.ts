@@ -6,6 +6,7 @@ import { z } from "zod";
 import { ApiError, dbFail, notFound } from "../errors.js";
 import { AUTHOR_COLUMNS, storyAuthor, type AuthorRow, type StoryRow } from "../dto.js";
 import { award, levelFor, titleFor } from "../levels.js";
+import { shieldFor } from "../rep-guard.js";
 import { hydrate, publishedStories } from "../stories.js";
 import { me, optionalAuth, rateLimit, requireAuth, type AppEnv } from "../security.js";
 import { admin } from "../supabase.js";
@@ -18,12 +19,16 @@ type Person = AuthorRow & { id: string; created_at: string; kind?: "person" | "b
 
 const idParam = validate("param", z.object({ id: publicId }));
 
-async function personByPublicId(id: string): Promise<Person> {
+// `viewer`: a company rep (current or past) gets the same "not found" as for a profile that doesn't
+// exist when the person has a story about that company (rep-guard.ts).
+async function personByPublicId(id: string, viewer?: { id: string } | null): Promise<Person> {
   // Goofy's account is created on first use, so his page always exists.
   if (isGoofyPublicId(id)) await goofy().catch((e: Error) => console.error(e.message));
   const { data, error } = await admin().from("profiles").select(`id, ${AUTHOR_COLUMNS}, created_at, kind`).eq("public_id", id).maybeSingle();
   if (error) dbFail("person", error);
   if (!data) throw notFound("Profile");
+  const shield = await shieldFor(viewer?.id);
+  if (shield?.ids.has((data as { id: string }).id)) throw notFound("Profile");
   return data as unknown as Person;
 }
 
@@ -173,7 +178,7 @@ async function goofyActivity(before: string | undefined, limit: number) {
 
 export const peopleRoutes = new Hono<AppEnv>()
   .get("/:id", optionalAuth, rateLimit({ name: "profile", max: 180, windowSeconds: 60 }), idParam, async (c) => {
-    const person = await personByPublicId(c.req.valid("param").id);
+    const person = await personByPublicId(c.req.valid("param").id, c.get("profile"));
     const viewer = c.get("profile");
     if (person.kind === "bot") {
       const [g, rel, act] = await Promise.all([goofyStats(person), viewer && viewer.id !== person.id ? relationship(viewer.id, person.id) : Promise.resolve(null), goofyActivity(undefined, 15)]);
@@ -194,21 +199,21 @@ export const peopleRoutes = new Hono<AppEnv>()
 
   // More of their stories, newest first (`before` = the last story's createdAt).
   .get("/:id/stories", optionalAuth, rateLimit({ name: "profile-stories", max: 180, windowSeconds: 60 }), idParam, validate("query", z.object({ before: z.string().datetime().optional(), limit: z.coerce.number().int().min(1).max(30).default(10) })), async (c) => {
-    const person = await personByPublicId(c.req.valid("param").id);
+    const person = await personByPublicId(c.req.valid("param").id, c.get("profile"));
     const { before, limit } = c.req.valid("query");
     return c.json(await storiesPage(c, person, before, limit));
   })
 
   // Goofy's activity feed, newest first (`before` = the last item's createdAt).
   .get("/:id/activity", optionalAuth, rateLimit({ name: "profile-activity", max: 180, windowSeconds: 60 }), idParam, validate("query", z.object({ before: z.string().datetime().optional(), limit: z.coerce.number().int().min(1).max(40).default(15) })), async (c) => {
-    const person = await personByPublicId(c.req.valid("param").id);
+    const person = await personByPublicId(c.req.valid("param").id, c.get("profile"));
     if (person.kind !== "bot") throw notFound("Activity");
     const { before, limit } = c.req.valid("query");
     return c.json(await goofyActivity(before, limit));
   })
 
   .post("/:id/follow", requireAuth, rateLimit({ name: "follow", max: 60, windowSeconds: 3600, by: "user" }), idParam, validate("json", z.object({ notify: z.boolean().optional() }).strict()), async (c) => {
-    const person = await personByPublicId(c.req.valid("param").id);
+    const person = await personByPublicId(c.req.valid("param").id, c.get("profile"));
     noSelf(c, person);
     if (person.kind === "bot" && c.req.valid("json").notify) notBot(person, "given a bell");
     const { notify } = c.req.valid("json");
@@ -216,14 +221,16 @@ export const peopleRoutes = new Hono<AppEnv>()
     const { error } = await admin().from("follows").upsert({ follower_id: me(c).id, followee_id: person.id, notify: notify ?? existing?.notify ?? false }, { onConflict: "follower_id,followee_id" });
     if (error) dbFail("follow", error);
     // Tell them once, as the follower currently appears (their handle, or name if public).
-    if (!existing && person.kind !== "bot") later(notifyNewFollower(person.id, me(c)));
+    // Not when the person followed is a company rep this follower wrote about: the notification would
+    // carry the follower's name and link (rep-guard.ts).
+    if (!existing && person.kind !== "bot" && !(await shieldFor(person.id))?.ids.has(me(c).id)) later(notifyNewFollower(person.id, me(c)));
     if (!existing) award(me(c).id, "follow", `p:${person.id}`);
     changed(me(c).id, person);
     return c.json({ relationship: await relationship(me(c).id, person.id) });
   })
 
   .delete("/:id/follow", requireAuth, rateLimit({ name: "unfollow", max: 60, windowSeconds: 3600, by: "user" }), idParam, async (c) => {
-    const person = await personByPublicId(c.req.valid("param").id);
+    const person = await personByPublicId(c.req.valid("param").id, c.get("profile"));
     const { error } = await admin().from("follows").delete().eq("follower_id", me(c).id).eq("followee_id", person.id);
     if (error) dbFail("unfollow", error);
     changed(me(c).id, person);
@@ -232,7 +239,7 @@ export const peopleRoutes = new Hono<AppEnv>()
 
   // "Keep them silent": their stories leave your feed. Muting also turns off their bell.
   .post("/:id/mute", requireAuth, rateLimit({ name: "mute", max: 60, windowSeconds: 3600, by: "user" }), idParam, async (c) => {
-    const person = await personByPublicId(c.req.valid("param").id);
+    const person = await personByPublicId(c.req.valid("param").id, c.get("profile"));
     noSelf(c, person);
     notBot(person, "muted");
     const { error } = await admin().from("mutes").upsert({ muter_id: me(c).id, muted_id: person.id }, { onConflict: "muter_id,muted_id" });
@@ -244,7 +251,7 @@ export const peopleRoutes = new Hono<AppEnv>()
   })
 
   .delete("/:id/mute", requireAuth, rateLimit({ name: "unmute", max: 60, windowSeconds: 3600, by: "user" }), idParam, async (c) => {
-    const person = await personByPublicId(c.req.valid("param").id);
+    const person = await personByPublicId(c.req.valid("param").id, c.get("profile"));
     const { error } = await admin().from("mutes").delete().eq("muter_id", me(c).id).eq("muted_id", person.id);
     if (error) dbFail("unmute", error);
     later(bump({ user: me(c).id, topics: ["me"], shared: ["feed"] }));
@@ -256,7 +263,7 @@ export const peopleRoutes = new Hono<AppEnv>()
     reason: z.enum(["impersonation", "harassment", "spam", "identifies_person", "fake_stories", "other"]),
     details: optionalText(1000),
   }).strict()), async (c) => {
-    const person = await personByPublicId(c.req.valid("param").id);
+    const person = await personByPublicId(c.req.valid("param").id, c.get("profile"));
     noSelf(c, person);
     notBot(person, "reported");
     const { reason, details } = c.req.valid("json");

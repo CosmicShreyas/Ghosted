@@ -174,6 +174,8 @@ function NotificationList({ bell }: { bell: Bell }) {
       <span className={cn("mt-1.5 size-2 shrink-0 rounded-full transition-colors", n.read ? "bg-muted" : "bg-primary")} aria-label={n.read ? "Read" : "Unread"} />
       {/* Goofy, the AutoMod, speaks with his own face. */}
       {n.kind === "goofy" && <img src={GOOFY_AVATAR} alt="Goofy" title="Goofy, AutoMod" className="size-8 shrink-0 rounded-full border-2 border-foreground object-cover" />}
+      {/* A company moved your story up the impact ladder. */}
+      {n.kind === "rep_update" && <span title="Company update on your story" className="grid size-8 shrink-0 place-items-center rounded-full border-2 border-foreground bg-flag-green text-primary-foreground"><BadgeCheck className="size-4" /></span>}
       {/* Tapping opens what it's about (a story, a company or a person) and marks it read. */}
       <NotificationTarget n={n} onOpen={() => { if (!n.read) void bell.markRead(n.publicId); }}><p className={cn("text-sm", !n.read && "font-semibold")}>{n.body}</p><p className="mt-0.5 text-xs text-muted-foreground">{timeAgo(n)}</p></NotificationTarget>
       {!n.read && <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); void bell.markRead(n.publicId); }} aria-label="Mark as read" title="Mark as read"

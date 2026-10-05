@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { ApiRequestError, apiEnabled, mfaApi } from "@/lib/api";
 import { useTone, voice, type Me } from "@/lib/session";
 import { cn } from "@/lib/utils";
+import { SpamHint } from "@/components/spam-hint";
 import { card } from "./widgets";
 
 // Settings → Two-factor authentication.
@@ -59,6 +60,10 @@ export function TwoFactorSection({ me }: { me: Me }) {
   const method = me.mfa.method;
   const refresh = () => qc.invalidateQueries({ queryKey: ["me"] });
   useEffect(() => { setCode(""); }, [flow.step]);
+  // "Request a new code" waits 30 seconds between emails.
+  const [cooldown, setCooldown] = useState(0);
+  useEffect(() => { if (cooldown <= 0) return; const t = window.setTimeout(() => setCooldown((s) => s - 1), 1000); return () => window.clearTimeout(t); }, [cooldown]);
+  const startCooldown = () => setCooldown(30);
 
   const run = async (fn: () => Promise<void>) => { setBusy(true); try { await fn(); } catch (err) { toast.error(errorText(err)); } finally { setBusy(false); } };
   const needsApi = () => { if (!apiEnabled) { toast.info("Two-factor needs the Ghosted API to be connected."); return true; } return false; };
@@ -70,9 +75,9 @@ export function TwoFactorSection({ me }: { me: Me }) {
     setFlow({ step: "totp", secret, qr });
   }); };
   const confirmTotp = () => void run(async () => { const { recoveryCodes } = await mfaApi.confirmTotp(code); await refresh(); setFlow({ step: "codes", codes: recoveryCodes }); toast.success(voice(tone, "Authenticator on. Recruiters now need your phone too.", "Authenticator app turned on.")); });
-  const startEmail = () => { if (needsApi()) return; void run(async () => { await mfaApi.startEmail(); setFlow({ step: "email" }); toast.success("Code sent. Check your inbox."); }); };
+  const startEmail = () => { if (needsApi()) return; void run(async () => { await mfaApi.startEmail(); setFlow({ step: "email" }); startCooldown(); toast.success("Code sent. Check your inbox."); }); };
   const confirmEmail = () => void run(async () => { const { recoveryCodes } = await mfaApi.confirmEmail(code); await refresh(); setFlow({ step: "codes", codes: recoveryCodes }); toast.success("Email codes turned on."); });
-  const manage = (action: "disable" | "recovery") => { setFlow({ step: "manage", action }); if (method === "email") void run(async () => { await mfaApi.sendCode(); toast.success("We emailed you a code to confirm."); }); };
+  const manage = (action: "disable" | "recovery") => { setFlow({ step: "manage", action }); if (method === "email") void run(async () => { await mfaApi.sendCode(); startCooldown(); toast.success("We emailed you a code to confirm."); }); };
   const confirmManage = (action: "disable" | "recovery") => void run(async () => {
     if (action === "disable") { await mfaApi.disable(code); await refresh(); setFlow({ step: "idle" }); toast.success(voice(tone, "Two-step sign-in is off. Living dangerously.", "Two-step sign-in turned off.")); }
     else { const { recoveryCodes } = await mfaApi.newRecoveryCodes(code); await refresh(); setFlow({ step: "codes", codes: recoveryCodes }); }
@@ -118,6 +123,7 @@ export function TwoFactorSection({ me }: { me: Me }) {
       {flow.step === "email" && <div className="space-y-3">
         <p className="text-sm">We sent a 6-digit code to your email. Enter it to turn on email codes.</p>
         <div className="flex flex-wrap gap-3"><CodeField value={code} onChange={setCode} /><Button disabled={busy || code.length !== 6} onClick={confirmEmail}>{busy ? <Loader2 className="animate-spin" /> : <ShieldCheck />}Turn on</Button><Button variant="ghost" onClick={() => setFlow({ step: "idle" })}>Cancel</Button></div>
+        <SpamHint cooldown={cooldown} disabled={busy} onResend={() => void run(async () => { await mfaApi.startEmail(); startCooldown(); toast.success("New code sent."); })} />
       </div>}
 
       {flow.step === "idle" && method !== "none" && <div className="space-y-4">
@@ -134,6 +140,7 @@ export function TwoFactorSection({ me }: { me: Me }) {
 
       {flow.step === "manage" && <div className="space-y-3">
         <p className="text-sm">{flow.action === "disable" ? "To turn off two-step sign-in, confirm it's you." : "Your old recovery codes stop working as soon as new ones are made. Confirm it's you."} {method === "totp" ? "Enter the code from your authenticator app, or a recovery code." : "Enter the code we just emailed you, or a recovery code."}</p>
+        {method === "email" && <SpamHint cooldown={cooldown} disabled={busy} onResend={() => void run(async () => { await mfaApi.sendCode(); startCooldown(); toast.success("New code sent."); })} />}
         <div className="flex flex-wrap gap-3"><CodeField value={code} onChange={setCode} allowRecovery /><Button variant={flow.action === "disable" ? "destructive" : "default"} disabled={busy || code.trim().length < 6} onClick={() => confirmManage(flow.action)}>{busy && <Loader2 className="animate-spin" />}{flow.action === "disable" ? "Turn off" : "Make new codes"}</Button><Button variant="ghost" onClick={() => setFlow({ step: "idle" })}>Cancel</Button></div>
       </div>}
     </div>

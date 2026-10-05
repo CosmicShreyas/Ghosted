@@ -19,7 +19,9 @@ import { card, popup, popupBody, scoreTone } from "./ui-kit";
 
 const SALARY_SCALE = 50; // LPA at the right edge of the salary bars
 const STAGE_LABEL: Record<string, string> = { application: "Applied", screening: "Screen", technical: "Technical", final: "Final", offer: "Offer" };
-export const INDUSTRY_LABEL: Record<string, string> = { software: "Software / SaaS", it_services: "IT services", fintech: "Fintech", ecommerce: "E-commerce", edtech: "Edtech", healthtech: "Healthtech", media: "Media", consulting: "Consulting", manufacturing: "Manufacturing", bfsi: "Banking & insurance", telecom: "Telecom", gaming: "Gaming", logistics: "Logistics", other: "Other" };
+// The full, grouped list lives in lib/industries.ts.
+import { INDUSTRY_LABEL } from "@/lib/industries";
+export { INDUSTRY_LABEL };
 
 const pct = (n: number | null) => (n === null ? null : `${n > 0 ? "+" : ""}${n}%`);
 

@@ -64,19 +64,22 @@ function Requests() {
   </Panel>;
 }
 
-function Items({ kind }: { kind: "rep_reply" | "question" | "answer" }) {
+type Kind = "rep_reply" | "question" | "answer" | "change";
+function Items({ kind }: { kind: Kind }) {
   const qc = useQueryClient();
-  const [status, setStatus] = useState<"pending" | "published">(kind === "rep_reply" ? "published" : "pending");
+  const companyPost = kind === "rep_reply" || kind === "change";
+  const [status, setStatus] = useState<"pending" | "published">(companyPost ? "published" : "pending");
   const list = useAdminList<Item>(["admin", "voice", kind, status], `/voice/items?kind=${kind}&status=${status}`);
   const act = async (id: string, action: "approve" | "remove") => {
-    const reason = action === "remove" && kind === "rep_reply" ? window.prompt("Why is this reply coming down? (Kept on record.)") ?? "" : "";
+    const reason = action === "remove" && companyPost ? window.prompt(`Why is this ${kind === "change" ? "change note" : "reply"} coming down? (Kept on record.)`) ?? "" : "";
     if (action === "remove" && !window.confirm("Remove it? It disappears from the site.")) return;
     try { await adminApi(`/voice/items/${kind}/${id}`, { method: "POST", body: { action, ...(reason.trim() && { reason: reason.trim() }) } }); toast.success(action === "approve" ? "Approved. It's live." : "Removed."); void qc.invalidateQueries({ queryKey: ["admin", "voice", kind] }); }
     catch (e) { toast.error((e as Error).message); }
   };
-  const title = kind === "rep_reply" ? "Company replies" : kind === "question" ? "Questions" : "Answers";
-  return <Panel title={title} icon={kind === "rep_reply" ? BadgeCheck : MessageCircleQuestion} action={<Segmented label="Status" value={status} onChange={setStatus} options={[{ id: "pending", label: "Held" }, { id: "published", label: "Live" }]} />}>
+  const title = kind === "rep_reply" ? "Company replies" : kind === "change" ? "Change notes" : kind === "question" ? "Questions" : "Answers";
+  return <Panel title={title} icon={companyPost ? BadgeCheck : MessageCircleQuestion} action={<Segmented label="Status" value={status} onChange={setStatus} options={[{ id: "pending", label: "Held" }, { id: "published", label: "Live" }]} />}>
     {kind === "rep_reply" && <p className="mb-3 text-xs text-muted-foreground">Verified company representatives get one reply per story and one on the company page. They can't edit or delete them; you're the only ones who can remove one.</p>}
+    {kind === "change" && <p className="mb-3 text-xs text-muted-foreground">"You said, we did" notes: up to 4 a month per representative, each citing 1 to 5 stories. Approving one tells every cited author. Representatives can't edit or delete them; you're the only ones who can remove one.</p>}
     {list.loading ? <Skeleton rows={2} /> : !list.items.length ? <Empty icon={Check} title={status === "pending" ? "Nothing held" : "Nothing yet"} /> : <ul className="space-y-3">{list.items.map((it) => <li key={it.publicId} className={cn(card, "p-3")}>
       <p className="text-xs text-muted-foreground"><b className="text-foreground">{it.company?.name ?? "Unknown company"}</b> · #{it.publicId} · {age(it.createdAt)}</p>
       <p className="mt-1 whitespace-pre-wrap text-sm">{it.body}</p>
@@ -90,11 +93,81 @@ function Items({ kind }: { kind: "rep_reply" | "question" | "answer" }) {
   </Panel>;
 }
 
+// Notes reps attached to impact steps (heard, looking into it, fixed). The step itself is permanent;
+// moderators can only publish or hide its note.
+type Note = { storyPublicId: string; storyTitle: string | null; step: string; body: string; status: string; createdAt: string; company: { name: string; slug: string } | null };
+const STEP: Record<string, string> = { heard: "Heard", looking_into_it: "Looking into it", fixed: "Says it's fixed" };
+function Notes() {
+  const qc = useQueryClient();
+  const [status, setStatus] = useState<"pending" | "published">("pending");
+  const list = useAdminList<Note>(["admin", "voice", "notes", status], `/voice/notes?status=${status}`);
+  const act = async (n: Note, action: "approve" | "remove") => {
+    if (action === "remove" && !window.confirm("Hide this note? The step stays; only the note disappears.")) return;
+    try { await adminApi(`/voice/notes/${n.storyPublicId}/${n.step}`, { method: "POST", body: { action } }); toast.success(action === "approve" ? "Note published." : "Note hidden."); void qc.invalidateQueries({ queryKey: ["admin", "voice", "notes"] }); }
+    catch (e) { toast.error((e as Error).message); }
+  };
+  return <Panel title="Rep step notes" icon={BadgeCheck} action={<Segmented label="Status" value={status} onChange={setStatus} options={[{ id: "pending", label: "Held" }, { id: "published", label: "Live" }]} />}>
+    <p className="mb-3 text-xs text-muted-foreground">Short notes a verified representative added when marking a story heard, being looked into or fixed. Steps can't be undone by anyone.</p>
+    {list.loading ? <Skeleton rows={2} /> : !list.items.length ? <Empty icon={Check} title={status === "pending" ? "Nothing held" : "Nothing yet"} /> : <ul className="space-y-3">{list.items.map((n) => <li key={`${n.storyPublicId}-${n.step}`} className={cn(card, "p-3")}>
+      <p className="text-xs text-muted-foreground"><b className="text-foreground">{n.company?.name ?? "Unknown company"}</b> · {STEP[n.step] ?? n.step} · {age(n.createdAt)}</p>
+      {n.storyTitle && <p className="mt-0.5 truncate text-xs">On: {n.storyTitle}</p>}
+      <p className="mt-1 whitespace-pre-wrap text-sm">{n.body}</p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {n.status === "pending" && <Button size="sm" onClick={() => void act(n, "approve")}><Check />Publish</Button>}
+        <Button size="sm" variant="outline" className="text-flag-red" onClick={() => void act(n, "remove")}><Trash2 />Hide note</Button>
+        <Button size="sm" variant="ghost" asChild><a href={`${SITE_URL}/s/${n.storyPublicId}`} target="_blank" rel="noopener noreferrer"><ExternalLink />Story</a></Button>
+      </div>
+    </li>)}</ul>}
+    <LoadMore list={list} noun="notes" />
+  </Panel>;
+}
+
+type PledgeRow = { days: number; made_at: string; withdrawn_at: string | null; withdrawn_by: string | null; badge: string; stories_n: number; kept_n: number; company: { name: string; slug: string } | null };
+function Pledges() {
+  const qc = useQueryClient();
+  const list = useAdminList<PledgeRow>(["admin", "voice", "pledges"], "/voice/pledges");
+  const withdraw = async (slug: string) => {
+    const reason = window.prompt("Why is this pledge being withdrawn? (Kept on record. The page will show \"Pledge withdrawn\".)") ?? "";
+    if (!reason.trim() || !window.confirm("Withdraw this company's pledge?")) return;
+    try { await adminApi(`/voice/pledges/${slug}/withdraw`, { method: "POST", body: { reason: reason.trim() } }); toast.success("Pledge withdrawn."); void qc.invalidateQueries({ queryKey: ["admin", "voice", "pledges"] }); }
+    catch (e) { toast.error((e as Error).message); }
+  };
+  return <Panel title="Reply pledges" icon={Clock}>
+    <p className="mb-3 text-xs text-muted-foreground">Badges are computed nightly from candidate stories posted after each pledge. Withdrawn pledges stay listed and show as withdrawn on the company page.</p>
+    {list.loading ? <Skeleton rows={2} /> : !list.items.length ? <Empty icon={Check} title="No pledges yet" /> : <ul className="space-y-2">{list.items.map((p) => <li key={`${p.company?.slug}-${p.made_at}`} className={cn(card, "flex flex-wrap items-center gap-3 p-3")}>
+      <span className="min-w-0 flex-1"><b>{p.company?.name ?? "Unknown"}</b> · {p.days} days · <span className="font-semibold">{p.badge}</span><span className="block text-xs text-muted-foreground">{p.kept_n} of {p.stories_n} stories in time · made {age(p.made_at)}{p.withdrawn_at ? ` · withdrawn by ${p.withdrawn_by ?? "?"} ${age(p.withdrawn_at)}` : ""}</span></span>
+      {!p.withdrawn_at && p.company && <Button size="sm" variant="outline" className="text-flag-red" onClick={() => void withdraw(p.company!.slug)}>Withdraw</Button>}
+    </li>)}</ul>}
+    <LoadMore list={list} noun="pledges" />
+  </Panel>;
+}
+
+type Rep = { userPublicId: string; handle: string | null; domain: string; verifiedAt: string; revokedAt: string | null; company: { name: string; slug: string } | null };
+function Reps() {
+  const qc = useQueryClient();
+  const [status, setStatus] = useState<"active" | "revoked">("active");
+  const list = useAdminList<Rep>(["admin", "voice", "reps", status], `/voice/reps?status=${status}`);
+  const revoke = async (r: Rep) => {
+    const reason = window.prompt(`Why is ${r.handle ?? "this representative"} losing access for ${r.company?.name ?? "this company"}? (Kept on record.)`) ?? "";
+    if (reason.trim().length < 3) return;
+    if (!window.confirm("Revoke? They lose replies, steps, change notes, pledges and Company Pulse for this company straight away. Everything they already posted stays, and they stay unable to see who wrote about the company.")) return;
+    try { await adminApi(`/voice/reps/${r.userPublicId}/${r.company!.slug}/revoke`, { method: "POST", body: { reason: reason.trim() } }); toast.success("Representative revoked."); void qc.invalidateQueries({ queryKey: ["admin", "voice", "reps"] }); }
+    catch (e) { toast.error((e as Error).message); }
+  };
+  return <Panel title="Company representatives" icon={BadgeCheck} action={<Segmented label="Status" value={status} onChange={setStatus} options={[{ id: "active", label: "Active" }, { id: "revoked", label: "Revoked" }]} />}>
+    {list.loading ? <Skeleton rows={2} /> : !list.items.length ? <Empty icon={Check} title={status === "active" ? "No verified representatives" : "None revoked"} /> : <ul className="space-y-2">{list.items.map((r) => <li key={`${r.userPublicId}-${r.company?.slug}`} className={cn(card, "flex flex-wrap items-center gap-3 p-3")}>
+      <span className="min-w-0 flex-1"><b>{r.company?.name ?? "Unknown"}</b> · @{r.domain}<span className="block text-xs text-muted-foreground">{r.handle ?? "Member"} #{r.userPublicId} · verified {age(r.verifiedAt)}{r.revokedAt ? ` · revoked ${age(r.revokedAt)}` : ""}</span></span>
+      {!r.revokedAt && r.company && <Button size="sm" variant="outline" className="text-flag-red" onClick={() => void revoke(r)}>Revoke</Button>}
+    </li>)}</ul>}
+    <LoadMore list={list} noun="representatives" />
+  </Panel>;
+}
+
 export function VoicePage() {
-  const [tab, setTab] = useState<"requests" | "rep_reply" | "question" | "answer">("requests");
+  const [tab, setTab] = useState<"requests" | Kind | "notes" | "pledges" | "reps">("requests");
   return <>
     <PageHead eyebrow="Moderation" title="Requests & replies" copy="Removal and correction requests, company replies, and Ask candidates posts held for a check." />
-    <div className="mb-4"><Segmented label="Section" value={tab} onChange={setTab} options={[{ id: "requests", label: "Requests" }, { id: "rep_reply", label: "Company replies" }, { id: "question", label: "Questions" }, { id: "answer", label: "Answers" }]} /></div>
-    {tab === "requests" ? <Requests /> : <Items key={tab} kind={tab} />}
+    <div className="mb-4"><Segmented label="Section" value={tab} onChange={setTab} options={[{ id: "requests", label: "Requests" }, { id: "rep_reply", label: "Company replies" }, { id: "notes", label: "Step notes" }, { id: "change", label: "Change notes" }, { id: "pledges", label: "Pledges" }, { id: "reps", label: "Representatives" }, { id: "question", label: "Questions" }, { id: "answer", label: "Answers" }]} /></div>
+    {tab === "requests" ? <Requests /> : tab === "notes" ? <Notes /> : tab === "pledges" ? <Pledges /> : tab === "reps" ? <Reps /> : <Items key={tab} kind={tab} />}
   </>;
 }

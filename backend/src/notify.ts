@@ -26,7 +26,7 @@ const short = (s: string, n = 60) => (s.length > n ? `${s.slice(0, n - 1)}…` :
 
 // The bell in the dashboard. Always recorded (email preferences only decide the email), and the
 // account's open pages are told straight away through the live "notifications" topic.
-export async function addNotification(userId: string, kind: "relatable" | "reply" | "company" | "system" | "following" | "follower" | "goofy", body: string, storyPublicId?: number | string, profilePublicId?: number | string) {
+export async function addNotification(userId: string, kind: "relatable" | "reply" | "company" | "system" | "following" | "follower" | "goofy" | "rep_update", body: string, storyPublicId?: number | string, profilePublicId?: number | string) {
   const { error } = await admin().from("notifications").insert({ user_id: userId, kind, body: short(body, 300), story_public_id: storyPublicId ?? null, ...(profilePublicId && { profile_public_id: profilePublicId }) });
   if (error) { console.error("[notify] in-app (run supabase/init_database.sql on a fresh project)", error.message); return; }
   await bump({ user: userId, topics: ["notifications"] });

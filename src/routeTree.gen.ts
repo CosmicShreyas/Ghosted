@@ -16,10 +16,12 @@ import { Route as CommunityRouteImport } from './routes/community'
 import { Route as CompareRouteImport } from './routes/compare'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as FeedbackRouteImport } from './routes/feedback'
+import { Route as ForHrRouteImport } from './routes/for-hr'
 import { Route as InviteRouteImport } from './routes/invite'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as CSlugRouteImport } from './routes/c.$slug'
+import { Route as PulseSlugRouteImport } from './routes/pulse.$slug'
 import { Route as SIdRouteImport } from './routes/s.$id'
 import { Route as UIdRouteImport } from './routes/u.$id'
 
@@ -58,6 +60,11 @@ const FeedbackRoute = FeedbackRouteImport.update({
   path: '/feedback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ForHrRoute = ForHrRouteImport.update({
+  id: '/for-hr',
+  path: '/for-hr',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const InviteRoute = InviteRouteImport.update({
   id: '/invite',
   path: '/invite',
@@ -76,6 +83,11 @@ const TermsRoute = TermsRouteImport.update({
 const CSlugRoute = CSlugRouteImport.update({
   id: '/c/$slug',
   path: '/c/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PulseSlugRoute = PulseSlugRouteImport.update({
+  id: '/pulse/$slug',
+  path: '/pulse/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SIdRoute = SIdRouteImport.update({
@@ -97,10 +109,12 @@ export interface FileRoutesByFullPath {
   '/compare': typeof CompareRoute
   '/dashboard': typeof DashboardRoute
   '/feedback': typeof FeedbackRoute
+  '/for-hr': typeof ForHrRoute
   '/invite': typeof InviteRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
   '/c/$slug': typeof CSlugRoute
+  '/pulse/$slug': typeof PulseSlugRoute
   '/s/$id': typeof SIdRoute
   '/u/$id': typeof UIdRoute
 }
@@ -112,10 +126,12 @@ export interface FileRoutesByTo {
   '/compare': typeof CompareRoute
   '/dashboard': typeof DashboardRoute
   '/feedback': typeof FeedbackRoute
+  '/for-hr': typeof ForHrRoute
   '/invite': typeof InviteRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
   '/c/$slug': typeof CSlugRoute
+  '/pulse/$slug': typeof PulseSlugRoute
   '/s/$id': typeof SIdRoute
   '/u/$id': typeof UIdRoute
 }
@@ -128,10 +144,12 @@ export interface FileRoutesById {
   '/compare': typeof CompareRoute
   '/dashboard': typeof DashboardRoute
   '/feedback': typeof FeedbackRoute
+  '/for-hr': typeof ForHrRoute
   '/invite': typeof InviteRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
   '/c/$slug': typeof CSlugRoute
+  '/pulse/$slug': typeof PulseSlugRoute
   '/s/$id': typeof SIdRoute
   '/u/$id': typeof UIdRoute
 }
@@ -145,10 +163,12 @@ export interface FileRouteTypes {
     | '/compare'
     | '/dashboard'
     | '/feedback'
+    | '/for-hr'
     | '/invite'
     | '/privacy'
     | '/terms'
     | '/c/$slug'
+    | '/pulse/$slug'
     | '/s/$id'
     | '/u/$id'
   fileRoutesByTo: FileRoutesByTo
@@ -160,10 +180,12 @@ export interface FileRouteTypes {
     | '/compare'
     | '/dashboard'
     | '/feedback'
+    | '/for-hr'
     | '/invite'
     | '/privacy'
     | '/terms'
     | '/c/$slug'
+    | '/pulse/$slug'
     | '/s/$id'
     | '/u/$id'
   id:
@@ -175,10 +197,12 @@ export interface FileRouteTypes {
     | '/compare'
     | '/dashboard'
     | '/feedback'
+    | '/for-hr'
     | '/invite'
     | '/privacy'
     | '/terms'
     | '/c/$slug'
+    | '/pulse/$slug'
     | '/s/$id'
     | '/u/$id'
   fileRoutesById: FileRoutesById
@@ -191,10 +215,12 @@ export interface RootRouteChildren {
   CompareRoute: typeof CompareRoute
   DashboardRoute: typeof DashboardRoute
   FeedbackRoute: typeof FeedbackRoute
+  ForHrRoute: typeof ForHrRoute
   InviteRoute: typeof InviteRoute
   PrivacyRoute: typeof PrivacyRoute
   TermsRoute: typeof TermsRoute
   CSlugRoute: typeof CSlugRoute
+  PulseSlugRoute: typeof PulseSlugRoute
   SIdRoute: typeof SIdRoute
   UIdRoute: typeof UIdRoute
 }
@@ -250,6 +276,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FeedbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/for-hr': {
+      id: '/for-hr'
+      path: '/for-hr'
+      fullPath: '/for-hr'
+      preLoaderRoute: typeof ForHrRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/invite': {
       id: '/invite'
       path: '/invite'
@@ -278,6 +311,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/pulse/$slug': {
+      id: '/pulse/$slug'
+      path: '/pulse/$slug'
+      fullPath: '/pulse/$slug'
+      preLoaderRoute: typeof PulseSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/s/$id': {
       id: '/s/$id'
       path: '/s/$id'
@@ -303,10 +343,12 @@ const rootRouteChildren: RootRouteChildren = {
   CompareRoute: CompareRoute,
   DashboardRoute: DashboardRoute,
   FeedbackRoute: FeedbackRoute,
+  ForHrRoute: ForHrRoute,
   InviteRoute: InviteRoute,
   PrivacyRoute: PrivacyRoute,
   TermsRoute: TermsRoute,
   CSlugRoute: CSlugRoute,
+  PulseSlugRoute: PulseSlugRoute,
   SIdRoute: SIdRoute,
   UIdRoute: UIdRoute,
 }

@@ -76,7 +76,7 @@ export const aboutDoc: Doc = {
       "Useful over loud. The best posts are specific: what happened, when, and what the next candidate should know.",
     ]] },
     { id: "companies", heading: "For employers", blocks: [
-      "Companies can reply publicly, free: a verified representative posts one clearly labelled reply per story and one on the company page. They can't edit, hide, rank or remove stories, and no one can pay for that.",
+      "Companies can take part publicly, free: a verified representative can post one clearly labelled reply per story and one on the company page, mark a story as heard, being looked into or fixed, post up to four \"You said, we did\" notes a month linked to the stories behind them, pledge how fast candidates hear back, and see aggregate-only insights. They can't edit, hide, rank or remove stories, can't see who wrote about them, and no one can pay for any of it. More at /for-hr.",
       "To ask for a removal or a correction, use \"Request a correction\" on the story or company page. We acknowledge within 24 hours and decide within 15 days. We do not remove honest reviews simply because they are negative.",
     ] },
     { id: "contact", heading: "Contact", blocks: [
@@ -107,6 +107,7 @@ export const privacyDoc: Doc = {
       "Data collected automatically:",
       ["Technical data: IP address, device and browser type, and log records of access, used for security and abuse prevention.", "Sign-in records: for each device you are signed in on, its type (phone, tablet or computer), browser, operating system, an approximate city-level location derived from your network's public IP address (looked up through our hosting provider or the geolocation service ipwho.is), a masked form of that IP address with its last half hidden (for example 49.36.x.x; the full address is never stored), a random device identifier kept in a cookie so one browser shows up once instead of once per sign-in (only a keyed hash of it is stored), and when it signed in and was last active. We show these to you in Settings → Security and in the security email sent for each new sign-in, and delete a record as soon as that device is signed out.", "Usage data: pages viewed and features used, in aggregated form, to improve the service.", "Feedback you send us: what you write, the part of the app it's about, an optional rating, and for bug reports, if you leave the box ticked, your browser, screen size, theme and the page you were on (never your IP address). Only the Ghosted team reads it."],
       "We do not ask for, and ask you not to post, sensitive information such as financial account details, health information, government ID numbers or caste, religion or other personal characteristics.",
+      "If you verify as a company representative, we send a code to your work email and keep only its domain (never the address), the company, and when you were verified or revoked. We record which stories about that company you opened, to show authors a count (never who), and keep what you post as a representative. To protect candidates, representatives cannot see who wrote about their company.",
     ] },
     { id: "purpose", heading: "2. Why we use it", blocks: [
       "We process personal data only for the purposes described below, on the basis of your consent or for legitimate uses permitted under Section 7 of the DPDP Act:",
@@ -202,6 +203,7 @@ export const termsDoc: Doc = {
       "Companies may report content they believe is false, defamatory or unlawful through Feedback & Support in the app, including a link to the content and their reasons. We will review it against these Terms and applicable law, including the Bharatiya Nyaya Sanhita, 2023. We do not remove honest opinions simply because they are critical.",
       { type: "email", email: e.email.grievance, label: "Report content by email", description: "Include the content link and the reason for your complaint" },
       "We will not disclose a user's identity to an employer except under a valid order of a competent court or authority.",
+      "Verified company representatives can respond to content about their company (official replies, progress steps, change notes and reply pledges) as set out in our Community Rules. Representatives cannot edit, hide, rank or remove content, cannot access the profile of any person who has written about their company, and cannot post candidate reviews about their own employer. Company insights we show them are aggregates only, with minimum group sizes so that no individual can be identified. Reply pledge badges are calculated from user content and are not verified by the company or by us. We may revoke a representative's access at any time; content they posted remains subject to these Terms.",
     ] },
     { id: "open-source", heading: "8. Open source and trademarks", blocks: [
       `Ghosted is open source. Anyone can read, audit and suggest improvements to the code that runs this platform, including exactly how we protect your identity, at ${e.github}. Use of the source code is governed by the licence published in that repository.`,
@@ -270,15 +272,25 @@ export const communityDoc: Doc = {
     { id: "integrity", heading: "7. No fake reviews or manipulation", blocks: [
       "Employers, recruiters and agencies must not post reviews about themselves or competitors, or offer anything in return for reviews. Coordinated campaigns to raise or lower a Flag Score are removed and can lead to a company being marked on its page.",
     ] },
-    { id: "company-replies", heading: "8. Company replies (Right of Reply)", blocks: [
-      "A company's representative can reply to stories about it, free. To do that they verify a work email on the company's own website domain. We keep only the domain, never the address.",
+    { id: "company-replies", heading: "8. Companies on Ghosted (Right of Reply)", blocks: [
+      "A company's representative can respond to stories about it, free. To do that they verify a work email on the company's own website domain. We keep only the domain, never the address. Everything a representative posts is labelled \"Verified company representative\" and is checked like every other post.",
       [
-        "One reply per story, plus one on the company page, always clearly labelled as an official company reply.",
-        "Replies follow these same rules and are checked like every other post. They must not identify, threaten or pressure the author or anyone else.",
-        "A reply can't be edited or deleted by the company once it's up. Only our moderators can remove one.",
-        "Representatives can't hide, rank, edit or remove stories, and can't report their own company's stories to get them taken down. They can send a removal or correction request like anyone else, and a moderator decides.",
-        "None of this is for sale. There is no paid tier, no employer dashboard and no way to pay for a different outcome.",
+        "Official replies: one per story, plus one on the company page.",
+        "Progress steps: a representative can mark a story heard, being looked into, or fixed. Steps only move forward, each is set once, and none can be edited or undone. \"Fixed\" is shown as the company's own claim. The author is told at each step, and sees how many people at the company read their story, never who.",
+        "\"You said, we did\": up to four public notes a month about what the company changed, each linked to one to five stories about it. Cited authors are told.",
+        "Reply pledges: a company can pledge that candidates hear back within 7, 14 or 30 days. The badge (made, holding, mixed, slipping or withdrawn) is calculated only from candidate stories posted after the pledge, labelled \"Based on N candidate stories, not verified by the company\". A withdrawn pledge says so; it never quietly disappears.",
+        "Company Pulse: private insights for representatives, aggregates only. A number appears only when it's based on at least 5 stories, and any group of fewer than 3 is hidden.",
+        "Candidates can ask a company to respond. The count is shown only once at least 3 people have asked.",
       ],
+      "What representatives can never do:",
+      [
+        "Edit or delete their own replies, steps, notes or change notes. Only our moderators can remove them.",
+        "Hide, rank, edit or remove stories, or report their own company's stories to get them taken down. They can send a removal or correction request like anyone else, and a moderator decides.",
+        "Find out who wrote a story. Anyone who has ever been a representative of a company, even after their access is revoked, can't open the profile of, follow, or search for anyone who has written about that company; those authors appear to them only as \"A candidate\".",
+        "Post a candidate story about their own company.",
+        "Identify, threaten or pressure an author or anyone else. That gets their access revoked.",
+      ],
+      "None of this is for sale. There is no paid tier and no way to pay for a different outcome, a badge or a better score. We can revoke a representative at any time; what they posted stays on record.",
     ] },
     { id: "requests", heading: "9. Asking for a removal or correction", blocks: [
       "Anyone, including companies and the people a story is about, can ask us to remove content or correct a factual error, using \"Request a correction\" on any story or company page. We acknowledge every request within 24 hours and give a decision within 15 days.",

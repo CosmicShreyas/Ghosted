@@ -80,7 +80,7 @@ function Item({ c, isReply, storyAuthorId, onReply, hooks, onReport }: { c: Chit
     <div className="min-w-0 flex-1">
       <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
         <PersonLink author={a} className="truncate text-sm font-bold hover:underline">{a.name}</PersonLink>
-        {a.publicId === storyAuthorId && <span className="rounded-full border border-primary bg-primary/10 px-1.5 py-px text-[10px] font-bold uppercase text-primary">Author</span>}
+        {!!storyAuthorId && a.publicId === storyAuthorId && <span className="rounded-full border border-primary bg-primary/10 px-1.5 py-px text-[10px] font-bold uppercase text-primary">Author</span>}
         <span className="text-xs text-muted-foreground">{timeAgo(c.createdAt)}{c.editedAt ? " · edited" : ""}</span>
       </div>
       <Markdown text={c.body ?? ""} className="mt-1 text-[15px]" />

@@ -18,7 +18,7 @@ import { emailOf } from "./mfa.js";
 import { addNotification } from "./notify.js";
 import { admin } from "./supabase.js";
 
-export type XpKind = "read" | "react" | "chitchat" | "story" | "follow" | "invite_join" | "invite" | "welcome";
+export type XpKind = "read" | "react" | "chitchat" | "story" | "follow" | "invite_join" | "invite" | "welcome" | "impact";
 // Base XP and how many times a day each pays. Shown on the invite page and Insights (/v1/me/level).
 export const XP_RULES: Record<XpKind, { xp: number; cap: number; label: string }> = {
   read: { xp: 2, cap: 15, label: "Read a story" },
@@ -30,7 +30,11 @@ export const XP_RULES: Record<XpKind, { xp: number; cap: number; label: string }
   invite: { xp: 120, cap: 5, label: "Someone you invited shares a story" },
   // For the person invited: a head start the moment they join through an invite link (once).
   welcome: { xp: 25, cap: 0, label: "Joined through an invite" },
+  // Your story led somewhere (impact.ts): a company rep first responded to it. A citation in a
+  // "You said, we did" entry pays more (IMPACT_CITED_XP), once per story.
+  impact: { xp: 40, cap: 5, label: "A company responded to your story" },
 };
+export const IMPACT_CITED_XP = 100;
 // Streak milestones (paid inside award_xp in SQL, once each, ever) and freezes.
 export const STREAK_MILESTONES: [number, number][] = [[7, 50], [30, 200], [100, 500], [365, 1000]];
 export const FREEZE_EVERY = 7, FREEZE_MAX = 2;
@@ -69,10 +73,12 @@ export const titleFor = (level: number) => [...TITLES].reverse().find(([l]) => l
 type Award = { awarded: number; bonus?: number; xp?: number; level?: number; from_level?: number; streak?: number; reason?: string; freeze_used?: boolean; freezes?: number; milestone?: number | null; milestone_xp?: number };
 
 // Best effort and never blocks the action that earned it.
-export function award(userId: string, kind: XpKind, ref: string) {
+// `base` overrides the kind's usual XP (a citation pays more than a first response); the cap and
+// level scaling still apply.
+export function award(userId: string, kind: XpKind, ref: string, base?: number) {
   later((async () => {
     const r = XP_RULES[kind];
-    const { data, error } = await admin().rpc("award_xp", { p_user: userId, p_kind: kind, p_ref: ref.slice(0, 80), p_base: r.xp, p_cap: r.cap });
+    const { data, error } = await admin().rpc("award_xp", { p_user: userId, p_kind: kind, p_ref: ref.slice(0, 80), p_base: base ?? r.xp, p_cap: r.cap });
     if (error) { if (!/award_xp/.test(error.message)) console.error("[levels] award", error.message); return; }
     const a = data as Award;
     if (!a?.awarded) return;
@@ -184,7 +190,7 @@ export async function levelFor(userId: string) {
     freezeCovering: alive && p.streak_day !== today && p.streak_day !== yesterday,
     nextMilestone: nextMilestone && { days: nextMilestone[0], xp: Math.max(1, Math.round(nextMilestone[1] * mult)) },
     earnedToday: todayRows.reduce((n, r) => n + r.xp, 0),
-    ways: (Object.entries(XP_RULES) as [XpKind, (typeof XP_RULES)[XpKind]][]).filter(([kind]) => kind !== "welcome").map(([kind, r]) => ({
+    ways: (Object.entries(XP_RULES) as [XpKind, (typeof XP_RULES)[XpKind]][]).filter(([kind]) => kind !== "welcome" && kind !== "impact").map(([kind, r]) => ({
       kind, label: r.label, xp: Math.max(1, Math.round(r.xp * mult)), base: r.xp, cap: r.cap, today: todayRows.filter((x) => x.kind === kind).length,
     })),
     streakBonus: Math.max(1, Math.round((5 + Math.min((alive ? p.streak : 0) + 1, 30)) * mult)),

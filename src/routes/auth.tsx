@@ -10,6 +10,7 @@ import { PasswordStrength } from "@/components/password-strength";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { CodeInput } from "@/components/code-input";
+import { SpamHint } from "@/components/spam-hint";
 import { toast } from "sonner";
 import { ApiRequestError, apiEnabled, authApi, type MfaMethod } from "@/lib/api";
 import { handleFromSeed, randomHandle } from "@/lib/handles";
@@ -91,8 +92,9 @@ function SentTo({ email, onChange }: { email: string; onChange: () => void }) {
   </div>;
 }
 
+// The highlighted "check your spam" reminder with the resend button (spam-hint.tsx).
 function Resend({ cooldown, disabled, onResend }: { cooldown: number; disabled: boolean; onResend: () => void }) {
-  return <p className="text-xs text-muted-foreground">No email? Check spam, or <button type="button" disabled={cooldown > 0 || disabled} onClick={onResend} className="font-bold text-primary hover:underline disabled:cursor-not-allowed disabled:text-muted-foreground disabled:no-underline">{cooldown > 0 ? `resend in ${cooldown}s` : "send a new code"}</button>.</p>;
+  return <SpamHint cooldown={cooldown} disabled={disabled} onResend={onResend} />;
 }
 
 // Fade in only: no sliding and no exit phase, so nothing collapses or jumps while content swaps.
@@ -303,8 +305,8 @@ function AuthPage() {
               {useRecovery
                 ? <Field label="Recovery code"><Input autoFocus autoComplete="one-time-code" value={mfaCode} onChange={(e) => setMfaCode(e.target.value)} placeholder="xxxx-xxxx" maxLength={9} className={cn(inputClass, "font-mono tracking-wider")} /></Field>
                 : <CodeInput value={mfaCode} onChange={setMfaCode} onComplete={(v) => void finishMfa(v)} />}
-              <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                {mfa.method === "email" && !useRecovery ? <Resend cooldown={cooldown} disabled={loading} onResend={() => void resendMfa()} /> : <span />}
+              {mfa.method === "email" && !useRecovery && <Resend cooldown={cooldown} disabled={loading} onResend={() => void resendMfa()} />}
+              <div className="flex flex-wrap items-center justify-end gap-2 text-xs">
                 <button type="button" onClick={() => { setUseRecovery(!useRecovery); setMfaCode(""); }} className="font-bold text-primary hover:underline">{useRecovery ? "Use a 6-digit code instead" : "Lost access? Use a recovery code"}</button>
               </div>
             </motion.div>}
