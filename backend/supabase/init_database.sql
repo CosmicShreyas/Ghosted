@@ -1495,4 +1495,29 @@ alter table public.story_green_flags enable row level security;
 revoke all on public.story_green_flags from anon, authenticated;
 grant select, insert, update, delete on public.story_green_flags to service_role;
 
+-- ============================================================================
+-- Phone notifications (Web Push).
+--   push_subscriptions   one row per device a member turned notifications on for (an Android phone,
+--                        an iPhone/iPad with Ghosted on the Home Screen, a desktop browser). The
+--                        endpoint is the push service's address for that device; p256dh and auth are
+--                        the device's public encryption keys. Rows are removed when the member turns
+--                        notifications off, signs the device out, or the push service says the
+--                        device is gone (404 / 410).
+-- Safe to run again.
+-- ============================================================================
+create table if not exists public.push_subscriptions (
+  id           uuid primary key default gen_random_uuid(),
+  user_id      uuid not null references public.profiles (id) on delete cascade,
+  endpoint     text not null unique check (char_length(endpoint) between 20 and 1000 and endpoint like 'https://%'),
+  p256dh       text not null check (char_length(p256dh) between 40 and 200),
+  auth         text not null check (char_length(auth) between 10 and 100),
+  device       text check (char_length(device) <= 120),
+  created_at   timestamptz not null default now(),
+  last_used_at timestamptz
+);
+create index if not exists push_subscriptions_user_idx on public.push_subscriptions (user_id);
+alter table public.push_subscriptions enable row level security;
+revoke all on public.push_subscriptions from anon, authenticated;
+grant select, insert, update, delete on public.push_subscriptions to service_role;
+
 commit;

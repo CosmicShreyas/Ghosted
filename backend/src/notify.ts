@@ -7,7 +7,8 @@ import { sendMail } from "./mail/mailer.js";
 import { emailOf } from "./mfa.js";
 import type { Profile } from "./security.js";
 import { admin } from "./supabase.js";
-import { bump } from "./live.js";
+import { bump, later } from "./live.js";
+import { pushUrl, sendPush } from "./push.js";
 import { storyAuthor } from "./dto.js";
 
 // True the first time `key` is seen in the window, false after, so bursts become one email.
@@ -29,6 +30,8 @@ export async function addNotification(userId: string, kind: "relatable" | "reply
   const { error } = await admin().from("notifications").insert({ user_id: userId, kind, body: short(body, 300), story_public_id: storyPublicId ?? null, ...(profilePublicId && { profile_public_id: profilePublicId }) });
   if (error) { console.error("[notify] in-app (run supabase/init_database.sql on a fresh project)", error.message); return; }
   await bump({ user: userId, topics: ["notifications"] });
+  // And to their phone, if they turned notifications on (push.ts).
+  later(sendPush(userId, { kind, body: short(body, 180), url: pushUrl({ storyPublicId: storyPublicId ?? null, profilePublicId: profilePublicId ?? null }) }));
 }
 
 // A new story: everyone following the author with the bell on hears about it (as the author
@@ -46,9 +49,11 @@ export async function notifyCompanyFollowers(company: { id: string; slug: string
   try {
     const { data } = await admin().from("company_follows").select("user_id").eq("company_id", company.id).eq("notify", true).neq("user_id", authorId).limit(5000);
     for (const f of data ?? []) {
-      const { error } = await admin().from("notifications").insert({ user_id: f.user_id, kind: "company", body: short(`New story about ${company.name}: “${short(title)}”`, 300), story_public_id: storyPublicId, company_slug: company.slug });
+      const line = short(`New story about ${company.name}: “${short(title)}”`, 300);
+      const { error } = await admin().from("notifications").insert({ user_id: f.user_id, kind: "company", body: line, story_public_id: storyPublicId, company_slug: company.slug });
       if (error) { console.error("[notify] company (run supabase/init_database.sql on a fresh project)", error.message); return; }
       await bump({ user: f.user_id as string, topics: ["notifications"] });
+      later(sendPush(f.user_id as string, { kind: "company", body: short(line, 180), url: pushUrl({ storyPublicId }) }));
     }
   } catch (err) { console.error("[notify] company followers", (err as Error).message); }
 }

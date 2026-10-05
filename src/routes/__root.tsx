@@ -17,6 +17,7 @@ import { AnnouncementBar } from "@/components/announcement";
 import { SmoothScroll } from "@/components/smooth-scroll";
 import { MotionConfig } from "motion/react";
 import { usePrefs } from "@/lib/prefs";
+import { resyncPush } from "@/lib/push";
 import { THEME_BOOT, useApplyTheme, useSyncEmailTheme } from "@/lib/theme";
 
 import appCss from "../styles.css?url";
@@ -149,6 +150,7 @@ function MotionPrefs({ children }: { children: ReactNode }) {
   useEffect(() => {
     const d = document.documentElement;
     d.setAttribute("data-hydrated", "");
+    void resyncPush(); // keeps this device's notification address current on the server
     if (!d.hasAttribute("data-slow")) return;
     const t = window.setTimeout(() => d.removeAttribute("data-slow"), 1500);
     return () => window.clearTimeout(t);

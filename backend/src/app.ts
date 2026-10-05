@@ -28,6 +28,7 @@ import { adminRoutes } from "./routes/admin.js";
 import { peopleRoutes } from "./routes/people.js";
 import { gameRoutes } from "./routes/game.js";
 import { voiceRoutes } from "./routes/company-voice.js";
+import { pushRoutes } from "./routes/push.js";
 import { ipKey, limitBy, optionalAuth, rateLimit, type AppEnv } from "./security.js";
 import { createChallenge } from "./captcha.js";
 import { later, versions } from "./live.js";
@@ -231,6 +232,7 @@ app.route("/v1/admin", adminRoutes);
 app.route("/v1/profiles", peopleRoutes);
 app.route("/v1/game", gameRoutes);
 app.route("/v1/voice", voiceRoutes);
+app.route("/v1/push", pushRoutes);
 
 app.notFound((c) => c.json({ error: { code: "not_found", message: "No such endpoint." } }, 404));
 

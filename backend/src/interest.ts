@@ -7,6 +7,7 @@ import { bump } from "./live.js";
 import { sendMail } from "./mail/mailer.js";
 import { button, escape, layout } from "./mail/otp-email.js";
 import { admin } from "./supabase.js";
+import { pushUrl, sendPush } from "./push.js";
 
 type Waiting = { user_id: string; profile: { handle: string; tone: "sassy" | "calm"; email_theme: "light" | "dark" | null } | null };
 
@@ -48,6 +49,7 @@ export async function notifyWaiting(companyId: string) {
     for (const r of rows) {
       await admin().from("notifications").insert({ user_id: r.user_id, kind: "company", body: `The first story about ${name} is here. You asked to know.`, story_public_id: storyId, company_slug: slug });
       await bump({ user: r.user_id, topics: ["notifications"] });
+      await sendPush(r.user_id, { kind: "company", body: `The first story about ${name} is here. You asked to know.`, url: pushUrl({ storyPublicId: storyId }) });
       const { data: u } = await admin().auth.admin.getUserById(r.user_id);
       if (u.user?.email) {
         try { await sendMail(u.user.email, storyLandedEmail({ appUrl: env().FRONTEND_URL, handle: r.profile?.handle ?? "there", company: name, slug, storyId, tone: r.profile?.tone ?? "sassy" }), { theme: r.profile?.email_theme ?? "light" }); }

@@ -5,6 +5,7 @@ import { api, ApiRequestError, apiEnabled, authApi, UNAUTHORIZED_EVENT } from "@
 import { useLive } from "@/lib/live";
 import { getUser } from "@/mock/data";
 import { setPrefs, usePrefs } from "@/lib/prefs";
+import { unsubscribeThisDevice } from "@/lib/push";
 
 // The voice for the whole site: the account's tone when logged in, this device's otherwise.
 export function useTone(): Tone {
@@ -178,6 +179,7 @@ export function useAccountActions() {
     async logout() {
       signingOut.start();
       void qc.cancelQueries();
+      await unsubscribeThisDevice(); // a shared phone stops getting your notifications
       await authApi.logout();
       if (typeof window !== "undefined") window.location.replace("/auth");
       else qc.setQueryData(["me"], null);

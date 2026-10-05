@@ -20,9 +20,11 @@
     "nodemailer": "^10.0.12",
     "obscenity": "^0.4.6",
     "satori": "^0.32.0",
+    "web-push": "^3.6.7",
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@types/web-push": "^3.6.4",
     "tsx": "^4.20.0",
     "typescript": "^7.0.2"
   }

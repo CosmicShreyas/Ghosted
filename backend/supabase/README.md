@@ -171,6 +171,15 @@ In-app notification inbox.
 - `story_public_id`, `profile_public_id`, `company_slug`: optional public link targets.
 - `created_at`, `read_at`: delivery and read times.
 
+### `push_subscriptions`
+
+Phone and browser notifications (Web Push), from the "Phone notifications" section. One row per device that turned them on in Settings.
+
+- `user_id`: owner (deleted with the profile). A device signing in as someone else moves to them.
+- `endpoint` (unique), `p256dh`, `auth`: the push address and keys the browser issued.
+- `device`: rough label such as "Android app"; `created_at`, `last_used_at`.
+- Rows are removed on sign-out, when turned off, and automatically when the push service reports the address gone (404/410). Service role only.
+
 ## Sessions, mail safety and live updates
 
 - `session_devices`: one row per member session/device. Stores Supabase `session_id`, public device ID, kind, browser, OS, coarse location, keyed `device_hash`, masked IP, keyed `ip_hash`, and activity timestamps. Raw IP addresses are not stored.

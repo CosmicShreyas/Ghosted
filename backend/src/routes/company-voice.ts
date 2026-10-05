@@ -37,6 +37,7 @@ import { ensureOpen } from "../platform.js";
 import { consumeCode, sendCode } from "../otp.js";
 import { verifyChallenge } from "../captcha.js";
 import { registrableDomain } from "../lib/site-check.js";
+import { pushUrl, sendPush } from "../push.js";
 
 const OPEN_QUESTIONS_PER_DAY = 3;
 const DAY = 86400_000;
@@ -82,6 +83,7 @@ async function notifyQuestion(company: Company, askerId: string, body: string) {
       const { error } = await admin().from("notifications").insert({ user_id: id, kind: "company", body: line.slice(0, 300), company_slug: company.slug });
       if (error) return;
       await bump({ user: id, topics: ["notifications"] });
+      void sendPush(id, { kind: "company", body: line.slice(0, 180), url: pushUrl({ companySlug: company.slug }) });
     }
   } catch (e) { console.error("[qa] notify", (e as Error).message); }
 }
@@ -172,6 +174,7 @@ export const voiceRoutes = new Hono<AppEnv>()
     if (askerId !== me(c).id) later((async () => {
       await admin().from("notifications").insert({ user_id: askerId, kind: "reply", body: `Your question about ${co.name} got an answer. Pin the most helpful one.`, company_slug: co.slug });
       await bump({ user: askerId, topics: ["notifications"] });
+      await sendPush(askerId, { kind: "reply", body: `Your question about ${co.name} got an answer. Pin the most helpful one.`, url: pushUrl({ companySlug: co.slug }) });
     })());
     later(bump({ shared: [`company:${co.slug}`] }));
     return c.json({ ok: true }, 201);

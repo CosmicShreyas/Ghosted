@@ -42,6 +42,11 @@ const schema = z.object({
   RAZORPAY_KEY_ID: z.string().regex(/^rzp_(test|live)_[A-Za-z0-9]+$/, "RAZORPAY_KEY_ID looks like rzp_test_… or rzp_live_…").optional().or(z.literal("").transform(() => undefined)),
   RAZORPAY_KEY_SECRET: z.string().min(8).optional().or(z.literal("").transform(() => undefined)),
   RAZORPAY_WEBHOOK_SECRET: z.string().min(8).optional().or(z.literal("").transform(() => undefined)),
+  // Phone notifications (Web Push, push.ts). All three or none: without them push stays off and the
+  // site says notifications aren't available yet. The private key never leaves the server.
+  VAPID_PUBLIC_KEY: z.string().regex(/^[A-Za-z0-9_-]{80,100}$/, "VAPID_PUBLIC_KEY looks like a long base64url string (npx web-push generate-vapid-keys)").optional().or(z.literal("").transform(() => undefined)),
+  VAPID_PRIVATE_KEY: z.string().regex(/^[A-Za-z0-9_-]{40,50}$/, "VAPID_PRIVATE_KEY looks like a base64url string (npx web-push generate-vapid-keys)").optional().or(z.literal("").transform(() => undefined)),
+  VAPID_SUBJECT: z.string().regex(/^(mailto:|https:\/\/)/, "VAPID_SUBJECT is mailto:you@example.com or an https:// URL").optional().or(z.literal("").transform(() => undefined)),
   MODERATOR_EMAILS: z.string().optional().transform((s) => (s ?? "").split(",").map((x) => x.trim()).filter((x) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x))),
 }).superRefine((e, ctx) => {
   const need = (key: keyof typeof e, why: string) => { if (!e[key]) ctx.addIssue({ code: "custom", path: [key], message: why }); };

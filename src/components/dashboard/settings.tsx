@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { motion } from "motion/react";
 import { Link } from "@tanstack/react-router";
-import { Bell, CheckCircle2, Circle, Dices, Download, Eye, EyeOff, Loader2, LogOut, MonitorSmartphone, Palette, ShieldCheck, Shuffle, Trash2, UserRound, type LucideIcon } from "lucide-react";
+import { Bell, CheckCircle2, Circle, Dices, Download, Eye, EyeOff, Loader2, LogOut, MonitorSmartphone, Palette, ShieldCheck, Shuffle, Smartphone, Trash2, UserRound, type LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Avatar } from "@/components/ghosted";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { api, ApiRequestError, apiEnabled } from "@/lib/api";
 import { setPrefs, usePrefs } from "@/lib/prefs";
+import { usePush, type PushState } from "@/lib/push";
 import { displayName, isPublic, nameIsPublic, useAccountActions, useTone, voice, type Field, type Me, type Notify, type Tone } from "@/lib/session";
 import { TwoFactorSection } from "./two-factor";
 import { DevicesList } from "./devices";
@@ -50,6 +51,32 @@ function ToggleRow({ title, copy, checked, onChange, disabled }: { title: string
     <span><span className="block text-sm font-bold">{title}</span><span className="block text-xs text-muted-foreground">{copy}</span></span>
     <Switch checked={checked} onCheckedChange={onChange} disabled={disabled} aria-label={title} />
   </label>;
+}
+
+// Push to this phone or computer. iPhone/iPad only allow it from the Home Screen app, so there it
+// explains how to add Ghosted first instead of showing a switch that can't work.
+function PhoneNotifications({ tone }: { tone: Tone }) {
+  const push = usePush();
+  const note: Partial<Record<PushState, string>> = {
+    "ios-install": "On iPhone and iPad, tap Share, then Add to Home Screen, and open Ghosted from there to turn these on.",
+    unsupported: "This browser can't show notifications. Try Chrome on Android, or the Home Screen app on iPhone.",
+    unavailable: "Phone notifications aren't switched on for Ghosted yet. Check back soon.",
+    denied: "Notifications are blocked for Ghosted. Allow them in your phone or browser settings, then come back.",
+  };
+  const toggle = async (v: boolean) => {
+    try {
+      if (!v) { await push.disable(); toast.success(voice(tone, "This device is muted.", "Notifications turned off on this device.")); return; }
+      if (await push.enable()) toast.success(voice(tone, "Done. We'll buzz you when it matters.", "Notifications turned on for this device."));
+    } catch { toast.error("Couldn't change notifications on this device. Try again."); }
+  };
+  return <div className="border-b border-foreground/10 py-3">
+    <label className="flex items-center justify-between gap-4">
+      <span><span className="flex items-center gap-1.5 text-sm font-bold"><Smartphone className="size-4" />Notifications on this device</span><span className="block text-xs text-muted-foreground">{voice(tone, "Replies, answers and story alerts, straight to your lock screen.", "Replies, answers and story alerts as notifications on this device.")}</span></span>
+      {push.busy || push.state === "loading" ? <Loader2 className="size-5 animate-spin text-muted-foreground" aria-label="Loading" />
+        : <Switch checked={push.state === "on"} disabled={push.state !== "on" && push.state !== "off"} onCheckedChange={(v) => void toggle(v)} aria-label="Notifications on this device" />}
+    </label>
+    {note[push.state] && <p className="mt-2 rounded-lg border-2 border-foreground/15 bg-muted px-3 py-2 text-xs">{note[push.state]}</p>}
+  </div>;
 }
 
 // ---------- right column ----------
@@ -210,6 +237,7 @@ export function SettingsView({ me, onLoggedOut, onRequestLogout }: { me: Me; onL
           <ToggleRow disabled={busy} title="Replies to your chitchats" copy={voice(tone, "Know when the tea gets hotter.", "When someone adds a chitchat to your story.")} checked={me.notify.chitchatReplies} onChange={(v) => setNotify("chitchatReplies", v)} />
           <ToggleRow disabled={busy} title="Someone follows you" copy={voice(tone, "A quick heads-up when someone joins your anonymous fan club.", "When a new person follows your profile.")} checked={me.notify.newFollowers !== false} onChange={(v) => setNotify("newFollowers", v)} />
           <ToggleRow disabled={busy} title="Companies you've red-flagged" copy={voice(tone, "Keep the usual suspects in your weekly brief.", "Include useful stories about these companies in your weekly brief.")} checked={me.notify.flaggedCompanies} onChange={(v) => setNotify("flaggedCompanies", v)} />
+          <PhoneNotifications tone={tone} />
           <ToggleRow disabled={busy} title="Personalized weekly brief" copy={voice(tone, "Your story activity and useful receipts from companies you follow, bundled Mondays at 11 AM IST. No inbox haunting.", "A Monday 11 AM IST summary of activity on your stories and useful posts from companies you follow.")} checked={me.notify.weeklyDigest} onChange={(v) => setNotify("weeklyDigest", v)} />
         </Section>
 
