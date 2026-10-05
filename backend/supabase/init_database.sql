@@ -1880,4 +1880,23 @@ alter table public.companies add constraint companies_industry_check check (indu
   'consulting','bpo','kpo','legal','telecom','government','nonprofit','research',
   'other'));
 
+-- ============================================================================
+-- Goofy, fairer (backend/src/goofy/index.ts, backend/src/algorithms/moderation.ts).
+--   * New private actions: 'struck' (a strike: only when PUBLISHED content is taken down) and
+--     'refused' (a post turned away at the door: never a strike, the author just edits and retries).
+--   * Pauses caused by the old rule (refused or held attempts counted as strikes) are lifted.
+--   * Words Goofy had learned from those refused attempts are retired; it relearns tonight from
+--     real removals only. Everyday words ("heck", "hell", "fuck", "how on earth") are never learned.
+-- Safe to run again.
+-- ============================================================================
+alter table public.goofy_actions drop constraint if exists goofy_actions_action_check;
+alter table public.goofy_actions add constraint goofy_actions_action_check check (action in (
+  'removed_story','removed_chitchat','held','released','redacted','took_down','restored',
+  'reported_story','reported_chitchat','reported_company','asked_rephrase','warned','paused',
+  'welcomed','ghost_job_alert','dismissed_reports','escalated','lists_updated','learned','struck','refused'));
+update public.profiles set posting_paused_until = null where posting_paused_until > now();
+update public.moderation_terms set status = 'retired', updated_at = now() where source = 'learned' and status = 'active';
+update public.moderation_terms set status = 'retired', updated_at = now()
+  where status = 'active' and term in ('heck','hell','hella','damn','dang','darn','fuck','fucking','fucked','fuckin','fck','wtf','omg','crap','bloody','shit','shitty','bullshit','earth','world','freaking','frick');
+
 commit;

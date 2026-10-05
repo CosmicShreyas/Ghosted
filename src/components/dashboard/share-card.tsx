@@ -124,7 +124,7 @@ export function ShareCard({ data, showCompany: shown, onShowCompany, social = tr
       {(["receipt", "classic"] as const).map((l) => <button key={l} type="button" aria-pressed={look === l} onClick={() => setLook(l)} className={cn("min-h-9 rounded-md px-3 transition-colors", look === l ? "bg-primary text-primary-foreground" : "hover:bg-background")}>{l === "receipt" ? "Receipt" : "Classic"}</button>)}
     </div>
     {/* The receipt sits on a soft dotted "counter" so its torn edges read on any background. */}
-    <div className={cn(look === "receipt" && "rounded-xl border-2 border-dashed border-foreground/15 py-4 sm:py-5")}
+    <div className={cn(look === "receipt" && "no-scrollbar overflow-hidden rounded-xl border-2 border-dashed border-foreground/15 py-4 sm:py-5")}
       style={look === "receipt" ? { backgroundImage: "radial-gradient(color-mix(in oklch, var(--foreground) 12%, transparent) 1px, transparent 1px)", backgroundSize: "14px 14px" } : undefined}>
       <div ref={ref} className={look === "receipt" ? "px-3 pb-2 pt-1" : ""}>
         {look === "receipt" ? <Receipt data={data} showCompany={showCompany} host={host} link={link} /> : <Classic data={data} showCompany={showCompany} host={host} />}

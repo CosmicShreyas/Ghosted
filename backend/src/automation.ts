@@ -217,7 +217,8 @@ export async function sweep() {
       } else if (action === "remove") {
         await set({ status: kind === "story" ? "hidden" : "removed", moderation: { autoRemoved: true, by: "goofy" } });
         const reason = review.reasons[0]?.detail ?? "not passing the check";
-        await tell(row.author_id, "removed", { what: w, reason }); await act(kind === "story" ? "removed_story" : "removed_chitchat", { targetKind: w, userId: row.author_id, reason }); await strike(row.author_id);
+        // Held and never published: removed, but not a strike (strikes are for live content).
+        await tell(row.author_id, "removed", { what: w, reason }); await act(kind === "story" ? "removed_story" : "removed_chitchat", { targetKind: w, userId: row.author_id, reason });
         stats.removed++;
       } else if (action === "ask_rephrase") {
         await set({ moderation: { askedAt: new Date().toISOString() } });

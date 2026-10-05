@@ -641,7 +641,8 @@ export const adminExtraRoutes = new Hono<AdminEnv>()
       n(db().from("stories").select("id", { count: "exact", head: true }).eq("author_id", m.id).eq("status", "hidden")),
       n(db().from("comments").select("id", { count: "exact", head: true }).eq("author_id", m.id)),
       db().from("stories").select("id").eq("author_id", m.id).limit(1000).then(async (r) => { const ids = ((r.data ?? []) as { id: string }[]).map((x) => x.id); return ids.length ? n(db().from("reports").select("id", { count: "exact", head: true }).in("story_id", ids)) : 0; }),
-      n(db().from("goofy_actions").select("id", { count: "exact", head: true }).eq("user_id", m.id).in("action", ["removed_story", "removed_chitchat", "took_down"]).gte("created_at", new Date(Date.now() - 30 * DAY).toISOString())),
+      // Strikes in the last 30 days: only published content taken down counts (goofy/index.ts strike).
+      n(db().from("goofy_actions").select("id", { count: "exact", head: true }).eq("user_id", m.id).eq("action", "struck").gte("created_at", new Date(Date.now() - 30 * DAY).toISOString())),
       db().from("stories").select("public_id, title, status, created_at, company:companies(name)").eq("author_id", m.id).order("created_at", { ascending: false }).limit(6),
       db().from("session_devices").select("kind, browser, os, city, region, country, ip_masked, ip_hash, last_seen_at").eq("user_id", m.id).order("last_seen_at", { ascending: false }).limit(12),
     ]);

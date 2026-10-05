@@ -320,12 +320,12 @@ export const storyRoutes = new Hono<AppEnv>()
       if (parent.parent_id) parent = { id: parent.parent_id, author_id: parent.author_id, parent_id: null, story: parent.story };
     }
     const goofyBlocked = review.decision === "block" && review.reasons.some((r) => GOOFY_REMOVES.has(r.code));
-    // Vulgar chitchats: Goofy removes them on the spot (kept as removed for the record, never shown),
-    // tells the author in their tone and counts a strike.
+    // Vulgar chitchats: Goofy turns them away on the spot (kept as removed for the record, never
+    // shown) and tells the author in their tone. Never published, so never a strike.
     if (goofyBlocked && goofy.enabled && goofy.blockVulgarity) {
       const { data: gone } = await admin().from("comments").insert({ story_id: story.id, author_id: me(c).id, body_z: toBytea(body), parent_id: parent?.id ?? null, status: "removed", moderation: { ...moderationRecord(review), autoRemoved: true, by: "goofy" } }).select("id").single();
       const reason = topReason(review);
-      later((async () => { await act("removed_chitchat", { targetKind: "chitchat", userId: me(c).id, reason }); await strike(me(c).id); })());
+      later(act("refused", { targetKind: "chitchat", userId: me(c).id, reason }));
       void gone;
       return c.json({ removed: true, message: `Goofy: ${say("removed", me(c).tone ?? "sassy", { what: "chitchat", reason })}` }, 202);
     }
@@ -424,10 +424,11 @@ export const storyRoutes = new Hono<AppEnv>()
 const GOOFY_REMOVES = new Set(["vulgar", "slur", "identity_attack", "threat"]);
 const topReason = (r: Review) => [...r.reasons].sort((a, b) => b.weight - a.weight)[0]?.detail ?? "a guideline issue";
 async function idOfStory(publicId: string) { const { data } = await admin().from("stories").select("id").eq("public_id", publicId).single(); return (data as { id: string }).id; }
-// Refused at the door: Goofy logs it, counts a strike, and says it in the author's tone.
+// Refused at the door: Goofy logs it and says it in the author's tone. It never went public, so it's
+// never a strike: the author can edit and try again as often as they need.
 async function goofyRefuses(p: Profile, kind: "story" | "chitchat", review: Review): Promise<never> {
   const reason = topReason(review);
-  later((async () => { await act(kind === "story" ? "removed_story" : "removed_chitchat", { targetKind: kind, userId: p.id, reason }); await strike(p.id); })());
+  later(act("refused", { targetKind: kind, userId: p.id, reason }));
   throw new ApiError(422, "moderation_blocked", `Goofy: ${say("removed", p.tone ?? "sassy", { what: kind, reason })}`, { body: review.message ?? reason });
 }
 // Held for a check: Goofy logs it and, where a human might be needed, files his own report.

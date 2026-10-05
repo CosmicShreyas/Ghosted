@@ -40,6 +40,14 @@ export type ReviewContext = {
   companyName?: string;
 };
 
+// Everyday words people use when venting about a hiring process: never profanity, never "watch"
+// words, never part of the vulgar count. "What the hell", "how on earth", "this is fucking absurd"
+// are normal. Aimed at a person ("fuck you", "the recruiter can go to hell") they still count as an
+// insult (targeted abuse), which raises the score but never blocks on its own.
+export const EVERYDAY = /^(?:heck|hell|hella|damn\w*|dang|darn|frick\w*|freak\w*|f+u+c*k+(?:ing|in|ed|er|ery)?|fck\w*|fuk\w*|effing|wtf|omg|crap\w*|bloody|sh+i+t+(?:ty|s)?|bullshit)$/;
+const EVERYDAY_PHRASES = /\b(?:how|what|where|why|who|when)\s+(?:on earth|in the world|the (?:hell|heck|fuck|f\*+k))\b/g;
+const PERSON_WORDS = new Set(["you", "he", "she", "hr", "recruiter", "manager", "interviewer", "lead", "founder", "ceo", "him", "her", "them"]);
+
 const PII_WEIGHT: Record<PiiKind, number> = { aadhaar: 1, pan: 1, card: 1, upi: 0.9, phone: 0.9, email: 0.8, address: 0.9, ifsc: 0.5, person: 0.55, link: 0.5 };
 const PII_WORD: Record<PiiKind, string> = { aadhaar: "an Aadhaar number", pan: "a PAN", card: "a card number", upi: "a UPI ID", phone: "a phone number", email: "an email address", address: "a home address", ifsc: "bank details", person: "a person's name", link: "a link to someone's profile" };
 
@@ -58,7 +66,10 @@ export function reviewText(raw: string, ctx: ReviewContext): Review {
   const tierHits: Record<Tier, string[]> = { slur: [], threat: [], severe: [], profanity: [] };
   const watched: string[] = [];
   let liveWeight = 0;
+  // Everyday swearing is skipped (EVERYDAY above); only an insult aimed at someone is noted.
+  const everydayAimed = tokens.some((w, i) => EVERYDAY.test(w) && ((PERSON_WORDS.has(tokens[i + 1] ?? "") && !["the", "a"].includes(tokens[i - 1] ?? "")) || tokens.slice(Math.max(0, i - 3), i).some((x) => PERSON_WORDS.has(x)) && /^(?:off|you|him|her|them)$/.test(tokens[i + 1] ?? "")));
   for (const w of tokens) {
+    if (EVERYDAY.test(w)) continue;
     const curated = WORD_RULES.find((r) => r.re.test(w));
     if (curated) { tierHits[curated.tier].push(w); continue; }
     // The live list (imported open lists + terms learned from removed content).
@@ -66,18 +77,21 @@ export function reviewText(raw: string, ctx: ReviewContext): Review {
     if (!t) continue;
     if (t.tier === "watch") { watched.push(w); liveWeight = Math.max(liveWeight, t.weight); } else tierHits[t.tier].push(w);
   }
-  for (const t of matchLivePhrases(folded)) {
+  for (const t of matchLivePhrases(folded.replace(EVERYDAY_PHRASES, " "))) {
     if (t.tier === "watch") { watched.push(t.term); liveWeight = Math.max(liveWeight, t.weight); } else tierHits[t.tier].push(t.term);
   }
   // Second opinion from the obscenity library: adds what our lists missed (deduplicated by word).
   const seenWords = new Set([...tierHits.slur, ...tierHits.severe, ...tierHits.profanity].map((w) => w.replace(/[^a-z]/g, "")));
-  for (const h of libraryHits(text)) if (![...seenWords].some((w) => w.includes(h.word) || h.word.includes(w))) { tierHits[h.tier].push(h.word); seenWords.add(h.word); }
+  for (const h of libraryHits(text)) if (!EVERYDAY.test(h.word) && ![...seenWords].some((w) => w.includes(h.word) || h.word.includes(w))) { tierHits[h.tier].push(h.word); seenWords.add(h.word); }
   // Vulgar: a stream of swearing (not a single "wtf"), or graphic language aimed at someone. This is
   // what Goofy removes outright.
   const profCount = tierHits.profanity.length;
   const profDensity = profCount / Math.max(1, tokens.length);
   const aimedSevere = tierHits.severe.length > 0 && tokens.some((w, i) => ["you", "he", "she", "hr", "recruiter", "manager", "interviewer"].includes(w) && tokens.slice(i + 1, i + 6).some((x) => tierHits.severe.includes(x)));
-  if ((profCount >= 5 && profDensity > 0.08) || aimedSevere || tierHits.severe.length >= 3) add("vulgar", 1, "vulgar language");
+  // Everyday words don't count here either, unless the post is almost nothing but swearing.
+  const everydayCount = tokens.filter((w) => EVERYDAY.test(w)).length;
+  const mostlySwearing = everydayCount + profCount >= 5 && (everydayCount + profCount) / Math.max(1, tokens.length) > 0.4;
+  if ((profCount >= 5 && profDensity > 0.08) || mostlySwearing || aimedSevere || tierHits.severe.length >= 3) add("vulgar", 1, "vulgar language");
   // Learned words can hold content for review, never block it on their own.
   if (watched.length) add("watchlist", Math.min(0.45, 0.25 * liveWeight + 0.08 * watched.length), "wording often seen in removed posts");
   if (tierHits.slur.length) add("slur", 1, "identity-based slur");
@@ -97,7 +111,7 @@ export function reviewText(raw: string, ctx: ReviewContext): Review {
     const swearAt = new Set(tierHits.profanity);
     const aimed = tokens.some((w, i) => PERSON.has(w) && tokens.slice(i + 1, i + 5).some((x) => swearAt.has(x)));
     if (aimed || (pii.some((h) => h.kind === "person") && prof > 0)) add("targeted_abuse", 0.35, "insults aimed at a person");
-  }
+  } else if (everydayAimed) add("targeted_abuse", 0.25, "swearing aimed at a person");
 
   // ---- legal ----
   const accusations = LEGAL_ACCUSATIONS.filter((re) => re.test(folded)).length;

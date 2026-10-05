@@ -62,7 +62,10 @@ export const isGoofyPublicId = (id: string) => id === GOOFY_PUBLIC_ID;
 
 // ---------- log + tell ----------
 
-export type GoofyAction = "removed_story" | "removed_chitchat" | "held" | "released" | "redacted" | "took_down" | "restored" | "reported_story" | "reported_chitchat" | "reported_company" | "asked_rephrase" | "warned" | "paused" | "welcomed" | "ghost_job_alert" | "dismissed_reports" | "escalated" | "lists_updated" | "learned";
+export type GoofyAction = "removed_story" | "removed_chitchat" | "held" | "released" | "redacted" | "took_down" | "restored" | "reported_story" | "reported_chitchat" | "reported_company" | "asked_rephrase" | "warned" | "paused" | "welcomed" | "ghost_job_alert" | "dismissed_reports" | "escalated" | "lists_updated" | "learned"
+  // Private bookkeeping, never shown in Goofy's public activity: a strike, and a post refused at the
+  // door (never published, so never a strike).
+  | "struck" | "refused";
 
 export async function act(action: GoofyAction, o: { targetKind?: "story" | "chitchat" | "company" | "profile" | "system"; storyPublicId?: string | number | null; companySlug?: string | null; reason?: string; userId?: string | null } = {}) {
   const { error } = await admin().from("goofy_actions").insert({ action, target_kind: o.targetKind ?? null, story_public_id: o.storyPublicId ?? null, company_slug: o.companySlug ?? null, reason: o.reason?.slice(0, 200) ?? null, user_id: o.userId ?? null });
@@ -80,9 +83,14 @@ export const say = (event: GoofyEvent, tone: Tone, vars: { what?: string; reason
 
 // ---------- strikes ----------
 
+// A strike is for PUBLISHED content that had to come down (Goofy removing something live, or a
+// report upheld). Never for a post refused at the door or held and not released: those never went
+// public, and the author is simply asked to fix them, however many times they edit and retry.
+// Strikes are their own "struck" entries, so older removals logged before this rule don't count.
 export async function strike(userId: string) {
   const controls = await goofyControls(); if (!controls.enabled || !controls.strikes) return;
-  const { count } = await admin().from("goofy_actions").select("id", { count: "exact", head: true }).eq("user_id", userId).in("action", ["removed_story", "removed_chitchat", "took_down"]).gte("created_at", new Date(Date.now() - 30 * DAY).toISOString());
+  await act("struck", { targetKind: "profile", userId, reason: "published content removed" });
+  const { count } = await admin().from("goofy_actions").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("action", "struck").gte("created_at", new Date(Date.now() - 30 * DAY).toISOString());
   const n = count ?? 0;
   if (n === 2) { await tell(userId, "warned"); await act("warned", { targetKind: "profile", userId, reason: "second removal in 30 days" }); }
   if (n >= 3) {

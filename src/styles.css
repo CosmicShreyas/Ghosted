@@ -379,6 +379,11 @@ html[data-reduce-motion] *::after {
 /* Scrolls normally (wheel, trackpad, touch, keyboard) but draws no scrollbar. */
 .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
+/* Phones and tablets only: still scrolls, without a bar over the content (e.g. the share popup). */
+@media (max-width: 1023px) {
+  .no-scrollbar-touch { scrollbar-width: none; -ms-overflow-style: none; }
+  .no-scrollbar-touch::-webkit-scrollbar { display: none; }
+}
 
 /* Loading placeholders: a soft light wave sweeping across grey blocks. */
 @keyframes skeleton-wave {

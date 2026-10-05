@@ -20,7 +20,9 @@ export const SOURCES = {
 export const NEVER_FLAG = new Set(("gay lesbian bisexual queer trans transgender homosexual lgbt lgbtq muslim muslims islam hindu hindus christian christians jew jews jewish sikh "
   + "dalit dalits brahmin brahmins black white asian african indian chinese women woman girl girls boy boys female male sex sexual gender breast breasts "
   + "cancer period periods pregnant pregnancy menstrual vagina penis rape abuse abused harass harassed harassment kill killed die dead god hell damn "
-  + "bloody screw screwed suck sucks sucked crap balls ball cock hoe hoes tit tits bang banging hump nut nuts wood beaver pussy cat dick").split(" "));
+  + "bloody screw screwed suck sucks sucked crap balls ball cock hoe hoes tit tits bang banging hump nut nuts wood beaver pussy cat dick "
+  // Everyday venting (see EVERYDAY in moderation.ts): never imported or learned as bad words.
+  + "heck hella dang darn frick fricking freaking fuck fucking fucked fuckin fck effing wtf omg shit shitty bullshit earth world").split(" "));
 
 const clean = (s: string) => fold(s).replace(/[^a-z0-9* ]/g, "").replace(/\s+/g, " ").trim();
 const okLength = (t: string) => t.replace(/[\s*]/g, "").length >= 3 && t.length <= 60;

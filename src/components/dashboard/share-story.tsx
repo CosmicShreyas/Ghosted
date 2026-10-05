@@ -557,7 +557,8 @@ export function ShareModal({ open, onOpenChange, editing = null, presetCompany =
 
   return <Dialog open={open} onOpenChange={close}>
     <DialogContent className={cn(popup, done ? "max-w-4xl" : "max-w-2xl")}>
-      {done ? <div className={cn(popupBody, "grid place-items-center py-8 text-center")} data-lenis-prevent>
+      {/* The share screen after posting: the bar is hidden on phones and tablets (it still scrolls). */}
+      {done ? <div className={cn(popupBody, "no-scrollbar-touch grid place-items-center py-8 text-center")} data-lenis-prevent>
         <motion.div initial={{ scale: 0.4, rotate: -12, opacity: 0 }} animate={{ scale: 1, rotate: 0, opacity: 1 }} transition={{ type: "spring", stiffness: 260, damping: 14 }} className="relative">
           <img src="/ghosted-mark.png" alt="" className="size-20 object-contain" />
           {[...Array(8)].map((_, i) => <motion.span key={i} className="absolute left-1/2 top-1/2 size-2.5 rounded-full" style={{ background: ["#6D28D9", "#F59E0B", "#22C55E", "#EF4444"][i % 4] }}

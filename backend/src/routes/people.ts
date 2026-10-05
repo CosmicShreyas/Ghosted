@@ -160,7 +160,8 @@ async function goofyStats(person: Person) {
 }
 
 async function goofyActivity(before: string | undefined, limit: number) {
-  let q = admin().from("goofy_actions").select("public_id, action, target_kind, story_public_id, company_slug, reason, created_at").order("created_at", { ascending: false }).limit(limit + 1);
+  // Strikes are private bookkeeping, never shown. Refusals show (Goofy turning something away).
+  let q = admin().from("goofy_actions").select("public_id, action, target_kind, story_public_id, company_slug, reason, created_at").neq("action", "struck").order("created_at", { ascending: false }).limit(limit + 1);
   if (before) q = q.lt("created_at", before);
   const { data, error } = await q;
   if (error) dbFail("goofy activity", error);

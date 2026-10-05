@@ -131,7 +131,8 @@ export function StoryShare({ input }: { input: StoryShareInput }) {
 export function StoryShareDialog({ open, onOpenChange, input }: { open: boolean; onOpenChange: (v: boolean) => void; input: StoryShareInput }) {
   return <Dialog open={open} onOpenChange={onOpenChange}>
     <DialogContent className={cn(popup, "max-w-4xl")}>
-      <div className={popupBody} data-lenis-prevent>
+      {/* Still scrolls; the bar is hidden on phones and tablets so it doesn't sit over the receipt. */}
+      <div className={cn(popupBody, "no-scrollbar-touch")} data-lenis-prevent>
         <DialogHeader className="mb-4 text-left">
           <DialogTitle className="font-display text-2xl">Share this story</DialogTitle>
           <DialogDescription>{input.mine ? "Your card and a ready-to-post LinkedIn draft. You stay anonymous on Ghosted either way." : "The story card and a ready-to-post LinkedIn draft. The author stays anonymous."}</DialogDescription>
