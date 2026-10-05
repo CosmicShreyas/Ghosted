@@ -25,6 +25,7 @@ import { sweepWaiting } from "./interest.js";
 import { nudgeQuietApplications, remindFollowups } from "./nudges.js";
 import { remindStreaks } from "./levels.js";
 import { recomputePledges } from "./pledges.js";
+import { nudgeAway } from "./away.js";
 
 const DAY = 86400_000;
 const text = (z: string | null) => { if (!z) return ""; try { return fromBytea(z); } catch { return ""; } };
@@ -268,7 +269,9 @@ export async function runAll() {
   const streaks = await remindStreaks().catch((e: Error) => ({ error: e.message }));
   // Reply pledge badges, from the latest candidate stories (pledges.ts).
   const pledges = await recomputePledges().catch((e: Error) => ({ error: e.message }));
+  // Away for 2+ days: one personalised "here's what you missed" (away.ts).
+  const away = await nudgeAway().catch((e: Error) => ({ error: e.message }));
   if (!("error" in lists) && !("disabled" in lists)) await act("lists_updated", { targetKind: "system", reason: Object.entries(lists).map(([k, v]) => `${k}: ${v}`).join(", ").slice(0, 200) }).catch(() => undefined);
   if (!("error" in learned) && !("disabled" in learned)) await act("learned", { targetKind: "system", reason: `${learned.learned} new watch words, ${learned.variants} new spellings, ${learned.concepts} synonyms` }).catch(() => undefined);
-  return { lists, learned, swept, goofy: goofyRun, waiting, nudged, reminded, streaks, pledges };
+  return { lists, learned, swept, goofy: goofyRun, waiting, nudged, reminded, streaks, pledges, away };
 }

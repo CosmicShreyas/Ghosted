@@ -15,6 +15,7 @@ It is part of the source-available Ghosted repository and is covered by the root
      - On the sending domain add **SPF** (the provider's include), **DKIM** (the provider's key) and a **DMARC** record, starting with `v=DMARC1; p=none; rua=mailto:<you>` and tightening to `quarantine` once reports look clean.
      - Check a message with Gmail's "Show original" (SPF, DKIM and DMARC should all say PASS) and watch reputation in Google Postmaster Tools.
      - The API already sends a plain-text part, `List-Unsubscribe` and `Auto-Submitted` headers, and never threads codes together.
+     - **Links to `*.vercel.app` hurt.** Phishing campaigns host fake login pages on free Vercel subdomains, so filters treat links to them with suspicion. Code emails therefore carry no links and no embedded image at all. Other emails still link to the site: put Ghosted on its own domain (set `VITE_SITE_URL` and the API's `FRONTEND_URL` to it) and send from that same domain, and this goes away.
    - **Authentication → URL Configuration**: set *Site URL* to your frontend URL.
 2. **Configure secrets**: `cp env.example .env`, then fill in the values from *Project Settings → API*.
    Generate `IP_HASH_SECRET` with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`.

@@ -1899,4 +1899,13 @@ update public.moderation_terms set status = 'retired', updated_at = now() where 
 update public.moderation_terms set status = 'retired', updated_at = now()
   where status = 'active' and term in ('heck','hell','hella','damn','dang','darn','fuck','fucking','fucked','fuckin','fck','wtf','omg','crap','bloody','shit','shitty','bullshit','earth','world','freaking','frick');
 
+-- ============================================================================
+-- While you're away (backend/src/away.ts): members who haven't opened Ghosted for 2+ days get one
+-- personalised "here's what you missed" email, notification and push, at most once every 7 days.
+-- profiles.away_nudged_at remembers the last one. Members turn it off in Settings (notify.comeBack).
+-- Safe to run again.
+-- ============================================================================
+alter table public.profiles add column if not exists away_nudged_at timestamptz;
+create index if not exists session_devices_last_seen on public.session_devices (last_seen_at desc);
+
 commit;

@@ -248,6 +248,18 @@ export const voiceRoutes = new Hono<AppEnv>()
     return c.json({ verified: true, company: { slug: co.slug, name: co.name } });
   })
 
+  // Step down: you stop representing this company (no more replies, steps, notes, pledges or Pulse).
+  // What you posted stays, and you stay unable to reach the company's authors (rep-guard.ts), so
+  // stepping down is never a way around the shield. You can verify again later with a work email.
+  .post("/reps/step-down", requireAuth, rateLimit({ name: "rep-step-down", max: 10, windowSeconds: 3600, by: "user" }), validate("json", z.object({ companySlug: z.string().regex(/^[a-z0-9-]{2,60}$/) }).strict()), async (c) => {
+    const co = await companyBySlug(c.req.valid("json").companySlug);
+    const { data, error } = await admin().from("company_reps").update({ revoked_at: new Date().toISOString() }).eq("user_id", me(c).id).eq("company_id", co.id).is("revoked_at", null).select("user_id");
+    if (error) dbFail("step down", error);
+    if (!data?.length) throw new ApiError(404, "not_rep", `You're not a verified representative of ${co.name}.`);
+    later(bump({ user: me(c).id, topics: ["me"], shared: [`company:${co.slug}`] }));
+    return c.json({ ok: true });
+  })
+
   .get("/reps/me", requireAuth, rateLimit({ name: "rep-me", max: 120, windowSeconds: 60 }), async (c) => {
     const { data, error } = await admin().from("company_reps").select("verified_at, company:companies(slug, name)").eq("user_id", me(c).id).is("revoked_at", null);
     if (error) dbFail("my rep companies", error);

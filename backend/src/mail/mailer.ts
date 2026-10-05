@@ -39,7 +39,6 @@ async function sendSmtp(to: string, message: Message) {
     ...(e.SMTP_USER ? { auth: { user: e.SMTP_USER, pass: e.SMTP_PASS } } : {}),
   });
   warnIfMisaligned(e.MAIL_FROM_EMAIL, e.SMTP_USER);
-  const site = e.FRONTEND_URL.replace(/\/$/, "");
   const unsubscribeTo = e.MAIL_REPLY_TO_EMAIL ?? e.MAIL_FROM_EMAIL;
   await transport.sendMail({
     from: `"${e.MAIL_FROM_NAME}" <${e.MAIL_FROM_EMAIL}>`, to, ...message,
@@ -49,10 +48,12 @@ async function sendSmtp(to: string, message: Message) {
       // What Gmail and Outlook look for from a well-behaved sender: an unsubscribe route (they show
       // their own "Unsubscribe" link instead of people hitting "Report spam"), and a clear signal
       // that this is automated mail, not a person.
-      "List-Unsubscribe": `<mailto:${unsubscribeTo}?subject=unsubscribe>, <${site}/dashboard?view=settings>`,
+      // mailto only: a *.vercel.app link here counts against us (see backend/README.md).
+      "List-Unsubscribe": `<mailto:${unsubscribeTo}?subject=unsubscribe>`,
       "Auto-Submitted": "auto-generated",
     },
-    // The logo travels inside the email and is referenced as cid:ghosted-logo in the HTML.
-    attachments: [{ filename: "ghosted.png", content: Buffer.from(EMAIL_LOGO_BASE64, "base64"), cid: EMAIL_LOGO_CID, contentType: "image/png", contentDisposition: "inline" }],
+    // The logo travels inside the email (cid:ghosted-logo), only when the HTML uses it: code emails
+    // are sent without it (mail/otp-email.ts, `plain`).
+    attachments: message.html.includes(`cid:${EMAIL_LOGO_CID}`) ? [{ filename: "ghosted.png", content: Buffer.from(EMAIL_LOGO_BASE64, "base64"), cid: EMAIL_LOGO_CID, contentType: "image/png", contentDisposition: "inline" }] : [],
   });
 }

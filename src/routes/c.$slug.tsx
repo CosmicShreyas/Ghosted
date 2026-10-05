@@ -27,13 +27,45 @@ import { PillSelect } from "@/components/pill-select";
 import { YouSaidWeDid } from "@/components/you-said-we-did";
 import { AskToRespond } from "@/components/demand";
 import { PledgePanel } from "@/components/pledge";
-import { useRepReplies } from "@/lib/company-voice";
+import { repsApi, useRepReplies } from "@/lib/company-voice";
+import { useQueryClient } from "@tanstack/react-query";
+import { LogOut } from "lucide-react";
+import { ApiRequestError } from "@/lib/api";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
-// For the company's verified reps: the way into Company Pulse (aggregates only).
+// For the company's verified reps: the way into Company Pulse (aggregates only), and stepping down.
 function RepTools({ slug, name }: { slug: string; name: string }) {
   const r = useRepReplies(slug);
+  const qc = useQueryClient();
+  const [confirm, setConfirm] = useState(false);
+  const [busy, setBusy] = useState(false);
   if (!r.data?.viewerIsRep) return null;
-  return <Link to="/pulse/$slug" params={{ slug }} className="inline-flex items-center gap-1.5 rounded-lg border-2 border-sky-700 px-3 py-1.5 text-sm font-bold text-sky-800 hover:bg-sky-50 dark:border-sky-400 dark:text-sky-300 dark:hover:bg-sky-950/40">Open {name}'s Company Pulse</Link>;
+  const stepDown = async () => {
+    setBusy(true);
+    try {
+      await repsApi.stepDown(slug);
+      for (const k of [["rep-replies", slug], ["changes", slug], ["pledge", slug], ["demand", slug]]) void qc.invalidateQueries({ queryKey: k });
+      toast.success(`You've stepped down as ${name}'s representative.`);
+      setConfirm(false);
+    } catch (e) { toast.error(e instanceof ApiRequestError ? e.message : "Couldn't step down. Try again."); }
+    finally { setBusy(false); }
+  };
+  return <div className="flex flex-wrap items-center gap-2">
+    <Link to="/pulse/$slug" params={{ slug }} className="inline-flex items-center gap-1.5 rounded-lg border-2 border-sky-700 px-3 py-1.5 text-sm font-bold text-sky-800 hover:bg-sky-50 dark:border-sky-400 dark:text-sky-300 dark:hover:bg-sky-950/40">Open {name}'s Company Pulse</Link>
+    <Button size="sm" variant="ghost" className="text-muted-foreground" onClick={() => setConfirm(true)}><LogOut />Step down as representative</Button>
+    <AlertDialog open={confirm} onOpenChange={(v) => { if (!busy) setConfirm(v); }}>
+      <AlertDialogContent className="w-[calc(100vw-2rem)] max-w-md rounded-xl border-2 border-foreground shadow-hard">
+        <AlertDialogHeader className="text-left">
+          <AlertDialogTitle className="font-display text-xl">Step down as {name}'s representative?</AlertDialogTitle>
+          <AlertDialogDescription>You'll stop being able to reply, set steps, post change notes, manage the pledge or open Company Pulse for {name}. Everything you already posted stays up. To protect candidates, you still won't be able to see who wrote about {name}. You can verify again later with a work email.</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter className="flex-col-reverse gap-2 sm:flex-row">
+          <AlertDialogCancel disabled={busy}>Stay on</AlertDialogCancel>
+          <AlertDialogAction onClick={(e) => { e.preventDefault(); void stepDown(); }} disabled={busy} className="bg-flag-red text-primary-foreground hover:bg-flag-red/90">{busy ? <Loader2 className="animate-spin" /> : <LogOut />}Step down</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  </div>;
 }
 import { AskCandidates, ContentRequestDialog, RepReplySlot, RepVerifyDialog } from "@/components/company-voice";
 import { TypicalProcess } from "@/components/typical-process";

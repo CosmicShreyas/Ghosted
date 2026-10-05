@@ -19,6 +19,7 @@ import { cn, formatCount } from "@/lib/utils";
 import { activeDot, axis, barCursor, ChartTooltip, grid, INK, lineCursor, SERIES } from "./chart-kit";
 import { card, popup, popupBody } from "./ui-kit";
 import { LevelBadge, LevelProgress, StreakChip, titleFor } from "@/lib/levels";
+import { ConnectionsDialog, type Which } from "./connections";
 
 const nf = formatCount;
 const joined = (iso: string | null) => (iso ? new Intl.DateTimeFormat("en-IN", { month: "long", year: "numeric" }).format(new Date(iso)) : null);
@@ -42,6 +43,10 @@ export function PersonHeader({ page, actions }: { page: PersonPage; actions: Rea
     ["Following", s.following, UserCheck],
   ];
   const level = p.level ?? null;
+  // Tapping the follower / following counts (or their tiles) opens the list, with search.
+  const [showing, setShowing] = useState<Which | null>(null);
+  const opens: Record<string, Which> = { Followers: "followers", Following: "following" };
+  const counter = (which: Which, n: number, word: string) => <button type="button" onClick={() => setShowing(which)} className="rounded hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"><strong className="font-bold text-foreground">{nf(n)}</strong> {word}</button>;
   return <section className={cn(card, "overflow-hidden")}>
     {/* Their banner: DiceBear shapes seeded from their avatar, in Ghosted's palette. */}
     <Banner seed={p.avatarSeed} className="h-24 border-b-2 border-foreground sm:h-32" />
@@ -59,8 +64,8 @@ export function PersonHeader({ page, actions }: { page: PersonPage; actions: Rea
         <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
           <span className={cn("inline-flex items-center gap-1 rounded-full border-2 border-foreground px-2 py-0.5 text-[11px] font-bold uppercase", r ? "bg-flag-amber text-foreground" : "bg-flag-green text-primary-foreground")}>{r ? "Public profile" : "Anonymous"}</span>
           {joined(p.joinedAt) && <span className="inline-flex items-center gap-1"><CalendarDays className="size-3.5" />Joined {joined(p.joinedAt)}</span>}
-          <span><strong className="font-bold text-foreground">{nf(s.followers)}</strong> {s.followers === 1 ? "follower" : "followers"}</span>
-          <span><strong className="font-bold text-foreground">{nf(s.following)}</strong> following</span>
+          {p.bot ? <span><strong className="font-bold text-foreground">{nf(s.followers)}</strong> {s.followers === 1 ? "follower" : "followers"}</span> : counter("followers", s.followers, s.followers === 1 ? "follower" : "followers")}
+          {!p.bot && counter("following", s.following, "following")}
         </p>
         {/* Your own page: how close you are to the next level, and your streak. */}
         {p.isMe && p.progress && level && <div className="mt-4 rounded-xl border-2 border-foreground bg-background p-3 sm:p-4">
@@ -76,11 +81,16 @@ export function PersonHeader({ page, actions }: { page: PersonPage; actions: Rea
         </div>}
       </div>
       {/* Their numbers: 2 columns on small phones, 3 on larger phones and tablets, all 6 in a row on wide screens. */}
-      <div className="mt-5 grid grid-cols-2 gap-2 min-[420px]:grid-cols-3 xl:grid-cols-6">{tiles.map(([label, n, Icon, tone]) => <div key={label} className="rounded-lg border-2 border-foreground bg-background p-3">
-        <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase text-muted-foreground"><Icon className={cn("size-3.5", tone)} /><span className="truncate">{label}</span></p>
-        <p className={cn("mt-1 font-display text-2xl font-bold tabular-nums", tone)}>{nf(n)}</p>
-      </div>)}</div>
+      <div className="mt-5 grid grid-cols-2 gap-2 min-[420px]:grid-cols-3 xl:grid-cols-6">{tiles.map(([label, n, Icon, tone]) => {
+        const inner = <><p className="flex items-center gap-1.5 text-[11px] font-bold uppercase text-muted-foreground"><Icon className={cn("size-3.5", tone)} /><span className="truncate">{label}</span></p>
+          <p className={cn("mt-1 font-display text-2xl font-bold tabular-nums", tone)}>{nf(n)}</p></>;
+        const which = opens[label];
+        return which && !p.bot
+          ? <button key={label} type="button" onClick={() => setShowing(which)} aria-label={`See ${label.toLowerCase()}`} className="rounded-lg border-2 border-foreground bg-background p-3 text-left transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{inner}</button>
+          : <div key={label} className="rounded-lg border-2 border-foreground bg-background p-3">{inner}</div>;
+      })}</div>
     </div>
+    {!p.bot && <ConnectionsDialog open={!!showing} onOpenChange={(v) => { if (!v) setShowing(null); }} personId={p.publicId} name={p.name} start={showing ?? "followers"} counts={{ followers: s.followers, following: s.following }} />}
   </section>;
 }
 

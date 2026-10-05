@@ -108,6 +108,32 @@ async function storiesPage(c: Context<AppEnv>, person: Person, before: string | 
   return { stories: await hydrate(page, c.get("profile")), nextCursor: rows.length > limit ? page.at(-1)!.created_at : null };
 }
 
+// Someone's followers or the people they follow, newest first, optionally filtered by name or
+// handle. Anyone a company rep is shielded from (rep-guard.ts) is left out of the rep's view, like
+// everywhere else. Each entry says whether you follow them.
+const LIST_COLUMNS = `${AUTHOR_COLUMNS}, id, kind, level`;
+async function connections(person: Person, which: "followers" | "following", viewerId: string, q: string, offset: number, limit: number) {
+  const mine = which === "followers" ? "followee_id" : "follower_id";
+  const other = which === "followers" ? "follower" : "followee";
+  const { data, error } = await admin().from("follows").select(`created_at, ${other}:profiles!follows_${other}_id_fkey(${LIST_COLUMNS})`).eq(mine, person.id).order("created_at", { ascending: false }).limit(1000);
+  if (error) dbFail(`person ${which}`, error);
+  type P = AuthorRow & { id: string; kind?: string; level?: number };
+  const shield = await shieldFor(viewerId);
+  const needle = q.trim().toLowerCase();
+  const people = ((data ?? []) as unknown as Record<string, P | null>[]).map((r) => r[other]).filter((p): p is P => !!p && !shield?.ids.has(p.id))
+    .map((p) => ({ row: p, author: storyAuthor(p) }))
+    .filter(({ author }) => !needle || author.name.toLowerCase().includes(needle) || author.handle.toLowerCase().includes(needle));
+  const page = people.slice(offset, offset + limit);
+  const ids = page.map(({ row }) => row.id);
+  const { data: f } = ids.length ? await admin().from("follows").select("followee_id").eq("follower_id", viewerId).in("followee_id", ids) : { data: [] };
+  const followed = new Set(((f ?? []) as { followee_id: string }[]).map((r) => r.followee_id));
+  return {
+    total: people.length,
+    people: page.map(({ row, author }) => ({ ...author, level: row.level ?? 1, isMe: row.id === viewerId, following: followed.has(row.id), ...(row.kind === "bot" && { bot: { badge: "AutoMod" } }) })),
+    nextOffset: offset + limit < people.length ? offset + limit : null,
+  };
+}
+
 // Following, unfollowing, the bell and muting all change the page for both people, live.
 const changed = (viewerId: string, person: Person) => later(bump({ user: viewerId, topics: ["me"], shared: [`person:${person.public_id}`] }));
 
@@ -123,6 +149,7 @@ const ACTION_LABEL: Record<string, string> = {
   asked_rephrase: "Asked an author to rephrase an accusation", warned: "Gave someone a friendly warning", paused: "Paused someone's posting for 3 days",
   welcomed: "Welcomed a new member", ghost_job_alert: "Warned followers about ghost jobs", dismissed_reports: "Closed stale reports", escalated: "Flagged items for the human team",
   lists_updated: "Refreshed the word lists", learned: "Learned new words from the community",
+  refused: "Turned a post away and asked for a rewrite",
 };
 const REMOVAL = ["removed_story", "removed_chitchat", "took_down"];
 const REPORTS = ["reported_story", "reported_chitchat", "reported_company"];
@@ -203,6 +230,18 @@ export const peopleRoutes = new Hono<AppEnv>()
     const person = await personByPublicId(c.req.valid("param").id, c.get("profile"));
     const { before, limit } = c.req.valid("query");
     return c.json(await storiesPage(c, person, before, limit));
+  })
+
+  // Their followers, and who they follow (signed in, like person pages). `q` filters by name or handle.
+  .get("/:id/connections", requireAuth, rateLimit({ name: "profile-connections", max: 120, windowSeconds: 60, by: "user" }), idParam, validate("query", z.object({
+    which: z.enum(["followers", "following"]),
+    q: z.string().trim().max(60).default(""),
+    offset: z.coerce.number().int().min(0).max(1000).default(0),
+    limit: z.coerce.number().int().min(1).max(50).default(30),
+  })), async (c) => {
+    const person = await personByPublicId(c.req.valid("param").id, c.get("profile"));
+    const { which, q, offset, limit } = c.req.valid("query");
+    return c.json(await connections(person, which, me(c).id, q, offset, limit));
   })
 
   // Goofy's activity feed, newest first (`before` = the last item's createdAt).

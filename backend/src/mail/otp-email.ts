@@ -14,7 +14,10 @@ const GITHUB = "https://github.com/CosmicShreyas/Ghosted";
 
 export const escape = (s: string) => s.replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]!);
 
-type Shell = { appUrl: string; banner: string; heading: string; tagline?: string; intro: string; body?: string; footnote: string; preheader: string; subject: string };
+// `plain`: for sign-in codes. No links at all and no embedded logo: a first email from an unknown
+// sender that links to a *.vercel.app address (phishing campaigns abuse those) and carries an image
+// is exactly what spam filters look for. A code email needs neither.
+type Shell = { appUrl: string; banner: string; heading: string; tagline?: string; intro: string; body?: string; footnote: string; preheader: string; subject: string; plain?: boolean };
 
 // The shared frame: logo, bordered card with a banner, content, dashed divider, footnote, footer.
 export function layout(s: Shell) {
@@ -25,9 +28,11 @@ export function layout(s: Shell) {
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${C.bg};"><tr><td align="center" style="padding:32px 16px;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;">
     <tr><td style="padding:0 4px 20px;">
-      <a href="${s.appUrl}" style="text-decoration:none;color:${C.ink};font-family:${FONT};font-size:24px;font-weight:700;">
+      ${s.plain
+        ? `<span style="color:${C.ink};font-family:${FONT};font-size:24px;font-weight:700;">Ghosted.</span>`
+        : `<a href="${s.appUrl}" style="text-decoration:none;color:${C.ink};font-family:${FONT};font-size:24px;font-weight:700;">
         <img src="cid:${EMAIL_LOGO_CID}" width="36" height="36" alt="Ghosted" style="vertical-align:middle;border:0;margin-right:6px;">Ghosted.
-      </a>
+      </a>`}
     </td></tr>
     <tr><td style="background:${C.card};border:2px solid ${C.ink};border-radius:16px;box-shadow:6px 6px 0 ${C.ink};">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
@@ -40,8 +45,8 @@ export function layout(s: Shell) {
       </table>
     </td></tr>
     <tr><td style="padding:24px 4px 0;font-family:${BODY};font-size:12px;line-height:1.7;color:${C.muted};">
-      The truth about hiring, from people who lived it.<br>
-      <a href="${s.appUrl}/privacy" style="color:${C.muted};">Privacy</a> &middot; <a href="${s.appUrl}/terms" style="color:${C.muted};">Terms</a> &middot; <a href="${GITHUB}" style="color:${C.muted};">Open source</a> &middot; <a href="${s.appUrl}/dashboard" style="color:${C.muted};">Email settings</a>
+      The truth about hiring, from people who lived it.${s.plain ? "" : `<br>
+      <a href="${s.appUrl}/privacy" style="color:${C.muted};">Privacy</a> &middot; <a href="${s.appUrl}/terms" style="color:${C.muted};">Terms</a> &middot; <a href="${GITHUB}" style="color:${C.muted};">Open source</a> &middot; <a href="${s.appUrl}/dashboard" style="color:${C.muted};">Email settings</a>`}
     </td></tr>
   </table>
 </td></tr></table>
@@ -83,6 +88,7 @@ export function otpEmail({ purpose = "signup", code, name, appUrl, minutes, tone
   const digits = code.split("").map((d) => `<td align="center" style="width:48px;height:60px;border:2px solid ${C.ink};border-radius:10px;background:${C.card};font-family:${FONT};font-size:30px;font-weight:700;color:${C.violet};">${d}</td>`).join(`<td style="width:8px;"></td>`);
   const subject = t.subject(code);
   const html = layout({
+    plain: true, // no links, no images (see Shell)
     appUrl, subject, banner: t.banner, heading: t.heading(first), ...(t.tagline && { tagline: t.tagline }), intro: t.intro,
     preheader: `Your code is ${code}. It expires in ${minutes} minutes.`,
     // The digit boxes, then a copy strip: the whole code as one unbroken string that a single tap or
@@ -99,6 +105,6 @@ export function otpEmail({ purpose = "signup", code, name, appUrl, minutes, tone
         <tr><td align="center" style="padding:4px 28px 28px;font-family:${BODY};font-size:13px;color:${C.muted};">${t.expiry(minutes)}</td></tr>`,
     footnote: `${escape(t.ignore)}<br>Ghosted will <strong style="color:${C.red};">never</strong> ask for this code by phone, chat or DM, and we never share your identity with employers.`,
   });
-  const text = [t.heading(first).replace(/<[^>]+>/g, ""), "", `Your code: ${code}`, "", t.expiry(minutes).replace(/<[^>]+>/g, ""), "", t.ignore, "Ghosted will never ask for this code by phone, chat or DM.", "", `Ghosted: ${appUrl}`].join("\n");
+  const text = [t.heading(first).replace(/<[^>]+>/g, ""), "", `Your code: ${code}`, "", t.expiry(minutes).replace(/<[^>]+>/g, ""), "", t.ignore, "Ghosted will never ask for this code by phone, chat or DM.", "", "Ghosted"].join("\n");
   return { subject, html, text };
 }

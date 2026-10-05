@@ -89,7 +89,9 @@ export function useChitchats(storyId: string, me: Author, sort: ChitchatSort = "
 
   // Optimistic update of one chitchat anywhere in the loaded pages.
   const patch = (id: string, fn: (c: Chitchat) => Chitchat) => {
-    const map = (list: Chitchat[]): Chitchat[] => list.map((c) => (c.publicId === id ? fn(c) : { ...c, replies: map(c.replies) }));
+    // Replies come from the API without their own `replies` list, so treat a missing one as empty
+    // (walking into `undefined` used to throw after a successful save: "Couldn't save that.").
+    const map = (list: Chitchat[] | undefined): Chitchat[] => (list ?? []).map((c) => (c.publicId === id ? fn(c) : { ...c, replies: map(c.replies) }));
     if (apiEnabled) qc.setQueryData<InfiniteData<Page>>(key, (d) => (d ? { ...d, pages: d.pages.map((p) => ({ ...p, chitchats: map(p.chitchats) })) } : d));
   };
 

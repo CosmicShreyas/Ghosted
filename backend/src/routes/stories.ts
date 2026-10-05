@@ -282,7 +282,7 @@ export const storyRoutes = new Hono<AppEnv>()
     const tops = rows.filter((r) => !r.parent_id);
     const replies = rows.filter((r) => r.parent_id && live(r));
     const threads = tops
-      .map((t) => ({ ...dto(t), replies: replies.filter((r) => r.parent_id === t.id).map(dto) }))
+      .map((t) => ({ ...dto(t), replies: replies.filter((r) => r.parent_id === t.id).map((r) => ({ ...dto(r), replies: [] })) }))
       .filter((t) => !t.deleted || t.replies.length > 0)
       .sort((a, b) => sort === "new" ? b.createdAt.localeCompare(a.createdAt) : (b.relatable + b.replies.length * 2) - (a.relatable + a.replies.length * 2) || b.createdAt.localeCompare(a.createdAt));
     return c.json({

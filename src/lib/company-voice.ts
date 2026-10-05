@@ -51,6 +51,7 @@ export function useRepReplies(slug: string | null) {
 
 export const repsApi = {
   start: (companySlug: string, email: string) => api<{ sent?: boolean; alreadyVerified?: boolean; domain?: string }>("/v1/voice/reps/start", { method: "POST", body: { companySlug, email } }),
+  stepDown: (companySlug: string) => api<{ ok: true }>("/v1/voice/reps/step-down", { method: "POST", body: { companySlug } }),
   verify: (companySlug: string, email: string, code: string) => api<{ verified: boolean; company: { slug: string; name: string } }>("/v1/voice/reps/verify", { method: "POST", body: { companySlug, email, code } }),
 };
 

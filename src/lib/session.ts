@@ -32,7 +32,7 @@ export type Me = {
   createdAt?: string;
 };
 export type Tone = "sassy" | "calm";
-export type Notify = { relatable: boolean; chitchatReplies: boolean; newFollowers: boolean; flaggedCompanies: boolean; weeklyDigest: boolean; levelUps?: boolean };
+export type Notify = { relatable: boolean; chitchatReplies: boolean; newFollowers: boolean; flaggedCompanies: boolean; weeklyDigest: boolean; levelUps?: boolean; comeBack?: boolean };
 
 // The one rule for which name to show: your real name only if you've gone public AND chosen to
 // show your name; otherwise your anonymous handle. Use these everywhere a name is displayed.
