@@ -165,7 +165,8 @@ export const companyRoutes = new Hono<AppEnv>()
     }
     c.header("Content-Type", logo.type);
     c.header("Cache-Control", "public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400");
-    c.header("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; sandbox");
+    // Note: the app-wide policy (app.ts) replaces this one on the way out; keep the two in step.
+    c.header("Content-Security-Policy", "default-src 'none'; img-src data:; style-src 'unsafe-inline'; sandbox");
     c.header("X-Content-Type-Options", "nosniff");
     c.header("Cross-Origin-Resource-Policy", "cross-origin");
     return c.body(new Uint8Array(logo.body));

@@ -45,7 +45,9 @@ export const app = new Hono<AppEnv>();
 app.use(requestId());
 // JSON API: no HTML, so the strictest CSP and no framing.
 app.use(secureHeaders({
-  contentSecurityPolicy: { defaultSrc: ["'none'"], frameAncestors: ["'none'"] },
+  // img-src data: lets company logos that are SVGs wrapping an embedded picture (Flipkart's does)
+  // draw it; scripts and everything else stay blocked. This wins over per-route headers.
+  contentSecurityPolicy: { defaultSrc: ["'none'"], imgSrc: ["data:"], styleSrc: ["'unsafe-inline'"], frameAncestors: ["'none'"] },
   strictTransportSecurity: "max-age=63072000; includeSubDomains; preload",
   referrerPolicy: "no-referrer",
   // JSON and images only: no browser feature is ever needed.

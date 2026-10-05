@@ -3,7 +3,7 @@
 // the brand card with the Flag Score. The company name is hidden unless you switch it on, and the
 // author is never on it. Drawn in the browser (html-to-image); nothing is uploaded. The story page's
 // link preview uses the same receipt, drawn on the server (backend/src/og.ts).
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toPng } from "html-to-image";
 import { Copy, Download, Eye, EyeOff, Linkedin, Loader2, Share2, Twitter } from "lucide-react";
 import { toast } from "sonner";
@@ -40,14 +40,20 @@ function Receipt({ data, showCompany, host, link }: { data: ShareCardData; showC
   ];
   const lost = data.days != null ? `${data.days} ${data.days === 1 ? "day" : "days"}` : data.wait ?? "Untold";
   const mono = "'JetBrains Mono', 'Courier New', ui-monospace, monospace";
-  return <div style={{ fontFamily: mono, color: INK }} className="mx-auto w-full max-w-[20rem] drop-shadow-[5px_5px_0_#141110]">
-    <div style={{ background: PAPER }} className="border-2 border-b-0 border-[#141110] px-5 pb-3 pt-5 text-[13px]">
+  const teeth = (flip: boolean) => ({ background: `linear-gradient(${flip ? 135 : -45}deg, transparent 6px, ${PAPER} 0) 0 0 / 12px 12px repeat-x, linear-gradient(${flip ? -135 : 45}deg, transparent 6px, ${PAPER} 0) 0 0 / 12px 12px repeat-x` });
+  const no = (data.storyId ?? "000000000000000").replace(/(\d{4})(?=\d)/g, "$1 ");
+  const date = new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  return <div style={{ fontFamily: mono, color: INK }} className="mx-auto w-full max-w-[19rem] drop-shadow-[5px_5px_0_#141110] sm:max-w-[20rem]">
+    {/* Torn top edge, then the paper, then a torn bottom edge: a slip straight off the till. */}
+    <div aria-hidden="true" className="h-3 w-full" style={teeth(true)} />
+    <div style={{ background: `linear-gradient(180deg, ${PAPER} 0%, #FBF7EC 100%)` }} className="px-5 pb-3 pt-3 text-[13px]">
       <div className="flex flex-col items-center text-center">
         <img src="/ghosted-mark.png" alt="" className="size-8 object-contain" crossOrigin="anonymous" />
         <p className="mt-1 text-lg font-bold" style={{ fontFamily: "'Space Grotesk', Inter, sans-serif" }}>Ghosted.</p>
-        <p className="text-[11px]">Hiring receipt, kept anonymously</p>
+        <p className="text-[11px] tracking-wide">HIRING RECEIPT</p>
       </div>
-      <p className="mt-3 border-y border-dashed border-[#141110] py-1.5 text-center text-[11px] font-bold">{showCompany && data.company ? data.company : "Company: hidden"}</p>
+      <div className="mt-2 flex justify-between text-[10px] opacity-70"><span>No. {no}</span><span>{date}</span></div>
+      <p className="mt-2 border-y border-dashed border-[#141110] py-1.5 text-center text-[11px] font-bold">{showCompany && data.company ? data.company : "Company: hidden"}</p>
       <p className="mt-3 text-[13px] font-bold leading-snug">{data.headline}</p>
       <div className="mt-3 space-y-1">{rows.map(([k, v]) => <div key={k} className="flex items-baseline gap-1"><span>{k}</span><span className="min-w-4 flex-1 translate-y-[-3px] border-b border-dotted border-[#14111066]" /><span className="font-bold tabular-nums">{v}</span></div>)}</div>
       <div className="mt-3 flex items-baseline justify-between border-t-2 border-[#141110] pt-2 text-base font-bold"><span>Time lost</span><span>{lost}</span></div>
@@ -56,8 +62,7 @@ function Receipt({ data, showCompany, host, link }: { data: ShareCardData; showC
       <div className="mt-3 flex h-10 items-stretch justify-center gap-[2px]" aria-hidden="true">{bars(link).map((w, i) => <span key={i} style={{ width: w, background: i % 2 ? "transparent" : INK }} />)}</div>
       <p className="mt-1 text-center text-[11px] font-bold tracking-wider">{host}</p>
     </div>
-    {/* Torn edge: a row of paper teeth. */}
-    <div aria-hidden="true" className="h-3 w-full" style={{ background: `linear-gradient(-45deg, transparent 6px, ${PAPER} 0) 0 0 / 12px 12px repeat-x, linear-gradient(45deg, transparent 6px, ${PAPER} 0) 0 0 / 12px 12px repeat-x` }} />
+    <div aria-hidden="true" className="h-3 w-full" style={{ ...teeth(false), backgroundColor: "transparent" }} />
   </div>;
 }
 
@@ -77,7 +82,7 @@ function Classic({ data, showCompany, host }: { data: ShareCardData; showCompany
 
 // `showCompany`/`onShowCompany` let the share popup keep the card and the LinkedIn post in step;
 // `social: false` drops the LinkedIn/X links when the popup has its own LinkedIn composer.
-export function ShareCard({ data, showCompany: shown, onShowCompany, social = true }: { data: ShareCardData; showCompany?: boolean; onShowCompany?: (v: boolean) => void; social?: boolean }) {
+export function ShareCard({ data, showCompany: shown, onShowCompany, social = true, onRenderer }: { data: ShareCardData; showCompany?: boolean; onShowCompany?: (v: boolean) => void; social?: boolean; onRenderer?: (draw: () => Promise<Blob>) => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const [look, setLook] = useState<"receipt" | "classic">("receipt");
   const [ownShow, setOwnShow] = useState(false);
@@ -111,14 +116,21 @@ export function ShareCard({ data, showCompany: shown, onShowCompany, social = tr
   };
   const copy = async () => { try { await navigator.clipboard.writeText(link); toast.success("Link copied."); } catch { toast.error("Couldn't copy the link."); } };
 
+  // Hands the popup a way to draw this card, so its LinkedIn button can attach the image.
+  useEffect(() => { onRenderer?.(async () => (await fetch(await render())).blob()); });
+
   return <div className="w-full max-w-sm">
-    <div className="mb-3 grid grid-cols-2 rounded-lg border-2 border-foreground bg-muted p-1 text-xs font-bold" role="group" aria-label="Card style">
-      {(["receipt", "classic"] as const).map((l) => <button key={l} type="button" aria-pressed={look === l} onClick={() => setLook(l)} className={cn("rounded-md px-3 py-1.5 transition-colors", look === l ? "bg-primary text-primary-foreground" : "hover:bg-background")}>{l === "receipt" ? "Receipt" : "Classic"}</button>)}
+    <div className="mb-3 grid grid-cols-2 rounded-lg border-2 border-foreground bg-muted p-1 text-sm font-bold" role="group" aria-label="Card style">
+      {(["receipt", "classic"] as const).map((l) => <button key={l} type="button" aria-pressed={look === l} onClick={() => setLook(l)} className={cn("min-h-9 rounded-md px-3 transition-colors", look === l ? "bg-primary text-primary-foreground" : "hover:bg-background")}>{l === "receipt" ? "Receipt" : "Classic"}</button>)}
     </div>
-    <div ref={ref} className={look === "receipt" ? "px-2 pb-2" : ""}>
-      {look === "receipt" ? <Receipt data={data} showCompany={showCompany} host={host} link={link} /> : <Classic data={data} showCompany={showCompany} host={host} />}
+    {/* The receipt sits on a soft dotted "counter" so its torn edges read on any background. */}
+    <div className={cn(look === "receipt" && "rounded-xl border-2 border-dashed border-foreground/15 py-4 sm:py-5")}
+      style={look === "receipt" ? { backgroundImage: "radial-gradient(color-mix(in oklch, var(--foreground) 12%, transparent) 1px, transparent 1px)", backgroundSize: "14px 14px" } : undefined}>
+      <div ref={ref} className={look === "receipt" ? "px-3 pb-2 pt-1" : ""}>
+        {look === "receipt" ? <Receipt data={data} showCompany={showCompany} host={host} link={link} /> : <Classic data={data} showCompany={showCompany} host={host} />}
+      </div>
     </div>
-    <button type="button" onClick={() => setShowCompany((v) => !v)} aria-pressed={showCompany} className={cn("mt-4 inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-foreground px-3 text-sm font-bold", showCompany ? "bg-primary text-primary-foreground" : "bg-card hover:bg-muted")}>
+    <button type="button" onClick={() => setShowCompany((v) => !v)} aria-pressed={showCompany} className={cn("mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border-2 border-foreground px-3 text-sm font-bold sm:w-auto", showCompany ? "bg-primary text-primary-foreground" : "bg-card hover:bg-muted")}>
       {showCompany ? <EyeOff className="size-4" /> : <Eye className="size-4" />}{showCompany ? "Hide company name" : "Show company name"}
     </button>
     {social && <>
@@ -129,7 +141,7 @@ export function ShareCard({ data, showCompany: shown, onShowCompany, social = tr
         <Button className="min-h-11" variant="outline" asChild><a href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`${data.headline}. Shared anonymously on Ghosted.`)}&url=${encodeURIComponent(link)}&hashtags=GhostedReceipts`} target="_blank" rel="noopener noreferrer"><Twitter />Post on X</a></Button>
       </div>
     </>}
-    <div className="mt-3 flex flex-wrap justify-center gap-2">
+    <div className="mt-3 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-center [&>*:nth-child(3)]:col-span-2">
       <Button className="min-h-11" onClick={() => void share()} disabled={!!busy}>{busy === "share" ? <Loader2 className="animate-spin" /> : <Share2 />}Share</Button>
       <Button className="min-h-11" variant="outline" onClick={() => void download()} disabled={!!busy}>{busy === "download" ? <Loader2 className="animate-spin" /> : <Download />}Download PNG</Button>
       {data.storyId && <Button className="min-h-11" variant="outline" onClick={() => void copy()}><Copy />Copy link</Button>}

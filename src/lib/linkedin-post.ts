@@ -1,85 +1,95 @@
-// Writes a LinkedIn post from a story: a hook that fits how it ended, the key facts, the story in
-// the author's own words (trimmed at a sentence), and a closing line that brings readers to Ghosted
-// without sounding like an ad. Your own story is written in the first person; someone else's is
-// written as passing it on, so nobody claims a story that isn't theirs. Worked out in the browser,
-// nothing is sent anywhere. The company is left out unless you choose to name it.
+// Writes a LinkedIn post from a story, in plain professional prose: an opening that weaves in the
+// facts (role, rounds, wait), the story in the author's own words, a short reflection that fits how
+// it ended, and one natural line about Ghosted with the link. No bullet lists of stats, no hype.
+// Your own story is written in the first person; someone else's is written as passing it on, so
+// nobody claims a story that isn't theirs. Worked out in the browser, nothing is sent anywhere. The
+// company is left out unless you choose to name it.
 import { plainText } from "@/components/markdown";
 
 export type PostAngle = "story" | "lessons" | "short";
 export type PostSource = {
-  url: string; title: string | null; body: string; company: string; outcome: string;
+  url: string; title: string | null; body: string; company: string; outcome: string; quick?: boolean;
   stage?: string | null; days?: number | null; salary?: { min: number; max: number } | null; role?: string | null; score?: number | null;
 };
 export type PostOptions = { angle: PostAngle; mine: boolean; nameCompany: boolean; tone: "sassy" | "calm" };
 
 export const LINKEDIN_LIMIT = 3000;
 const ROUNDS: Record<string, number> = { application: 0, screening: 1, technical: 2, final: 3, offer: 3 };
-const OUTCOME: Record<string, string> = { ghosted: "Ghosted", rejected: "Rejected", offer: "Got the offer", offer_revoked: "Offer revoked", ghost_job: "Ghost job" };
+const LAST_ROUND: Record<string, string> = { screening: "the screening call", technical: "the technical round", final: "the final round", offer: "the final round" };
+const NUM = ["no", "one", "two", "three", "four", "five"];
 
-const roundsText = (n: number) => (n === 0 ? "the application stage" : n === 1 ? "one round" : `${["", "one", "two", "three"][n] ?? n} rounds`);
+const roleOf = (s: PostSource) => (s.role?.trim() ? `${/^[aeiou]/i.test(s.role.trim()) ? "an" : "a"} ${s.role.trim()} role` : "a role");
+const roundsOf = (s: PostSource) => { const n = ROUNDS[s.stage ?? ""] ?? 0; return n > 0 ? `${NUM[n] ?? n} ${n === 1 ? "round" : "rounds"} of interviews` : null; };
+const pay = (s: PostSource) => (s.salary ? `₹${s.salary.min} to ${s.salary.max} LPA` : null);
 
-// The story cut at a sentence boundary near `max` characters.
+// The story, cut at a sentence boundary near `max` characters.
 function excerpt(text: string, max: number) {
-  const t = plainText(text).replace(/\s+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+  const t = plainText(text).replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
   if (t.length <= max) return { text: t, cut: false };
   const slice = t.slice(0, max);
   const end = Math.max(slice.lastIndexOf(". "), slice.lastIndexOf("! "), slice.lastIndexOf("? "), slice.lastIndexOf("\n"));
   return { text: (end > max * 0.5 ? slice.slice(0, end + 1) : `${slice.trimEnd()}…`).trim(), cut: true };
 }
 
-function hook(s: PostSource, o: PostOptions, who: string) {
-  const r = ROUNDS[s.stage ?? ""] ?? null;
-  const days = s.days != null ? `${s.days} days` : null;
-  const sassy = o.tone === "sassy";
-  if (!o.mine) {
-    return {
-      ghosted: `Someone made it through ${r != null ? roundsText(r) : "the interviews"} with ${who}, then heard nothing${days ? ` for ${days}` : ""}.`,
-      rejected: `A candidate shared exactly how a rejection from ${who} played out. Worth a read if you're interviewing.`,
-      offer: `A candidate shared how ${who}'s hiring process went, start to offer. This is the kind of detail job seekers rarely get.`,
-      offer_revoked: `A candidate had an offer from ${who}. Then it was taken back.`,
-      ghost_job: `A candidate applied to ${who} for a role that, it turns out, may never have existed.`,
-    }[s.outcome] ?? `A candidate shared what interviewing with ${who} was really like.`;
+// Opening paragraph: what happened, in a sentence or two, with the facts in it.
+function opening(s: PostSource, o: PostOptions, who: string) {
+  const role = roleOf(s), rounds = roundsOf(s), last = LAST_ROUND[s.stage ?? ""], d = s.days;
+  if (o.mine) {
+    switch (s.outcome) {
+      case "ghosted":
+        return rounds
+          ? `I recently went through ${rounds} with ${who} for ${role}. After ${last}, the updates simply stopped.${d ? ` That was ${d} days ago, and I'm still waiting to hear back.` : ""}`
+          : `I applied to ${who} for ${role} and never heard back. No acknowledgement, no rejection, nothing.${d ? ` It has now been ${d} days.` : ""}`;
+      case "rejected":
+        return `I recently interviewed with ${who} for ${role}${rounds ? `, across ${rounds}` : ""}, and it didn't work out this time.`;
+      case "offer":
+        return `I recently went through ${who}'s hiring process for ${role}${rounds ? ` (${rounds})` : ""} and came away with an offer${pay(s) ? ` in the ${pay(s)} range` : ""}.`;
+      case "offer_revoked":
+        return `I was offered ${role} at ${who}${pay(s) ? ` at ${pay(s)}` : ""}. Some time after accepting, the offer was withdrawn.`;
+      case "ghost_job":
+        return `I applied to ${who} for ${role} that, as far as I can tell, was never really open.`;
+    }
+    return `I recently interviewed with ${who} for ${role}, and I wanted to share how it went.`;
   }
-  return {
-    ghosted: sassy
-      ? `I made it through ${r != null ? roundsText(r) : "every round"} with ${who}. Then: silence${days ? `. ${days} of it` : ""}.`
-      : `After ${r != null ? roundsText(r) : "several rounds"} with ${who}, I never heard back${days ? `, ${days} later` : ""}.`,
-    rejected: sassy ? `I didn't get the job at ${who}. But at least they told me, which is more than most.` : `I didn't get the role at ${who}. Here's how the process went.`,
-    offer: `I got the offer from ${who}. Here's what the hiring process actually looked like.`,
-    offer_revoked: sassy ? `I had an offer from ${who} in hand. Then it un-happened.` : `I had an offer from ${who}. Then it was withdrawn.`,
-    ghost_job: sassy ? `I applied for a role at ${who} that, as far as I can tell, never existed.` : `I applied for a role at ${who} that appears never to have been real.`,
-  }[s.outcome] ?? `Here's what interviewing with ${who} was really like.`;
+  switch (s.outcome) {
+    case "ghosted":
+      return rounds
+        ? `A candidate went through ${rounds} with ${who} for ${role}, then heard nothing after ${last}${d ? `, ${d} days and counting` : ""}.`
+        : `A candidate applied to ${who} for ${role} and never received a reply of any kind${d ? `, ${d} days on` : ""}.`;
+    case "rejected": return `A candidate shared, in detail, how a rejection from ${who} played out${rounds ? ` after ${rounds}` : ""}.`;
+    case "offer": return `A candidate shared how ${who}'s hiring process went from first call to offer. This is the kind of detail job seekers rarely get.`;
+    case "offer_revoked": return `A candidate accepted an offer from ${who}, and later had it withdrawn.`;
+    case "ghost_job": return `A candidate applied to ${who} for a role that may never have been open.`;
+  }
+  return `A candidate shared what interviewing with ${who} was really like.`;
 }
 
-function facts(s: PostSource) {
-  const r = ROUNDS[s.stage ?? ""];
-  return [
-    r != null && r > 0 ? `Rounds: ${r}` : null,
-    s.days != null ? `Waited: ${s.days} ${s.days === 1 ? "day" : "days"}` : null,
-    s.salary ? `Pay offered: ₹${s.salary.min} to ${s.salary.max} LPA` : null,
-    OUTCOME[s.outcome] ? `Outcome: ${OUTCOME[s.outcome]}` : null,
-  ].filter(Boolean).map((f) => `▸ ${f}`).join("\n");
-}
-
-const LESSONS: Record<string, string[]> = {
-  ghosted: ["Ask for the timeline at the end of every round, and write it down.", "One polite follow-up after a week is normal. Two is plenty.", "Keep applying while you wait. Silence is not a maybe."],
-  rejected: ["Ask for feedback once, briefly. Some companies do share it.", "A clear no is a gift compared to silence.", "Note which rounds felt fair. It tells you a lot about the team."],
-  offer: ["Get the offer in writing before you resign anywhere.", "Ask how long the process takes on day one.", "Good processes are worth naming, so other companies notice."],
-  offer_revoked: ["Don't resign until the offer letter and joining date are in writing.", "Keep one other process warm until your first day.", "Ask what could change the offer, before you accept it."],
-  ghost_job: ["Check when the role was first posted and whether it keeps getting reposted.", "Ask the recruiter how many people the role is hiring for.", "Look up the company's hiring stories before investing hours."],
+// A short reflection that fits how it ended, written the way a person would say it.
+const REFLECTION: Record<string, { mine: string; theirs: string }> = {
+  ghosted: {
+    mine: "I'm not sharing this to call anyone out. Silence is simply the part of job hunting nobody prepares you for, and a two-line \"we've decided to move on\" email would have been enough.",
+    theirs: "Silence after interviews is more common than most people admit, and a short closing email costs a company almost nothing.",
+  },
+  rejected: { mine: "A no still stings, but a clear answer is something I'll always respect.", theirs: "A clear no, even a short one, is worth far more to candidates than silence." },
+  offer: { mine: "Good hiring processes deserve to be talked about as much as the bad ones.", theirs: "Good processes deserve as much attention as the bad ones." },
+  offer_revoked: { mine: "If you're about to resign on the strength of an offer, get every detail in writing first.", theirs: "A reminder to get every detail in writing before resigning anywhere." },
+  ghost_job: { mine: "If a listing has been up for months, it's worth asking whether the role is actually being filled.", theirs: "Worth remembering the next time a listing has been open for months." },
 };
 
-// Why Ghosted, said once, at the end, fitted to how the story ended.
+// "Lessons": what I'd do next time, as one natural paragraph rather than a list.
+const LESSONS: Record<string, string> = {
+  ghosted: "Next time I'll ask for a clear timeline at the end of every round, send one polite follow-up after a week, and keep other applications moving while I wait.",
+  rejected: "What I'm taking from it: ask for feedback once, keep it brief, and pay attention to which rounds felt fair. That says a lot about a team.",
+  offer: "What helped: asking about the timeline on day one, and not resigning anywhere until the offer was in writing.",
+  offer_revoked: "What I'd do differently: wait for the signed letter and a confirmed joining date before resigning, and keep one other process warm until day one.",
+  ghost_job: "Next time I'll check how long a role has been posted, and ask the recruiter how many people it's actually hiring for, before investing hours.",
+};
+
+// One natural mention of Ghosted, with the link.
 function closing(s: PostSource, o: PostOptions) {
-  const why = {
-    ghosted: "Candidates in India are sharing how long companies really take to reply, and which ones never do",
-    rejected: "Candidates in India are sharing how hiring really goes, rounds, waits and replies included",
-    offer: "Candidates in India are sharing which companies run fair, clear hiring processes",
-    offer_revoked: "Candidates in India are sharing offer stories like this, so nobody resigns on a promise",
-    ghost_job: "Candidates in India are flagging roles that never seem to be filled",
-  }[s.outcome] ?? "Candidates in India are sharing how hiring really goes";
-  const lead = o.mine ? "I shared the full story anonymously on Ghosted." : "Read the full story on Ghosted.";
-  return `${lead} ${why}, so the next person can check a company before they apply.\n\n${s.url}`;
+  return o.mine
+    ? `I've written up the full experience on Ghosted, where candidates in India share how hiring actually goes, anonymously, so others know what to expect before they apply. If you've been through something similar, it's worth adding yours.\n\n${s.url}`
+    : `I came across this on Ghosted, where candidates in India share their hiring experiences anonymously. Worth a read if you're interviewing right now.\n\n${s.url}`;
 }
 
 const ROLE_TAGS: [RegExp, string][] = [
@@ -87,33 +97,32 @@ const ROLE_TAGS: [RegExp, string][] = [
   [/design/i, "#Design"], [/product/i, "#ProductManagement"], [/data|analyst|ml|scien/i, "#DataScience"],
   [/market/i, "#Marketing"], [/sales|business development/i, "#Sales"], [/hr|talent|recruit/i, "#HR"],
 ];
+// A few relevant tags, like a person would add, not a wall of them.
 function hashtags(s: PostSource) {
-  const tags = ["#JobSearch", "#CandidateExperience", "#Hiring"];
   const role = ROLE_TAGS.find(([re]) => re.test(s.role ?? ""))?.[1];
-  if (role) tags.push(role);
-  if (s.outcome === "ghosted") tags.push("#Ghosting");
-  tags.push("#GhostedReceipts");
-  return tags.join(" ");
+  return ["#JobSearch", "#Hiring", "#CandidateExperience", ...(role ? [role] : [])].join(" ");
 }
 
 export function writePost(s: PostSource, o: PostOptions) {
   const who = o.nameCompany && s.company ? s.company : "a company";
-  const parts = [hook(s, o, who), facts(s)];
-  if (o.angle === "story") {
-    const room = LINKEDIN_LIMIT - 700; // leave space for the rest of the post
-    const { text, cut } = excerpt(s.body, Math.min(1400, room));
-    parts.push(o.mine ? text : `In their words:\n"${text}"`);
-    if (cut) parts.push("(The rest is in the full story below.)");
-  } else if (o.angle === "lessons") {
-    const { text } = excerpt(s.body, 280);
-    parts.push(o.mine ? text : `"${text}"`);
-    parts.push(`${o.mine ? "What I'd tell anyone interviewing now" : "What I'd take from it"}:\n${(LESSONS[s.outcome] ?? LESSONS["rejected"]!).map((l) => `• ${l}`).join("\n")}`);
+  const side = o.mine ? "mine" : "theirs";
+  const parts = [opening(s, o, who)];
+  // Quick stories have a generated body that repeats the opening, so only written stories are quoted.
+  const hasOwnWords = !s.quick && plainText(s.body).trim().length > 40;
+  if (o.angle === "story" && hasOwnWords) {
+    const { text, cut } = excerpt(s.body, 1400);
+    parts.push(o.mine ? text : `In their words: "${text}"`);
+    if (cut) parts.push(o.mine ? "There's more detail in the full write-up below." : "The full story is linked below.");
   }
+  if (o.angle === "lessons") {
+    if (hasOwnWords) { const { text } = excerpt(s.body, 300); parts.push(o.mine ? text : `"${text}"`); }
+    if (o.mine && LESSONS[s.outcome]) parts.push(LESSONS[s.outcome]!);
+  }
+  if (o.angle !== "short" && REFLECTION[s.outcome]) parts.push(REFLECTION[s.outcome]![side]);
   parts.push(closing(s, o), hashtags(s));
-  // Unnamed companies can still leak through the story text; the hook and facts never name them.
-  return parts.filter(Boolean).join("\n\n").slice(0, LINKEDIN_LIMIT);
+  return parts.join("\n\n").slice(0, LINKEDIN_LIMIT);
 }
 
 // LinkedIn's composer, opened with the post filled in. If LinkedIn ignores the text (it sometimes
-// does on the app), the post is already on the clipboard to paste.
+// does on the app), the post is on the clipboard to paste.
 export const linkedInComposeUrl = (text: string) => `https://www.linkedin.com/feed/?shareActive=true&text=${encodeURIComponent(text)}`;

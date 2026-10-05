@@ -3,8 +3,8 @@
 // button on any story (StoryShareDialog). "Post on LinkedIn" copies the text and opens LinkedIn's
 // composer with it filled in; the image can be downloaded to attach. The company stays unnamed
 // until you switch it on, for the card and the post together.
-import { useEffect, useMemo, useState } from "react";
-import { Check, Copy, Linkedin, Link2, RotateCcw, Twitter } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Check, Copy, Linkedin, Link2, Loader2, RotateCcw, Twitter } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -37,7 +37,7 @@ export function shareInputFromStory(story: StoryModel, mine: boolean): StoryShar
   return {
     mine,
     card: { storyId: story.id, headline: story.title ?? `A story about ${story.company.name}`, wait: null, score: story.flagScore ?? null, company: story.company.name, outcome: story.outcome, stage: story.stage ?? null, days: story.daysWaited ?? null, salary },
-    post: { title: story.title, body: story.body, company: story.company.name, outcome: story.outcome, stage: story.stage ?? null, days: story.daysWaited ?? null, salary, role: story.role, score: story.flagScore ?? null },
+    post: { title: story.title, body: story.body, quick: !!story.quick, company: story.company.name, outcome: story.outcome, stage: story.stage ?? null, days: story.daysWaited ?? null, salary, role: story.role, score: story.flagScore ?? null },
   };
 }
 
@@ -57,17 +57,47 @@ export function StoryShare({ input }: { input: StoryShareInput }) {
     try { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1500); if (!silent) toast.success("Post copied."); return true; }
     catch { if (!silent) toast.error("Couldn't copy. Select the text and copy it yourself."); return false; }
   };
+  // LinkedIn can't take an image through a link, so the card travels the way each device allows:
+  //   phones and tablets: the share sheet with the image attached (pick LinkedIn); the text is copied
+  //     too, since LinkedIn's app often drops shared text
+  //   computers: the image goes on the clipboard and LinkedIn opens with the text filled in, so one
+  //     paste (Ctrl+V / Cmd+V) in the post box attaches the card
+  // If neither works, it falls back to text only, with the post on the clipboard.
+  const draw = useRef<(() => Promise<Blob>) | null>(null);
+  const [sending, setSending] = useState(false);
+  const touch = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
   const postToLinkedIn = async () => {
-    await copy(true);
-    window.open(linkedInComposeUrl(text), "_blank", "noopener,noreferrer");
-    toast.success(voice(tone, "LinkedIn is open with your post. If the box is empty, just paste, it's copied.", "LinkedIn is open with your post filled in. If it's empty, paste it: it's on your clipboard."));
+    setSending(true);
+    try {
+      if (touch && draw.current && navigator.canShare) {
+        const file = new File([await draw.current()], "ghosted-story.png", { type: "image/png" });
+        if (navigator.canShare({ files: [file] })) {
+          await copy(true);
+          try { await navigator.share({ files: [file], text }); toast.success(voice(tone, "Pick LinkedIn. If the text didn't come along, paste it, it's copied.", "Choose LinkedIn. If the text is missing, paste it: it's on your clipboard.")); }
+          catch (e) { if ((e as Error).name !== "AbortError") throw e; }
+          return;
+        }
+      }
+      let imageCopied = false;
+      if (draw.current && typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
+        // Passing the promise keeps Safari happy (the write must start inside the click).
+        try { await navigator.clipboard.write([new ClipboardItem({ "image/png": draw.current() })]); imageCopied = true; } catch { /* not allowed here */ }
+      }
+      if (!imageCopied) await copy(true);
+      window.open(linkedInComposeUrl(text), "_blank", "noopener,noreferrer");
+      const paste = /Mac|iPhone|iPad/.test(navigator.userAgent) ? "Cmd+V" : "Ctrl+V";
+      toast.success(imageCopied
+        ? `LinkedIn is open with your post. Click in the post box and press ${paste} to attach the card image.`
+        : voice(tone, "LinkedIn is open with your post. If the box is empty, just paste, it's copied.", "LinkedIn is open with your post filled in. If it's empty, paste it: it's on your clipboard."), { duration: 8000 });
+    } catch { toast.error("Couldn't open LinkedIn. Copy the post and paste it there instead."); }
+    finally { setSending(false); }
   };
   const copyLink = async () => { try { await navigator.clipboard.writeText(url); toast.success("Link copied."); } catch { toast.error("Couldn't copy the link."); } };
   const angles = ANGLES[input.mine ? "mine" : "theirs"];
   const over = text.length > LINKEDIN_LIMIT;
 
   return <div className="grid w-full gap-6 text-left md:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
-    <div className="flex justify-center"><ShareCard data={input.card} social={false} showCompany={nameCompany} onShowCompany={setNameCompany} /></div>
+    <div className="flex justify-center"><ShareCard data={input.card} social={false} showCompany={nameCompany} onShowCompany={setNameCompany} onRenderer={(d) => { draw.current = d; }} /></div>
 
     <div className="min-w-0 space-y-3">
       <div>
@@ -84,7 +114,7 @@ export function StoryShare({ input }: { input: StoryShareInput }) {
       </div>
       {input.mine && <p className="text-[11px] text-muted-foreground">Your story text goes in as written. If it mentions the company or anyone by name, edit that out here.</p>}
       <div className="flex flex-wrap gap-2">
-        <Button className="min-h-11 flex-1 bg-[#0A66C2] text-white hover:bg-[#0A66C2]/90 sm:flex-none" onClick={() => void postToLinkedIn()} disabled={over || !text.trim()}><Linkedin />Post on LinkedIn</Button>
+        <Button className="min-h-11 flex-1 bg-[#0A66C2] text-white hover:bg-[#0A66C2]/90 sm:flex-none" onClick={() => void postToLinkedIn()} disabled={over || !text.trim() || sending}>{sending ? <Loader2 className="animate-spin" /> : <Linkedin />}Post on LinkedIn</Button>
         <Button className="min-h-11" variant="outline" onClick={() => void copy()}>{copied ? <Check /> : <Copy />}{copied ? "Copied" : "Copy post"}</Button>
         {edited && <Button className="min-h-11" variant="ghost" onClick={() => setEdited(false)}><RotateCcw />Rewrite</Button>}
       </div>
@@ -92,7 +122,7 @@ export function StoryShare({ input }: { input: StoryShareInput }) {
         <Button size="sm" variant="outline" asChild><a href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`${input.card.headline}. Shared anonymously on Ghosted.`)}&url=${encodeURIComponent(url)}&hashtags=GhostedReceipts`} target="_blank" rel="noopener noreferrer"><Twitter />Post on X</a></Button>
         {input.card.storyId && <Button size="sm" variant="outline" onClick={() => void copyLink()}><Link2 />Copy link</Button>}
       </div>
-      <p className="text-[11px] text-muted-foreground">Tip: download the card image and add it to your LinkedIn post. Posts with an image get far more reach.</p>
+      <p className="text-[11px] text-muted-foreground">{touch ? "The card image is attached when you pick LinkedIn from the share sheet." : "The card image is copied for you: paste it into the LinkedIn post box to attach it."} Posts with an image get far more reach.</p>
     </div>
   </div>;
 }

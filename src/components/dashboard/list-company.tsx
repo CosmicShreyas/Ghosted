@@ -282,10 +282,10 @@ export function ListCompanyDialog({ open, onOpenChange, onListed, requestName, i
           <AnimatePresence mode="wait" initial={false}>
             {check.state === "checking" && <motion.p key="checking" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="-mt-2 text-sm text-muted-foreground">Checking the website and fetching its icon…</motion.p>}
             {check.state === "error" && <motion.p key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="-mt-2 flex items-start gap-1.5 rounded-lg border-2 border-flag-red bg-flag-red/10 p-3 text-sm font-semibold text-flag-red"><AlertCircle className="mt-0.5 size-4 shrink-0" />{check.message}</motion.p>}
-            {check.state === "exists" && <motion.div key="exists" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="-mt-2 flex items-center gap-3 rounded-lg border-2 border-foreground bg-accent p-3">
+            {check.state === "exists" && <motion.div key="exists" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="-mt-2 flex flex-wrap items-center gap-3 rounded-lg border-2 border-foreground bg-accent p-3">
               <CompanyMark company={companyFromApi(check.company)} size="sm" />
-              <p className="min-w-0 flex-1 text-sm"><strong>{check.company.name}</strong> is already listed with this website. Share your story there instead.</p>
-              {onListed && <Button size="sm" variant="outline" onClick={() => { onListed(companyFromApi(check.company)); close(false); }}>Open</Button>}
+              <p className="min-w-0 flex-1 basis-40 text-sm"><strong>{check.company.name}</strong> is already listed with this website. Share your story there instead.</p>
+              {onListed && <Button size="sm" variant="outline" className="shrink-0" onClick={() => { onListed(companyFromApi(check.company)); close(false); }}>Open</Button>}
             </motion.div>}
             {site && <motion.div key="ok" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="-mt-2 flex items-center gap-3 rounded-lg border-2 border-flag-green bg-flag-green/10 p-3">
               <CompanyMark company={{ name: f.name || site.domain, initial: (f.name || site.domain).charAt(0).toUpperCase(), color: "bg-logo-violet", logoUrl: site.iconUrl }} size="md" />
@@ -323,16 +323,16 @@ export function ListCompanyDialog({ open, onOpenChange, onListed, requestName, i
               <Textarea id="lc-about" value={f.about} onChange={(e) => edit("about")(e.target.value)} onBlur={() => touch("about")} maxLength={800} rows={4} placeholder="Acme builds payroll software for small businesses in India. Its main product handles salaries, compliance and payslips, and it has offices in Pune and Bengaluru." className="border-2 border-foreground" aria-invalid={!!show("about")} />
             </Field>
 
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 [&>*]:min-w-0 sm:grid-cols-2">
               <Field id="lc-industry" label={<>Industry <span className="text-flag-red">*</span>{auto("industry")}</>} error={show("industry")}>
                 <Select value={f.industry} onValueChange={(v) => { edit("industry")(v); touch("industry"); }}>
-                  <SelectTrigger id="lc-industry" aria-invalid={!!show("industry")}><SelectValue placeholder="Choose industry" /></SelectTrigger>
+                  <SelectTrigger id="lc-industry" aria-invalid={!!show("industry")} className="h-10 w-full min-w-0 border-2 border-foreground"><SelectValue placeholder="Choose industry" /></SelectTrigger>
                   <SelectContent>{Object.entries(INDUSTRY_LABEL).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
                 </Select>
               </Field>
               <Field id="lc-size" label={<>Company size <span className="text-flag-red">*</span>{auto("size")}</>} error={show("size")}>
                 <Select value={f.size} onValueChange={(v) => { edit("size")(v); touch("size"); }}>
-                  <SelectTrigger id="lc-size" aria-invalid={!!show("size")}><SelectValue placeholder="Number of employees" /></SelectTrigger>
+                  <SelectTrigger id="lc-size" aria-invalid={!!show("size")} className="h-10 w-full min-w-0 border-2 border-foreground"><SelectValue placeholder="Number of employees" /></SelectTrigger>
                   <SelectContent>{SIZES.map((s) => <SelectItem key={s} value={s}>{s} people</SelectItem>)}</SelectContent>
                 </Select>
               </Field>
@@ -357,11 +357,12 @@ export function ListCompanyDialog({ open, onOpenChange, onListed, requestName, i
             {!signedOut && <HumanCheck shield={shield} />}
           </fieldset>
 
-          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-xs text-muted-foreground">{signedOut ? "Listing needs a free account. Your details are kept while you join." : quota && !limitReached
+          {/* Phones: full-width buttons that wrap their text, with the note underneath. */}
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="min-w-0 text-xs text-muted-foreground sm:flex-1">{signedOut ? "Listing needs a free account. Your details are kept while you join." : quota && !limitReached
               ? <>You can list <strong className="text-foreground">{quota.remaining} more</strong> {quota.remaining === 1 ? "company" : "companies"} today ({quota.weekLeft} left this week).</>
               : `Up to ${quota?.limits.day ?? 3} listings a day and ${quota?.limits.week ?? 10} a week.`} Listings can be reported and are reviewed by moderators.</p>
-            <div className="flex flex-col-reverse gap-2 sm:flex-row">
+            <div className="flex flex-col-reverse gap-2 sm:shrink-0 sm:flex-row [&>button]:h-auto [&>button]:min-h-11 [&>button]:w-full [&>button]:whitespace-normal [&>button]:text-center sm:[&>button]:w-auto">
               <Button variant="outline" onClick={() => close(false)}>Cancel</Button>
               {signedOut
                 ? <Button disabled={!valid} onClick={() => void submit()}><Building2 />Join free to list it</Button>

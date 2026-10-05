@@ -7,13 +7,13 @@ import { motion } from "motion/react";
 import { Charts } from "@/components/lazy-charts";
 import { Bell, BellOff, BellRing, BriefcaseBusiness, Gift, CalendarDays, Clock, HeartHandshake, Linkedin, Loader2, MapPin, MessageCircle, MoreHorizontal, PenLine, ShieldAlert, Sparkles, UserCheck, UserPlus, Users, Volume2, VolumeX } from "lucide-react";
 import { toast } from "sonner";
-import { Avatar, Banner } from "@/components/ghosted";
+import { Avatar, Banner, CompanyMark } from "@/components/ghosted";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
 import { ApiRequestError } from "@/lib/api";
-import { OUTCOME_LABEL } from "@/lib/stories";
+import { OUTCOME_LABEL, useCompanyIndex } from "@/lib/stories";
 import type { PersonPage, PersonStats, usePerson } from "@/lib/people";
 import { cn, formatCount } from "@/lib/utils";
 import { activeDot, axis, barCursor, ChartTooltip, grid, INK, lineCursor, SERIES } from "./chart-kit";
@@ -159,6 +159,7 @@ const OUTCOME_TONE: Record<string, string> = { ghosted: "var(--flag-red)", ghost
 
 export function PersonRail({ stats, name, layout = "column" }: { stats: PersonStats; name: string; layout?: "column" | "strip" }) {
   const strip = layout === "strip";
+  const { index: companyIndex } = useCompanyIndex();
   const weekly = stats.weekly.map((w, i) => ({ ...w, label: /^\d{4}-/.test(w.week) ? new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short" }).format(new Date(w.week)) : `W${i + 1}` }));
   // Short axis labels so five bars fit a narrow card; the tooltip shows the full name.
   const SHORT: Record<string, string> = { ghosted: "Ghosted", rejected: "Rejected", offer: "Offer", offer_revoked: "Revoked", ghost_job: "Fake job" };
@@ -214,11 +215,15 @@ export function PersonRail({ stats, name, layout = "column" }: { stats: PersonSt
       <h3 className="font-bold">Companies they've reviewed</h3>
       <p className="text-xs text-muted-foreground">{stats.companies} {stats.companies === 1 ? "company" : "companies"} so far</p>
       {stats.topCompanies.length
-        ? <ul className="mt-3 space-y-2">{stats.topCompanies.map((c) => <li key={c.slug} className="flex items-center gap-3">
-            <span className={cn("grid size-8 shrink-0 place-items-center rounded-lg border-2 border-foreground font-display text-sm font-bold text-primary-foreground", c.color)}>{c.name.charAt(0)}</span>
-            <span className="min-w-0 flex-1 truncate text-sm font-semibold">{c.name}</span>
-            <span className="text-xs font-bold text-muted-foreground">{c.stories} {c.stories === 1 ? "story" : "stories"}</span>
-          </li>)}</ul>
+        // The company's real logo (from the company list), falling back to its letter; each row opens the company.
+        ? <ul className="mt-3 space-y-1">{stats.topCompanies.map((c) => {
+            const co = companyIndex.get(c.slug);
+            return <li key={c.slug}><Link to="/c/$slug" params={{ slug: c.slug }} className="-mx-2 flex items-center gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+              <CompanyMark size="sm" company={co ?? { name: c.name, initial: c.name.charAt(0).toUpperCase(), color: c.color, logoUrl: null }} />
+              <span className="min-w-0 flex-1 truncate text-sm font-semibold">{c.name}</span>
+              <span className="text-xs font-bold text-muted-foreground">{c.stories} {c.stories === 1 ? "story" : "stories"}</span>
+            </Link></li>;
+          })}</ul>
         : <p className="mt-3 text-sm text-muted-foreground">No reviews yet.</p>}
     </div>
   </aside>;

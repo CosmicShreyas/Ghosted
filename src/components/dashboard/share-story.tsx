@@ -570,7 +570,7 @@ export function ShareModal({ open, onOpenChange, editing = null, presetCompany =
           mine: true,
           card: { storyId: postedId, headline: d.title.trim() || autoTitle(d), wait: neverHired(d.outcome) && days != null ? waitPhrase(days) : null, score: flagScore, company: company?.name ?? "", foundingRank: founding?.foundingRank ?? null,
             outcome: d.outcome || null, stage: stageOf(d) || null, days: neverHired(d.outcome) ? days : null, salary: j.salary && d.min && d.max ? { min: Number(d.min), max: Number(d.max) } : null },
-          post: { title: d.title.trim() || autoTitle(d), body: d.body.trim(), company: company?.name ?? "", outcome: d.outcome || "ghosted", stage: stageOf(d) || null, days: neverHired(d.outcome) ? days : null,
+          post: { title: d.title.trim() || autoTitle(d), body: d.body.trim(), quick: d.quick, company: company?.name ?? "", outcome: d.outcome || "ghosted", stage: stageOf(d) || null, days: neverHired(d.outcome) ? days : null,
             salary: j.salary && d.min && d.max ? { min: Number(d.min), max: Number(d.max) } : null, role: d.role.trim() || null, score: flagScore },
         }} /></div>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
