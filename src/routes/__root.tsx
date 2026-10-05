@@ -151,9 +151,17 @@ function MotionPrefs({ children }: { children: ReactNode }) {
     const d = document.documentElement;
     d.setAttribute("data-hydrated", "");
     void resyncPush(); // keeps this device's notification address current on the server
-    if (!d.hasAttribute("data-slow")) return;
-    const t = window.setTimeout(() => d.removeAttribute("data-slow"), 1500);
-    return () => window.clearTimeout(t);
+    // A tab opened before a deploy asks for page chunks that no longer exist: reload once to get the
+    // new version instead of showing a broken page (the flag stops a reload loop).
+    const onStale = (e: Event) => {
+      try { if (sessionStorage.getItem("ghosted.reloaded")) return; sessionStorage.setItem("ghosted.reloaded", "1"); } catch { /* storage blocked */ }
+      e.preventDefault();
+      window.location.reload();
+    };
+    window.addEventListener("vite:preloadError", onStale);
+    const clear = window.setTimeout(() => { try { sessionStorage.removeItem("ghosted.reloaded"); } catch { /* storage blocked */ } }, 10_000);
+    const t = d.hasAttribute("data-slow") ? window.setTimeout(() => d.removeAttribute("data-slow"), 1500) : undefined;
+    return () => { window.clearTimeout(t); window.clearTimeout(clear); window.removeEventListener("vite:preloadError", onStale); };
   }, []);
   return <MotionConfig reducedMotion={reduceMotion ? "always" : "user"}>{children}</MotionConfig>;
 }

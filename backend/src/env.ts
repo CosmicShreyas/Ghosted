@@ -1,5 +1,8 @@
 import { z } from "zod";
 
+// An optional Web Push value: trimmed (and any byte-order mark dropped); missing or malformed means unset.
+const vapid = (re: RegExp) => z.preprocess((v) => (typeof v === "string" ? v.replace(/^﻿/, "").trim() : v), z.string().regex(re).optional()).catch(undefined);
+
 const schema = z.object({
   SUPABASE_URL: z.string().url(),
   SUPABASE_ANON_KEY: z.string().min(20),
@@ -44,9 +47,11 @@ const schema = z.object({
   RAZORPAY_WEBHOOK_SECRET: z.string().min(8).optional().or(z.literal("").transform(() => undefined)),
   // Phone notifications (Web Push, push.ts). All three or none: without them push stays off and the
   // site says notifications aren't available yet. The private key never leaves the server.
-  VAPID_PUBLIC_KEY: z.string().regex(/^[A-Za-z0-9_-]{80,100}$/, "VAPID_PUBLIC_KEY looks like a long base64url string (npx web-push generate-vapid-keys)").optional().or(z.literal("").transform(() => undefined)),
-  VAPID_PRIVATE_KEY: z.string().regex(/^[A-Za-z0-9_-]{40,50}$/, "VAPID_PRIVATE_KEY looks like a base64url string (npx web-push generate-vapid-keys)").optional().or(z.literal("").transform(() => undefined)),
-  VAPID_SUBJECT: z.string().regex(/^(mailto:|https:\/\/)/, "VAPID_SUBJECT is mailto:you@example.com or an https:// URL").optional().or(z.literal("").transform(() => undefined)),
+  // Trimmed (pasted values often carry a stray newline), and a bad value only turns push off: it
+  // must never take the whole API down.
+  VAPID_PUBLIC_KEY: vapid(/^[A-Za-z0-9_-]{80,100}$/),
+  VAPID_PRIVATE_KEY: vapid(/^[A-Za-z0-9_-]{40,50}$/),
+  VAPID_SUBJECT: vapid(/^(mailto:\S+@\S+|https:\/\/\S+)$/),
   MODERATOR_EMAILS: z.string().optional().transform((s) => (s ?? "").split(",").map((x) => x.trim()).filter((x) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x))),
 }).superRefine((e, ctx) => {
   const need = (key: keyof typeof e, why: string) => { if (!e[key]) ctx.addIssue({ code: "custom", path: [key], message: why }); };
