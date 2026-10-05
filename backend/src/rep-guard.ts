@@ -32,9 +32,10 @@ export async function shieldFor(viewerId: string | null | undefined): Promise<Sh
   let shield: Shield | null = null;
   if (companies.size) {
     const { data } = await admin().from("stories").select("author_id, author:profiles!stories_author_id_fkey(public_id)").in("company_id", [...companies]).eq("status", "published").limit(20000);
-    const rows = (data ?? []) as unknown as { author_id: string; author: { public_id: number } | null }[];
+    // Never hide yourself from yourself: your own stories always show as yours.
+    const rows = ((data ?? []) as unknown as { author_id: string; author: { public_id: number } | null }[]).filter((r) => r.author_id !== viewerId);
     shield = { companies, ids: new Set(rows.map((r) => r.author_id)), publicIds: new Set(rows.map((r) => String(r.author?.public_id ?? ""))) };
-    shield.ids.delete(viewerId); shield.publicIds.delete(""); // never hide yourself from yourself
+    shield.publicIds.delete("");
   }
   if (cache.size > 2000) cache.delete(cache.keys().next().value!);
   cache.set(viewerId, { at: Date.now(), shield });
