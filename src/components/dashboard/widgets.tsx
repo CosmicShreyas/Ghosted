@@ -15,6 +15,7 @@ import { liveNudge } from "@/lib/live";
 import { useMe, useTone, voice } from "@/lib/session";
 import { GREEN_FLAG_LABEL, react, samplePublicId, type Author, type StoryModel, type StoryReaction, type StoryReactionCounts } from "@/lib/stories";
 import { ShareModal } from "./share-story";
+import { shareInputFromStory, StoryShareDialog } from "./story-share";
 import { GOOFY_AVATAR, GOOFY_ID } from "@/lib/goofy";
 import { ReportFlow } from "./report-flow";
 import { cn, formatCount } from "@/lib/utils";
@@ -84,15 +85,9 @@ export function FeedStory({ story, saved, onSave, onOpenCompany, full = false }:
     holdTimer.current = window.setTimeout(() => { held.current = true; setPickerOpen(true); }, 450);
   };
   const endHold = () => { if (holdTimer.current != null) window.clearTimeout(holdTimer.current); holdTimer.current = null; };
-  // Links go to the story's own page. Phones get the native share sheet; elsewhere it's copied.
-  const share = async () => {
-    const url = `${window.location.origin}/s/${story.id}`;
-    const title = story.title ?? `A story about ${company.name}`;
-    try {
-      if (navigator.share && window.matchMedia("(pointer: coarse)").matches) { await navigator.share({ title, url }); return; }
-      await navigator.clipboard.writeText(url); toast.success("Link copied. Spread the receipts.");
-    } catch (err) { if ((err as Error).name !== "AbortError") toast.error("Couldn't copy the link."); }
-  };
+  // Opens the share popup: the story card plus a LinkedIn post written from the story (story-share.tsx).
+  const [sharing, setSharing] = useState(false);
+  const share = () => setSharing(true);
   // Rough reading time (220 words a minute), shown for longer stories.
   const minutes = Math.max(1, Math.round(story.body.split(/\s+/).length / 220));
 
@@ -209,8 +204,9 @@ export function FeedStory({ story, saved, onSave, onOpenCompany, full = false }:
         ? <button type="button" onClick={() => document.getElementById("chitchats")?.scrollIntoView({ behavior: "smooth", block: "start" })} className={pill(false)}><MessageCircle className="size-3.5" />{formatCount(story.comments)} chitchats</button>
         : <Link to="/s/$id" params={{ id: story.id }} hash="chitchats" className={pill(false)}><MessageCircle className="size-3.5" />{formatCount(story.comments)} chitchats</Link>}
       <span className="flex-1" />
-      <button type="button" onClick={share} aria-label="Copy link to story" className="grid size-8 place-items-center rounded-lg hover:bg-muted"><Share2 className="size-4" /></button>
+      <button type="button" onClick={share} aria-label="Share story" className="grid size-8 place-items-center rounded-lg hover:bg-muted"><Share2 className="size-4" /></button>
     </div>
+    {sharing && <StoryShareDialog open={sharing} onOpenChange={setSharing} input={shareInputFromStory(story, isMine)} />}
   </motion.article>;
 }
 

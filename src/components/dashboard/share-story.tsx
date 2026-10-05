@@ -29,7 +29,7 @@ import { useCompanyIndex, type StoryModel } from "@/lib/stories";
 import { journey, storyScore, type Dimension, type Outcome } from "@/lib/score";
 import { cn } from "@/lib/utils";
 import { ListCompanyDialog } from "./list-company";
-import { ShareCard } from "./share-card";
+import { StoryShare } from "./story-share";
 import { quickStory } from "@/lib/quick-story";
 import { useFounding } from "@/lib/founding";
 import { popup, popupBody, scoreTone } from "./ui-kit";
@@ -556,7 +556,7 @@ export function ShareModal({ open, onOpenChange, editing = null, presetCompany =
   ];
 
   return <Dialog open={open} onOpenChange={close}>
-    <DialogContent className={cn(popup, "max-w-2xl")}>
+    <DialogContent className={cn(popup, done ? "max-w-4xl" : "max-w-2xl")}>
       {done ? <div className={cn(popupBody, "grid place-items-center py-8 text-center")} data-lenis-prevent>
         <motion.div initial={{ scale: 0.4, rotate: -12, opacity: 0 }} animate={{ scale: 1, rotate: 0, opacity: 1 }} transition={{ type: "spring", stiffness: 260, damping: 14 }} className="relative">
           <img src="/ghosted-mark.png" alt="" className="size-20 object-contain" />
@@ -565,8 +565,14 @@ export function ShareModal({ open, onOpenChange, editing = null, presetCompany =
         </motion.div>
         <DialogTitle className="mt-4 font-display text-3xl">{fv((c) => c.done.title)}</DialogTitle>
         <DialogDescription className="mx-auto mt-2 max-w-sm">{apiEnabled ? fv((c) => c.done.copy) : C.done.preview}</DialogDescription>
-        <div className="mt-5 flex w-full justify-center"><ShareCard data={{ storyId: postedId, headline: d.title.trim() || autoTitle(d), wait: neverHired(d.outcome) && days != null ? waitPhrase(days) : null, score: flagScore, company: company?.name ?? "", foundingRank: founding?.foundingRank ?? null,
-          outcome: d.outcome || null, stage: stageOf(d) || null, days: neverHired(d.outcome) ? days : null, salary: j.salary && d.min && d.max ? { min: Number(d.min), max: Number(d.max) } : null }} /></div>
+        {/* The card and a LinkedIn post written from the story (story-share.tsx). */}
+        <div className="mt-6 w-full border-t-2 border-foreground/10 pt-6"><StoryShare input={{
+          mine: true,
+          card: { storyId: postedId, headline: d.title.trim() || autoTitle(d), wait: neverHired(d.outcome) && days != null ? waitPhrase(days) : null, score: flagScore, company: company?.name ?? "", foundingRank: founding?.foundingRank ?? null,
+            outcome: d.outcome || null, stage: stageOf(d) || null, days: neverHired(d.outcome) ? days : null, salary: j.salary && d.min && d.max ? { min: Number(d.min), max: Number(d.max) } : null },
+          post: { title: d.title.trim() || autoTitle(d), body: d.body.trim(), company: company?.name ?? "", outcome: d.outcome || "ghosted", stage: stageOf(d) || null, days: neverHired(d.outcome) ? days : null,
+            salary: j.salary && d.min && d.max ? { min: Number(d.min), max: Number(d.max) } : null, role: d.role.trim() || null, score: flagScore },
+        }} /></div>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <Button variant="outline" onClick={() => { setD(EMPTY); setDone(false); setStep(0); setReached(0); }}><PenLine />{f.c((c) => c.done.another)}</Button>
           <Button onClick={() => close(false)}><Sparkles />{f.c((c) => c.done.feed)}</Button>

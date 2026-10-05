@@ -75,10 +75,14 @@ function Classic({ data, showCompany, host }: { data: ShareCardData; showCompany
   </div>;
 }
 
-export function ShareCard({ data }: { data: ShareCardData }) {
+// `showCompany`/`onShowCompany` let the share popup keep the card and the LinkedIn post in step;
+// `social: false` drops the LinkedIn/X links when the popup has its own LinkedIn composer.
+export function ShareCard({ data, showCompany: shown, onShowCompany, social = true }: { data: ShareCardData; showCompany?: boolean; onShowCompany?: (v: boolean) => void; social?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   const [look, setLook] = useState<"receipt" | "classic">("receipt");
-  const [showCompany, setShowCompany] = useState(false);
+  const [ownShow, setOwnShow] = useState(false);
+  const showCompany = shown ?? ownShow;
+  const setShowCompany = (f: (v: boolean) => boolean) => { const v = f(showCompany); setOwnShow(v); onShowCompany?.(v); };
   const [busy, setBusy] = useState<"" | "share" | "download">("");
   const host = window.location.host;
   const link = data.storyId ? `${window.location.origin}/s/${data.storyId}` : window.location.origin;
@@ -117,12 +121,14 @@ export function ShareCard({ data }: { data: ShareCardData }) {
     <button type="button" onClick={() => setShowCompany((v) => !v)} aria-pressed={showCompany} className={cn("mt-4 inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-foreground px-3 text-sm font-bold", showCompany ? "bg-primary text-primary-foreground" : "bg-card hover:bg-muted")}>
       {showCompany ? <EyeOff className="size-4" /> : <Eye className="size-4" />}{showCompany ? "Hide company name" : "Show company name"}
     </button>
-    {/* A gentle nudge: the link's preview card shows the story (never who wrote it). */}
-    <p className="mt-4 text-sm font-semibold">Posting this to LinkedIn helps the next candidate. <span className="text-primary">#GhostedReceipts</span></p>
-    <div className="mt-2 flex flex-wrap justify-center gap-2">
-      <Button className="min-h-11" variant="outline" asChild><a href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(link)}`} target="_blank" rel="noopener noreferrer"><Linkedin />LinkedIn</a></Button>
-      <Button className="min-h-11" variant="outline" asChild><a href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`${data.headline}. Shared anonymously on Ghosted.`)}&url=${encodeURIComponent(link)}&hashtags=GhostedReceipts`} target="_blank" rel="noopener noreferrer"><Twitter />Post on X</a></Button>
-    </div>
+    {social && <>
+      {/* A gentle nudge: the link's preview card shows the story (never who wrote it). */}
+      <p className="mt-4 text-sm font-semibold">Posting this to LinkedIn helps the next candidate. <span className="text-primary">#GhostedReceipts</span></p>
+      <div className="mt-2 flex flex-wrap justify-center gap-2">
+        <Button className="min-h-11" variant="outline" asChild><a href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(link)}`} target="_blank" rel="noopener noreferrer"><Linkedin />LinkedIn</a></Button>
+        <Button className="min-h-11" variant="outline" asChild><a href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`${data.headline}. Shared anonymously on Ghosted.`)}&url=${encodeURIComponent(link)}&hashtags=GhostedReceipts`} target="_blank" rel="noopener noreferrer"><Twitter />Post on X</a></Button>
+      </div>
+    </>}
     <div className="mt-3 flex flex-wrap justify-center gap-2">
       <Button className="min-h-11" onClick={() => void share()} disabled={!!busy}>{busy === "share" ? <Loader2 className="animate-spin" /> : <Share2 />}Share</Button>
       <Button className="min-h-11" variant="outline" onClick={() => void download()} disabled={!!busy}>{busy === "download" ? <Loader2 className="animate-spin" /> : <Download />}Download PNG</Button>
