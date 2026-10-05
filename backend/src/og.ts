@@ -22,12 +22,15 @@ let fonts: { name: string; data: ArrayBuffer; weight: 400 | 700; style: "normal"
 async function loadFonts() {
   if (fonts) return fonts;
   const get = async (url: string) => (await fetch(url, { signal: AbortSignal.timeout(5000) })).arrayBuffer();
-  const [display, body, bodyBold] = await Promise.all([
+  const [display, body, bodyBold, mono, monoBold] = await Promise.all([
     get("https://cdn.jsdelivr.net/fontsource/fonts/space-grotesk@latest/latin-700-normal.woff"),
     get("https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-400-normal.woff"),
     get("https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-700-normal.woff"),
+    get("https://cdn.jsdelivr.net/fontsource/fonts/jetbrains-mono@latest/latin-400-normal.woff"),
+    get("https://cdn.jsdelivr.net/fontsource/fonts/jetbrains-mono@latest/latin-700-normal.woff"),
   ]);
-  fonts = [{ name: "Display", data: display, weight: 700, style: "normal" }, { name: "Body", data: body, weight: 400, style: "normal" }, { name: "Body", data: bodyBold, weight: 700, style: "normal" }];
+  fonts = [{ name: "Display", data: display, weight: 700, style: "normal" }, { name: "Body", data: body, weight: 400, style: "normal" }, { name: "Body", data: bodyBold, weight: 700, style: "normal" },
+    { name: "Mono", data: mono, weight: 400, style: "normal" }, { name: "Mono", data: monoBold, weight: 700, style: "normal" }];
   return fonts;
 }
 
@@ -77,6 +80,53 @@ export async function storyCard(s: { title: string; company: string; outcome: st
     h("div", { justifyContent: "space-between", alignItems: "center", width: "100%", fontFamily: "Body", fontSize: 24, color: "#6B6560" },
       h("div", {}, `${s.relatable} found it relatable · shared anonymously`),
       h("div", { color: VIOLET, fontWeight: 700 }, "#GhostedReceipts"))));
+}
+
+// The story preview as a thermal receipt (same lines as the share card in
+// src/components/dashboard/share-card.tsx): rounds, days waited, pay, replies and "Time lost", with
+// a barcode of the site address and a torn bottom edge. Lines that aren't known are left off.
+const ROUNDS: Record<string, number> = { application: 0, screening: 1, technical: 2, final: 3, offer: 3 };
+const FINAL_REPLY: Record<string, string> = { ghosted: "0", ghost_job: "0", rejected: "1 (no)", offer: "1 (yes)", offer_revoked: "1, then taken back" };
+const PAPER = "#FFFDF7";
+// A zigzag strip as an SVG image (satori can't draw border triangles).
+const teeth = (w: number, n: number) => {
+  const step = w / n;
+  const pts = Array.from({ length: n }, (_, i) => `${i * step},0 ${i * step + step / 2},14`).join(" ") + ` ${w},0`;
+  return `data:image/svg+xml;base64,${Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="18" viewBox="0 0 ${w} 18"><polygon points="0,0 ${pts}" fill="${PAPER}"/><polyline points="2,0 ${pts.replace(new RegExp(`${w},0$`), `${w - 2},0`)}" fill="none" stroke="${INK}" stroke-width="4" stroke-linejoin="miter"/></svg>`).toString("base64")}`;
+};
+const bars = (text: string) => { let x = 2166136261; return Array.from({ length: 52 }, (_, i) => { x = Math.imul(x ^ text.charCodeAt(i % text.length), 16777619); return 2 + ((x >>> 0) % 4); }); };
+
+export async function receiptCard(s: { id: string; title: string; company: string; outcome: string; outcomeKey: string; stage: string | null; days: number | null; salary: { min: number; max: number } | null; score: number | null; relatable: number }, site: string) {
+  const host = site.replace(/^https?:\/\//, "");
+  const rows: [string, string][] = [
+    ...(s.stage ? [["Rounds", String(ROUNDS[s.stage] ?? 0)] as [string, string]] : []),
+    ...(s.days != null ? [["Days waited", String(s.days)] as [string, string]] : []),
+    ...(s.salary ? [["Pay offered", `Rs ${s.salary.min}-${s.salary.max} LPA`] as [string, string]] : []),
+    ...(FINAL_REPLY[s.outcomeKey] ? [["Replies received", FINAL_REPLY[s.outcomeKey]!] as [string, string]] : []),
+  ];
+  const lost = s.days != null ? `${s.days} ${s.days === 1 ? "day" : "days"}` : s.outcome;
+  const line = (k: string, v: string) => h("div", { justifyContent: "space-between", width: "100%", fontFamily: "Mono", fontSize: 22, color: INK, padding: "3px 0" }, h("div", {}, k), h("div", { fontWeight: 700 }, v));
+  const receipt = h("div", { flexDirection: "column", width: 440, transform: "rotate(2deg)", marginTop: -10 },
+    h("div", { flexDirection: "column", alignItems: "center", background: PAPER, border: `4px solid ${INK}`, borderBottom: "none", padding: "26px 30px 14px" },
+      h("div", { fontFamily: "Mono", fontWeight: 700, fontSize: 24, color: INK }, "HIRING RECEIPT"),
+      h("div", { fontFamily: "Mono", fontSize: 16, color: "#6B6560", marginTop: 2 }, "kept anonymously"),
+      h("div", { width: "100%", borderTop: `2px dashed ${INK}`, marginTop: 14, marginBottom: 10 }),
+      ...rows.map(([k, v]) => line(k, v)),
+      h("div", { justifyContent: "space-between", width: "100%", borderTop: `3px solid ${INK}`, marginTop: 10, paddingTop: 8, fontFamily: "Mono", fontWeight: 700, fontSize: 28, color: INK }, h("div", {}, "Time lost"), h("div", {}, lost)),
+      h("div", { fontFamily: "Mono", fontSize: 15, color: "#6B6560", marginTop: 12 }, "No refunds. No feedback. No reply."),
+      h("div", { gap: 3, height: 46, marginTop: 12, alignItems: "stretch" }, ...bars(site + s.id).map((w, i) => h("div", { width: w, background: i % 2 ? "transparent" : INK }))),
+      h("div", { fontFamily: "Mono", fontWeight: 700, fontSize: 15, color: INK, marginTop: 4, letterSpacing: 2 }, host)),
+    // Torn edge: paper teeth along the bottom, outlined in ink like the sides.
+    { type: "img", props: { src: teeth(440, 22), width: 440, height: 18 } });
+  return render(h("div", { width: 1200, height: 630, background: CREAM, padding: "44px 60px", justifyContent: "space-between", alignItems: "center", gap: 48 },
+    h("div", { flexDirection: "column", justifyContent: "space-between", height: "100%", flex: 1 },
+      h("div", { alignItems: "center", gap: 14, fontFamily: "Display", fontSize: 40, color: INK }, { type: "img", props: { src: ghost(), width: 56, height: 56 } }, "Ghosted."),
+      h("div", { flexDirection: "column", gap: 20 },
+        h("div", { gap: 12 }, pill(s.outcome, ACCENT), ...(s.score != null ? [pill(`Flag Score ${s.score}`, "#fff", tone(s.score))] : [])),
+        h("div", { fontFamily: "Display", fontSize: s.title.length > 50 ? 48 : 58, color: INK, lineHeight: 1.08 }, clip(s.title, 90)),
+        h("div", { fontFamily: "Body", fontSize: 26, color: "#3F3A36" }, `A hiring story about ${clip(s.company, 40)}`)),
+      h("div", { gap: 20, fontFamily: "Body", fontSize: 22, color: "#6B6560" }, h("div", {}, `${s.relatable} found it relatable`), h("div", { color: VIOLET, fontWeight: 700 }, "#GhostedReceipts"))),
+    receipt));
 }
 
 export async function companyCard(c: { name: string; stories: number; score: number | null; ghosted: number; avgWait: number | null; city: string | null }, site: string) {

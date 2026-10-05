@@ -196,12 +196,13 @@ app.get("/v1/og/s/:file", rateLimit({ name: "og", max: 120, windowSeconds: 60 })
   const id = ogParam(c, /^([0-9]{15})\.png$/);
   if (!id) return fallback(c, site);
   try {
-    const { data } = await admin().from("stories").select("id, title, outcome, days_waited, quick, rating_hiring, rating_communication, rating_culture, rating_pay, rating_growth, company:companies(name)").eq("public_id", id).eq("status", "published").maybeSingle();
-    const s = data as unknown as { id: string; title: string; outcome: string; days_waited: number | null; quick: boolean | null; rating_hiring: number | null; rating_communication: number | null; rating_culture: number | null; rating_pay: number | null; rating_growth: number | null; company: { name: string } | null } | null;
+    const { data } = await admin().from("stories").select("id, title, outcome, stage, days_waited, salary_min_lpa, salary_max_lpa, rating_hiring, rating_communication, rating_culture, rating_pay, rating_growth, company:companies(name)").eq("public_id", id).eq("status", "published").maybeSingle();
+    const s = data as unknown as { id: string; title: string; outcome: string; stage: string | null; days_waited: number | null; salary_min_lpa: number | string | null; salary_max_lpa: number | string | null; rating_hiring: number | null; rating_communication: number | null; rating_culture: number | null; rating_pay: number | null; rating_growth: number | null; company: { name: string } | null } | null;
     if (!s) return fallback(c, site);
-    const { storyCard } = await og();
+    const { receiptCard } = await og();
     const { data: counts } = await admin().from("story_counts").select("relatable").eq("story_id", s.id).maybeSingle();
-    return png(c, await storyCard({ title: s.title, company: s.company?.name ?? "a company", outcome: OG_OUTCOME[s.outcome] ?? s.outcome, wait: s.days_waited != null ? waitWords(s.days_waited) : null, score: storyScore({ hiring: s.rating_hiring, communication: s.rating_communication, culture: s.rating_culture, pay: s.rating_pay, growth: s.rating_growth }), quick: !!s.quick, relatable: Number((counts as { relatable?: number } | null)?.relatable ?? 0) }, site));
+    const salary = s.salary_min_lpa != null && s.salary_max_lpa != null ? { min: Number(s.salary_min_lpa), max: Number(s.salary_max_lpa) } : null;
+    return png(c, await receiptCard({ id, title: s.title, company: s.company?.name ?? "a company", outcome: OG_OUTCOME[s.outcome] ?? s.outcome, outcomeKey: s.outcome, stage: s.stage, days: s.days_waited, salary, score: storyScore({ hiring: s.rating_hiring, communication: s.rating_communication, culture: s.rating_culture, pay: s.rating_pay, growth: s.rating_growth }), relatable: Number((counts as { relatable?: number } | null)?.relatable ?? 0) }, site));
   } catch (e) { console.error("[og] story", (e as Error).message); return fallback(c, site); }
 });
 app.get("/v1/og/c/:file", rateLimit({ name: "og", max: 120, windowSeconds: 60 }), async (c) => {
