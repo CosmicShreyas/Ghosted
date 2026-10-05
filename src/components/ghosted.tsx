@@ -1,10 +1,10 @@
 import { useState } from "react";
 import type { Company, Story } from "@/mock/data";
-import type { StoryModel } from "@/lib/stories";
+import type { StoryModel, StoryReactionCounts } from "@/lib/stories";
 import { plainText } from "@/components/markdown";
 import { getCompany, getUser } from "@/mock/data";
 import { Link } from "@tanstack/react-router";
-import { ArrowRight, Flag, HeartHandshake, MessageCircle, Zap } from "lucide-react";
+import { ArrowRight, HandHeart, Heart, HeartHandshake, Lightbulb, MessageCircle, Sparkles, Zap } from "lucide-react";
 import { cn, formatCount } from "@/lib/utils";
 
 export function Avatar({ seed, pastel, size = "md", label = "Anonymous user" }: { seed: string; pastel: string; size?: "sm" | "md" | "lg"; label?: string }) {
@@ -74,6 +74,26 @@ export function CompanyMark({ company, size = "md" }: { company: Pick<Company, "
   return <div className={cn("grid shrink-0 place-items-center rounded-lg border-2 border-foreground font-display font-bold text-primary-foreground", company.color, box)}>{company.initial}</div>;
 }
 
+// The five reactions, as the feed shows them (dashboard/widgets.tsx), for read-only counts.
+const REACTION_META: { id: keyof StoryReactionCounts; label: string; Icon: typeof HeartHandshake; tone: string }[] = [
+  { id: "relatable", label: "relatable", Icon: HeartHandshake, tone: "border-primary text-primary" },
+  { id: "insightful", label: "eye-opening", Icon: Lightbulb, tone: "border-sky-600 text-sky-700 dark:text-sky-300" },
+  { id: "creative", label: "fresh take", Icon: Sparkles, tone: "border-emerald-600 text-emerald-700 dark:text-emerald-300" },
+  { id: "support", label: "with you", Icon: HandHeart, tone: "border-amber-600 text-amber-700 dark:text-amber-300" },
+  { id: "love", label: "love this", Icon: Heart, tone: "border-pink-600 text-pink-700 dark:text-pink-300" },
+];
+
+// The reactions a story actually got (most-used first, up to three; "relatable" when it has none
+// yet), then its chitchats.
+export function ReactionChips({ counts, comments }: { counts: Partial<StoryReactionCounts>; comments: number }) {
+  const used = REACTION_META.map((r) => ({ ...r, n: counts[r.id] ?? 0 })).filter((r) => r.n > 0).sort((a, b) => b.n - a.n).slice(0, 3);
+  const shown = used.length ? used : [{ ...REACTION_META[0]!, n: 0 }];
+  return <div className="flex flex-wrap gap-2 text-xs font-semibold">
+    {shown.map(({ id, label, Icon, tone, n }) => <span key={id} className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1", tone)}><Icon className="size-3.5" />{formatCount(n)} {label}</span>)}
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-foreground px-2.5 py-1"><MessageCircle className="size-3.5" />{formatCount(comments)} chitchats</span>
+  </div>;
+}
+
 // A real story (API) on the landing page's story wall: same look as the sample cards.
 export function StoryModelCard({ story, readMore = "Read more" }: { story: StoryModel; readMore?: React.ReactNode }) {
   // Every card is the same size: one-line role and title, the story capped at four lines, and
@@ -84,7 +104,7 @@ export function StoryModelCard({ story, readMore = "Read more" }: { story: Story
     <h3 className="mb-1 truncate font-bold">{story.title || `About ${story.company.name}`}</h3>
     <p className="line-clamp-4 h-[6.5em] leading-relaxed">{plainText(story.body)}</p>
     <Link to="/auth" className="mt-2 inline-flex w-fit items-center gap-1 rounded text-sm font-bold text-primary hover:underline focus-visible:outline-2 focus-visible:outline-ring">{readMore}<ArrowRight className="size-4" /></Link>
-    <div className="mt-auto flex flex-wrap gap-2 pt-4 text-xs font-semibold">{([[HeartHandshake, story.relatable, "relatable"], [Flag, story.flags, "red flags"], [MessageCircle, story.comments, "chitchats"]] as const).map(([I, n, label]) => { const red = label === "red flags"; return <span key={label} className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1", red ? "border-flag-red text-flag-red" : "border-foreground")}><I className={cn("size-3.5", red && "fill-flag-red/20")} />{formatCount(n)} {label}</span>; })}</div>
+    <div className="mt-auto pt-4"><ReactionChips counts={story.reactions} comments={story.comments} /></div>
   </article>;
 }
 
@@ -96,6 +116,7 @@ export function StoryCard({ story, tilted = false }: { story: Story; tilted?: bo
     <div className="mb-4 flex items-center gap-3"><Avatar seed={user.seed} pastel={user.pastel} size="sm" label={user.handle} /><div className="min-w-0"><p className="truncate text-sm font-bold">{user.handle}</p><p className="truncate text-xs text-muted-foreground">about {company.name} · {story.time}</p></div></div>
     <div className="mb-3 flex flex-wrap items-center gap-2"><span className="rounded-full border-2 border-foreground bg-accent px-2.5 py-0.5 text-[11px] font-bold uppercase">{outcome}</span>{role && <span className="text-xs font-semibold text-muted-foreground">{role}</span>}</div>
     <p className="leading-relaxed">{story.excerpt}</p>
-    <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold">{[[HeartHandshake, story.relatable, "relatable"], [Flag, story.flags, "red flags"], [MessageCircle, story.comments, "chitchats"]].map(([Icon, n, label]) => { const I = Icon as typeof Flag; const red = label === "red flags"; return <span key={label as string} className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1", red ? "border-flag-red text-flag-red" : "border-foreground")}><I className={cn("size-3.5", red && "fill-flag-red/20")} />{formatCount(n as number)} {label as string}</span>; })}</div>
+    {/* Sample stories: the old "flags" count now stands for their eye-opening reactions. */}
+    <div className="mt-4"><ReactionChips counts={{ relatable: story.relatable, insightful: story.flags }} comments={story.comments} /></div>
   </article>;
 }
