@@ -12,6 +12,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { CookieConsent } from "@/components/cookie-consent";
 import { IosInstallHint } from "@/components/ios-install";
 import { PushPrompt } from "@/components/push-prompt";
+import { LevelWatch } from "@/components/level-watch";
 import { Preloader } from "@/components/preloader";
 import { useSigningOut, useTone } from "@/lib/session";
 import { AnnouncementBar } from "@/components/announcement";
@@ -187,6 +188,7 @@ function RootComponent() {
         <AnnouncementBar />
         {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
         <Outlet />
+        <LevelWatch />
       </MotionPrefs>
       <Toaster position="bottom-right" />
       {/* Asked once; any choice is remembered for a year. Footer → Cookie settings reopens it. */}

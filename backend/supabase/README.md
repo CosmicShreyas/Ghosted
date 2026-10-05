@@ -189,6 +189,7 @@ From the "Levels, XP and streaks" section. Replaces invite levels, missions and 
 - `profiles.xp`, `level`, `streak`, `best_streak`, `streak_day`.
 - `level_for_xp(xp)`: level L to L+1 needs `100 × L^1.5` XP. `award_xp(user, kind, ref, base, cap)`: the only way XP is added; applies the daily cap, scales XP down by level (`1 / (1 + 0.1 × (level − 1))`), adds the daily streak bonus and returns whether the member levelled up. Rules and caps: `backend/src/levels.ts`.
 - The section backfills existing stories, reactions, chitchats, follows and invites once, at base XP.
+- The follow-up section "Levels: streak freezes, milestones and the invite welcome bonus" adds `profiles.streak_freezes` (one per 7 streak days, up to 2, spent automatically on a single missed day), the `welcome` (+25 XP for joining through an invite) and `milestone` (7, 30, 100 and 365 streak days) kinds, and replaces `award_xp` with the version that handles them.
 
 ### Waiting Room reminders
 

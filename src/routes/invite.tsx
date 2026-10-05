@@ -2,14 +2,14 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "motion/react";
-import { ArrowRight, BookOpen, Check, Copy, EyeOff, Flame, Gift, HeartHandshake, Linkedin, MessageCircle, PenLine, Share2, ShieldCheck, TrendingUp, Twitter, UserPlus, Zap, type LucideIcon } from "lucide-react";
+import { ArrowRight, BookOpen, Check, Copy, EyeOff, Flame, Gift, HeartHandshake, Linkedin, MessageCircle, PenLine, Share2, ShieldCheck, Snowflake, TrendingUp, Trophy, Twitter, UserPlus, Zap, type LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Avatar } from "@/components/ghosted";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { Button } from "@/components/ui/button";
 import { api, apiEnabled, track } from "@/lib/api";
 import { inviteLink, rememberRef } from "@/lib/invite";
-import { LEVEL_LADDER, LevelBadge, LevelProgress, StreakChip, levelColor, useMyLevel, type XpKind } from "@/lib/levels";
+import { LEVEL_LADDER, LevelBadge, LevelProgress, StreakChip, levelColor, levelFill, useMyLevel, type XpKind } from "@/lib/levels";
 import { pageHead } from "@/lib/meta";
 import { useMe, useTone, voice } from "@/lib/session";
 import { cn, formatCount } from "@/lib/utils";
@@ -46,7 +46,7 @@ function InvitedHero({ code }: { code: string }) {
       <div>
         <p className="text-sm font-bold text-primary">You've been invited</p>
         <h1 className="mt-1 text-4xl font-bold leading-tight sm:text-5xl">{inv ? <>{inv.handle} thinks your story matters.</> : <>Someone thinks your story matters.</>}</h1>
-        <p className="mt-3 max-w-xl text-lg text-muted-foreground">Ghosted is where candidates share how hiring really went, anonymously. Join, share your experience in about 30 seconds, and start climbing from LV 1. Your first story alone is worth 50 XP.</p>
+        <p className="mt-3 max-w-xl text-lg text-muted-foreground">Ghosted is where candidates share how hiring really went, anonymously. Join, share your experience in about 30 seconds, and start climbing from LV 1. Joining through this link gives you a +25 XP head start, and your first story adds 50 more.</p>
         <div className="mt-6 flex flex-wrap gap-3">
           <Button size="lg" className="min-h-12" asChild><Link to="/auth" search={{ intent: "share" }}><UserPlus />Join and share<ArrowRight /></Link></Button>
           <Button size="lg" variant="outline" className="min-h-12" asChild><Link to="/">See what Ghosted is</Link></Button>
@@ -60,7 +60,7 @@ function InvitedHero({ code }: { code: string }) {
 // The spectrum: what the badge looks like as you climb, pale yellow to deep red.
 function Ladder({ current }: { current?: number }) {
   return <div>
-    <div className="h-4 rounded-full border-2 border-foreground" style={{ background: `linear-gradient(90deg, ${[1, 8, 15, 22, 29, 36, 40].map((l) => levelColor(l).bg).join(", ")})` }} aria-hidden="true" />
+    <div className="h-4 rounded-full border-2 border-foreground" style={{ background: `linear-gradient(90deg, ${LEVEL_LADDER.map(([l]) => levelColor(l).bg).join(", ")}, #7C3AED)` }} aria-hidden="true" />
     <ol className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-5 lg:grid-cols-9">{LEVEL_LADDER.map(([l, t], i) => <motion.li key={l} initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.04 }}
       className={cn("flex flex-col items-center gap-1.5 rounded-xl border-2 p-2.5 text-center", current != null && current >= l ? "border-foreground bg-card" : "border-foreground/15")}>
       <LevelBadge level={l} size="sm" />
@@ -97,7 +97,7 @@ function YourLevel() {
             <h2 className="font-display text-3xl font-bold leading-tight">{data.title}</h2>
             <p className="text-sm text-muted-foreground">{formatCount(data.xp)} XP total · next up: <span className="font-bold text-foreground">{data.nextTitle}</span></p>
           </div>
-          <StreakChip streak={data.streak} activeToday={data.activeToday} />
+          <StreakChip streak={data.streak} activeToday={data.activeToday} freezes={data.freezes} />
         </div>
         <LevelProgress className="mt-5" level={data.level} into={data.into} need={data.need} />
         <p className="mt-3 rounded-lg border-2 border-foreground bg-accent p-3 text-sm font-semibold">
@@ -143,16 +143,16 @@ function InvitePage() {
       <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-14 sm:px-6 lg:grid-cols-[1.2fr_1fr]">
         <div>
           <p className="mb-4 inline-flex items-center gap-2 rounded-full border-2 border-foreground bg-accent px-3 py-1 text-sm font-bold"><Flame className="size-4 text-flag-red" />Levels and streaks</p>
-          <h1 className="text-5xl font-bold leading-[1.02] sm:text-6xl">Show up daily.<br /><span className="text-primary">Climb to red.</span></h1>
+          <h1 className="text-5xl font-bold leading-[1.02] sm:text-6xl">Show up daily.<br /><span className="text-primary">Become a myth.</span></h1>
           <p className="mt-5 max-w-xl text-lg text-muted-foreground">{voice(tone,
-            "Every story you read, react to and add earns XP. Keep your streak alive, watch your badge go from pale yellow to deep red, and bring friends for the biggest jumps. Seniority here is earned, not hired.",
+            "Every story you read, react to and add earns XP. Keep your streak alive, watch your badge change colour from fresh-face yellow to Myth, and bring friends for the biggest jumps. Seniority here is earned, not hired.",
             "Earn XP by reading, reacting, chitchatting, sharing your story, following and inviting. Keep a daily streak, and your level badge changes colour as you climb.")}</p>
           {!signedIn && <div className="mt-7 flex flex-wrap gap-3"><Button size="lg" className="min-h-12" asChild><Link to="/auth"><UserPlus />Join and start at LV 1</Link></Button><Button size="lg" variant="outline" className="min-h-12" asChild><Link to="/auth" search={{ tab: "login" }}>Log in</Link></Button></div>}
         </div>
         {/* Three badges, rising: the one moment of motion on the page. */}
         <div className="mx-auto flex items-end justify-center gap-4 sm:gap-6">
-          {([[2, "size-14"], [14, "size-20"], [38, "size-28"]] as const).map(([l, s], i) => <motion.div key={l} initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 * i, type: "spring", stiffness: 220, damping: 18 }} className="flex flex-col items-center gap-3">
-            <div className={cn("grid place-items-center rounded-full border-2 border-foreground font-display font-bold shadow-hard", s, i === 2 ? "text-3xl" : i === 1 ? "text-xl" : "text-base")} style={{ background: levelColor(l).bg, color: levelColor(l).fg }}>{l}</div>
+          {([[3, "size-14"], [21, "size-20"], [45, "size-28"]] as const).map(([l, s], i) => <motion.div key={l} initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 * i, type: "spring", stiffness: 220, damping: 18 }} className="flex flex-col items-center gap-3">
+            <div className={cn("grid place-items-center rounded-full border-2 border-foreground font-display font-bold shadow-hard", s, i === 2 ? "text-3xl" : i === 1 ? "text-xl" : "text-base")} style={levelFill(l)}>{l}</div>
             <LevelBadge level={l} size="sm" title />
           </motion.div>)}
         </div>
@@ -174,9 +174,20 @@ function InvitePage() {
           <span className="mt-2 block text-xs font-semibold text-muted-foreground">Up to {w.cap} a day</span>
         </span>
       </li>)}</ol>
-      <div className="mt-6 flex items-start gap-3 rounded-xl border-2 border-foreground bg-card p-4">
-        <Flame className="mt-0.5 size-5 shrink-0 text-flag-red" />
-        <p className="text-sm"><span className="font-bold">The streak bonus.</span> Your first XP each day (India time) adds 5 XP plus 1 for every day of your streak, up to +35. Miss a day and it starts again from one. {voice(tone, "Consistency is the whole personality.", "")}</p>
+      {/* Streaks: the bonus, freezes and milestones. */}
+      <div className="mt-6 grid gap-3 md:grid-cols-3">
+        <div className="flex items-start gap-3 rounded-xl border-2 border-foreground bg-card p-4">
+          <Flame className="mt-0.5 size-5 shrink-0 text-flag-red" />
+          <p className="text-sm"><span className="block font-bold">Daily streak bonus</span>Your first XP each day (India time) adds 5 XP plus 1 per streak day, up to +35. {voice(tone, "Consistency is the whole personality.", "")}</p>
+        </div>
+        <div className="flex items-start gap-3 rounded-xl border-2 border-foreground bg-card p-4">
+          <Snowflake className="mt-0.5 size-5 shrink-0 text-sky-600 dark:text-sky-300" />
+          <p className="text-sm"><span className="block font-bold">Streak freezes</span>Every 7 days kept earns a freeze (hold up to 2). Miss a single day and one is used automatically, so your streak survives.</p>
+        </div>
+        <div className="flex items-start gap-3 rounded-xl border-2 border-foreground bg-card p-4">
+          <Trophy className="mt-0.5 size-5 shrink-0 text-flag-amber" />
+          <p className="text-sm"><span className="block font-bold">Milestones</span>Day 7: +50 XP. Day 30: +200. Day 100: +500. Day 365: +1,000. Once each, forever bragging rights.</p>
+        </div>
       </div>
     </section>
 
@@ -185,7 +196,7 @@ function InvitePage() {
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <p className="text-sm font-bold text-primary">The ladder</p>
         <h2 className="mt-1 text-4xl font-bold">From fresh face to myth.</h2>
-        <p className="mt-2 max-w-2xl text-muted-foreground">Your badge shows on your profile, on every story you post, and on the preview card when someone shares your page. The redder it gets, the longer you've been showing up. Each level needs more XP than the last, and actions pay a little less as you rise, so the top really means something.</p>
+        <p className="mt-2 max-w-2xl text-muted-foreground">Your badge shows on your profile, on every story you post, and on the preview card when someone shares your page. Each title has its own colour, from fresh-face yellow through mint, sky, violet and gold to the Myth gradient. Each level needs more XP than the last, and actions pay a little less as you rise, so the top really means something.</p>
         <div className="mt-8"><Ladder {...(data && { current: data.level })} /></div>
       </div>
     </section>
@@ -200,7 +211,7 @@ function InvitePage() {
         </div>
         <ol className="space-y-3">{[
           [Share2, "Send your link", "WhatsApp, LinkedIn, a group chat. Anyone who's been through a hiring process."],
-          [UserPlus, "They join", `+30 XP for you, straight away${signedIn ? "" : " (once you have an account)"}.`],
+          [UserPlus, "They join", `+30 XP for you, straight away${signedIn ? "" : " (once you have an account)"}. They start with a +25 XP welcome bonus.`],
           [PenLine, "They share their story", "+120 XP for you, and their first story gets them 50 XP and a streak of their own."],
         ].map(([Icon, title, copy], i) => { const I = Icon as LucideIcon; return <li key={title as string} className="flex items-start gap-4 rounded-xl border-2 border-foreground bg-card p-4 shadow-hard-sm">
           <span className="grid size-10 shrink-0 place-items-center rounded-full border-2 border-foreground bg-accent font-display font-bold">{i + 1}</span>

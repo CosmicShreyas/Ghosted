@@ -120,7 +120,8 @@ async function linkInviter(userId: string, code: string, ipHash: string | null) 
     }
     const { data: linked } = await admin().from("profiles").update({ referred_by: inviter.id, referred_at: new Date().toISOString() }).eq("id", userId).is("referred_by", null).select("id");
     // A small XP thank-you for the join itself (the big one comes when they share a story).
-    if (linked?.length) (await import("./levels.js")).award(inviter.id, "invite_join", userId);
+    // And a head start for the person who joined, so both sides of an invite get something.
+    if (linked?.length) { const { award } = await import("./levels.js"); award(inviter.id, "invite_join", userId); award(userId, "welcome", "invite"); }
   } catch (e) { console.error("[invite] link", (e as Error).message); }
 }
 

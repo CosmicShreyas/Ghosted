@@ -1646,4 +1646,71 @@ update public.profiles p set xp = t.total, level = public.level_for_xp(t.total)
   from (select user_id, sum(xp)::integer as total from public.xp_events group by user_id) t
   where t.user_id = p.id and p.xp < t.total;
 
+-- ============================================================================
+-- Levels: streak freezes, milestones and the invite welcome bonus. Run after the section above.
+--   profiles.streak_freezes   earned one per 7 streak days (hold up to 2); a single missed day
+--                             spends one automatically and the streak carries on
+--   kind 'milestone'          bonus XP at 7, 30, 100 and 365 streak days (once each, ever)
+--   kind 'welcome'            +25 XP for someone who joins through an invite link
+-- award_xp() is replaced with the version that handles all three, and reports what happened
+-- (freeze_used, milestone) so the API can tell the member. Safe to run again.
+-- ============================================================================
+alter table public.xp_events drop constraint if exists xp_events_kind_check;
+alter table public.xp_events add constraint xp_events_kind_check check (kind in ('read','react','chitchat','story','follow','invite_join','invite','daily','welcome','milestone'));
+alter table public.profiles add column if not exists streak_freezes smallint not null default 0 check (streak_freezes between 0 and 2);
+
+create or replace function public.award_xp(p_user uuid, p_kind text, p_ref text, p_base integer, p_cap integer)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+  today date := (now() at time zone 'Asia/Kolkata')::date;
+  p record;
+  mult numeric;
+  gain integer;
+  bonus integer := 0;
+  extra integer := 0;
+  new_streak integer;
+  freezes integer;
+  froze boolean := false;
+  milestone integer := null;
+  new_xp integer;
+  new_level smallint;
+begin
+  if p_cap > 0 and (select count(*) from xp_events where user_id = p_user and kind = p_kind and day = today) >= p_cap then
+    return jsonb_build_object('awarded', 0, 'reason', 'cap');
+  end if;
+  select xp, level, streak, best_streak, streak_day, streak_freezes into p from profiles where id = p_user for update;
+  if not found then return jsonb_build_object('awarded', 0, 'reason', 'no_profile'); end if;
+  -- Higher levels earn less per action: level 1 gets it all, level 11 about half, level 26 a third.
+  mult := 1.0 / (1 + 0.1 * (p.level - 1));
+  gain := greatest(1, round(p_base * mult));
+  insert into xp_events (user_id, kind, ref, day, xp) values (p_user, p_kind, p_ref, today, gain) on conflict (user_id, kind, ref) do nothing;
+  if not found then return jsonb_build_object('awarded', 0, 'reason', 'duplicate'); end if;
+  new_streak := coalesce(p.streak, 0);
+  freezes := coalesce(p.streak_freezes, 0);
+  if p.streak_day is distinct from today then
+    -- Yesterday: the streak grows. The day before, with a freeze: the freeze covers the gap.
+    if p.streak_day = today - 1 then new_streak := new_streak + 1;
+    elsif p.streak_day = today - 2 and freezes > 0 then new_streak := new_streak + 1; freezes := freezes - 1; froze := true;
+    else new_streak := 1;
+    end if;
+    -- A freeze for every 7 days kept, up to 2 in the bank.
+    if new_streak % 7 = 0 then freezes := least(freezes + 1, 2); end if;
+    bonus := greatest(1, round((5 + least(new_streak, 30)) * mult));
+    insert into xp_events (user_id, kind, ref, day, xp) values (p_user, 'daily', today::text, today, bonus) on conflict (user_id, kind, ref) do nothing;
+    -- Streak milestones pay once each, ever.
+    if new_streak in (7, 30, 100, 365) then
+      extra := greatest(1, round((case new_streak when 7 then 50 when 30 then 200 when 100 then 500 else 1000 end) * mult));
+      insert into xp_events (user_id, kind, ref, day, xp) values (p_user, 'milestone', 'streak:' || new_streak, today, extra) on conflict (user_id, kind, ref) do nothing;
+      if found then milestone := new_streak; else extra := 0; end if;
+    end if;
+  end if;
+  new_xp := p.xp + gain + bonus + extra;
+  new_level := level_for_xp(new_xp);
+  update profiles set xp = new_xp, level = new_level, streak = new_streak, best_streak = greatest(p.best_streak, new_streak), streak_day = today, streak_freezes = freezes where id = p_user;
+  return jsonb_build_object('awarded', gain + bonus + extra, 'bonus', bonus, 'xp', new_xp, 'level', new_level, 'from_level', p.level, 'streak', new_streak,
+    'freeze_used', froze, 'freezes', freezes, 'milestone', milestone, 'milestone_xp', extra);
+end $$;
+revoke all on function public.award_xp(uuid, text, text, integer, integer) from public, anon, authenticated;
+grant execute on function public.award_xp(uuid, text, text, integer, integer) to service_role;
+
 commit;

@@ -5,7 +5,7 @@
 // Rules live on the server (backend/src/levels.ts); this only shows what /v1/me/level returns.
 import { Link, useNavigate } from "@tanstack/react-router";
 import { motion } from "motion/react";
-import { BookOpen, Check, ChevronRight, Flame, Gift, HeartHandshake, MessageCircle, PenLine, TrendingUp, UserPlus, type LucideIcon } from "lucide-react";
+import { BookOpen, Check, ChevronRight, Flame, Gift, HeartHandshake, MessageCircle, PenLine, Snowflake, TrendingUp, UserPlus, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LEVEL_LADDER, LevelBadge, LevelProgress, StreakChip, levelColor, useMyLevel, type LevelWay, type MyLevel, type XpKind } from "@/lib/levels";
 import { useTone, voice } from "@/lib/session";
@@ -44,9 +44,25 @@ function useGo(onShare?: () => void) {
 }
 
 function streakLine(d: MyLevel, tone: "sassy" | "calm") {
+  if (d.freezeCovering) return voice(tone, `You skipped yesterday, but a streak freeze has your back. Do one thing today and your ${d.streak}-day streak lives.`, `You missed yesterday. Earn XP today and a streak freeze keeps your ${d.streak}-day streak.`);
   if (d.activeToday) return voice(tone, `Streak safe for today. Come back tomorrow for +${d.streakBonus} XP.`, `Today counts. Tomorrow's first action adds a ${d.streakBonus} XP streak bonus.`);
   if (d.streak > 0) return voice(tone, `${d.streak}-day streak on the line. One action today keeps it, plus a +${d.streakBonus} XP bonus.`, `Do anything that earns XP today to keep your ${d.streak}-day streak (+${d.streakBonus} XP bonus).`);
   return voice(tone, `Start a streak today: your first action pays a +${d.streakBonus} XP bonus.`, `Your first action today starts a streak and adds ${d.streakBonus} XP.`);
+}
+
+// Freezes held, the next one, and the next milestone, in one line.
+function d2(d: MyLevel, tone: "sassy" | "calm") {
+  if (d.freezes == null) return null;
+  const every = d.freezeEvery ?? 7, max = d.freezeMax ?? 2;
+  const nextFreeze = d.freezes >= max ? null : every - (d.streak % every);
+  const parts = [
+    d.freezes ? `${d.freezes} ${d.freezes === 1 ? "freeze" : "freezes"} in the bank` : null,
+    nextFreeze ? `${nextFreeze} more ${nextFreeze === 1 ? "day" : "days"} earns ${d.freezes ? "another" : "a"} freeze` : null,
+    d.nextMilestone ? `day ${d.nextMilestone.days} pays a +${d.nextMilestone.xp} XP milestone bonus` : null,
+  ].filter(Boolean);
+  if (!parts.length) return null;
+  const s = parts.join(", ");
+  return voice(tone, `${s[0]!.toUpperCase()}${s.slice(1)}. Don't fumble it.`, `${s[0]!.toUpperCase()}${s.slice(1)}.`);
 }
 
 export function LevelCard({ onShare }: { onShare: () => void }) {
@@ -62,7 +78,7 @@ export function LevelCard({ onShare }: { onShare: () => void }) {
         <h2 className="font-display text-xl font-bold leading-tight">{data.title}</h2>
         <p className="text-xs text-muted-foreground">{formatCount(data.xp)} XP total · {formatCount(data.earnedToday)} today</p>
       </div>
-      <StreakChip streak={data.streak} activeToday={data.activeToday} />
+      <StreakChip streak={data.streak} activeToday={data.activeToday} freezes={data.freezes} />
     </div>
     <LevelProgress className="mt-4" level={data.level} into={data.into} need={data.need} />
     <p className="mt-2 text-xs text-muted-foreground">{streakLine(data, tone)}</p>
@@ -95,7 +111,7 @@ export function LevelGuide({ onShare }: { onShare?: () => void }) {
         <h3 className="flex items-center gap-2 font-display text-xl font-bold"><TrendingUp className="size-5 text-primary" />You, on Ghosted</h3>
         <p className="text-xs text-muted-foreground">Only you see this. Your level badge is public, your XP isn't.</p>
       </div>
-      <div className="flex items-center gap-2"><LevelBadge level={data.level} size="md" title /><StreakChip streak={data.streak} activeToday={data.activeToday} /></div>
+      <div className="flex items-center gap-2"><LevelBadge level={data.level} size="md" title /><StreakChip streak={data.streak} activeToday={data.activeToday} freezes={data.freezes} /></div>
     </div>
 
     <LevelProgress className="mt-4" level={data.level} into={data.into} need={data.need} />
@@ -109,6 +125,8 @@ export function LevelGuide({ onShare }: { onShare?: () => void }) {
     {/* The advice, in one or two sentences. */}
     <div className="mt-4 rounded-lg border-2 border-foreground bg-accent p-3 text-sm">
       <p className="flex items-start gap-2 font-semibold"><Flame className="mt-0.5 size-4 shrink-0 text-flag-red" />{streakLine(data, tone)}</p>
+      {/* Freezes and the next milestone: the two reasons not to break the chain. */}
+      {d2(data, tone) && <p className="mt-1.5 flex items-start gap-2 pl-0.5 text-muted-foreground"><Snowflake className="mt-0.5 size-4 shrink-0 text-sky-600 dark:text-sky-300" />{d2(data, tone)}</p>}
       {move && <p className="mt-1.5 pl-6 text-muted-foreground">{voice(tone,
         `Fastest win right now: ${move.w.label.toLowerCase()} for +${move.data!.xp} XP. ${todayLeftXp >= remaining ? "You could hit the next level today." : `There's about ${formatCount(todayLeftXp)} XP left on the table today.`}`,
         `Best next step: ${move.w.label.toLowerCase()} (+${move.data!.xp} XP). ${todayLeftXp >= remaining ? "You can reach the next level today." : `About ${formatCount(todayLeftXp)} XP is still available today.`}`)}</p>}
@@ -131,7 +149,7 @@ export function LevelGuide({ onShare }: { onShare?: () => void }) {
     {/* Why it gets harder, said honestly, and what's ahead. */}
     <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t-2 border-foreground/10 pt-4">
       <p className="min-w-0 flex-1 basis-64 text-xs text-muted-foreground">{pct > 0 ? voice(tone, `At LV ${data.level}, actions pay ${pct}% less than they did at LV 1, and each level needs more XP. Seniority is earned, not farmed.`, `At level ${data.level}, each action earns ${pct}% less XP than at level 1, and each level needs more XP than the last.`) : "Each level needs more XP than the last, and actions pay a little less as you climb. The early levels come fast."}</p>
-      {ahead.length > 0 && <div className="flex flex-wrap items-center gap-1.5">{ahead.map(([l, t]) => <motion.span key={l} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="inline-flex items-center gap-1 rounded-full border-2 border-foreground/20 px-2 py-0.5 text-[11px] font-bold" style={{ boxShadow: `inset 0 -3px 0 ${levelColor(l).bg}` }}>LV {l} · {t}</motion.span>)}</div>}
+      {ahead.length > 0 && <div className="flex flex-wrap items-center gap-1.5">{ahead.map(([l, t]) => <motion.span key={l} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="inline-flex items-center gap-1 rounded-full border-2 border-foreground/20 px-2 py-0.5 text-[11px] font-bold" style={{ boxShadow: `inset 0 -4px 0 ${levelColor(l).bg}` }}>LV {l} · {t}</motion.span>)}</div>}
     </div>
   </section>;
 }

@@ -23,6 +23,7 @@ import type { Profile } from "./security.js";
 import { goofyControls } from "./platform.js";
 import { sweepWaiting } from "./interest.js";
 import { nudgeQuietApplications, remindFollowups } from "./nudges.js";
+import { remindStreaks } from "./levels.js";
 
 const DAY = 86400_000;
 const text = (z: string | null) => { if (!z) return ""; try { return fromBytea(z); } catch { return ""; } };
@@ -261,7 +262,9 @@ export async function runAll() {
   const nudged = await nudgeQuietApplications().catch((e: Error) => ({ error: e.message }));
   // Day 7 and day 14 "time for a polite follow-up" pushes (skipped in quiet hours).
   const reminded = await remindFollowups().catch((e: Error) => ({ error: e.message }));
+  // Streaks of 3+ days: a morning nudge to keep them going (levels.ts).
+  const streaks = await remindStreaks().catch((e: Error) => ({ error: e.message }));
   if (!("error" in lists) && !("disabled" in lists)) await act("lists_updated", { targetKind: "system", reason: Object.entries(lists).map(([k, v]) => `${k}: ${v}`).join(", ").slice(0, 200) }).catch(() => undefined);
   if (!("error" in learned) && !("disabled" in learned)) await act("learned", { targetKind: "system", reason: `${learned.learned} new watch words, ${learned.variants} new spellings, ${learned.concepts} synonyms` }).catch(() => undefined);
-  return { lists, learned, swept, goofy: goofyRun, waiting, nudged, reminded };
+  return { lists, learned, swept, goofy: goofyRun, waiting, nudged, reminded, streaks };
 }

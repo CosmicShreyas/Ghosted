@@ -19,10 +19,10 @@ export const pushPublicKey = () => (pushEnabled() ? env().VAPID_PUBLIC_KEY! : nu
 
 export type NotificationKind = "relatable" | "reply" | "company" | "system" | "following" | "follower" | "goofy";
 // "reminder" is push-only (Waiting Room follow-ups, nudges.ts); it has no in-app notification row.
-type PushKind = NotificationKind | "reminder";
+type PushKind = NotificationKind | "reminder" | "streak";
 const TITLE: Record<PushKind, string> = {
   relatable: "Your story is helping someone", reply: "New reply", company: "Company update", system: "Ghosted",
-  following: "New story from someone you follow", follower: "New follower", goofy: "Goofy", reminder: "Time for a polite follow-up",
+  following: "New story from someone you follow", follower: "New follower", goofy: "Goofy", reminder: "Time for a polite follow-up", streak: "Your streak is waiting",
 };
 
 // Quiet hours: no phone buzzing between 9 PM and 8 AM India time. The in-app notification still
