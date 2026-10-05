@@ -5,7 +5,7 @@ import { animate, motion, useInView, useMotionValue, useReducedMotion, useSpring
 import { useQuery } from "@tanstack/react-query";
 import { useLandingStats } from "@/lib/stats";
 import { useAuthGuard } from "@/lib/session";
-import { FlairRing } from "@/lib/invite";
+import { LevelBadge } from "@/lib/levels";
 import { organizationLd, pageHead, websiteLd } from "@/lib/meta";
 import { api, apiEnabled, track } from "@/lib/api";
 import { useT } from "@/lib/i18n";
@@ -202,7 +202,7 @@ function LandingPage() {
     {/* Invites: a small strip; the details live on /invite. */}
     {/* Phones and tablets: avatars, text and a full-width button stacked; a single row from lg up. */}
     <section className="border-b-2 border-foreground bg-accent"><div className="mx-auto grid max-w-7xl gap-5 px-4 py-10 sm:px-6 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center lg:gap-8">
-      <div className="flex -space-x-3">{(["violet", "sunrise", "gold"] as const).map((f, i) => <FlairRing key={f} flair={f} className="bg-card"><Avatar {...getUser(["u2", "u5", "u8"][i]!)} size="md" /></FlairRing>)}</div>
+      <div className="flex items-center -space-x-3">{([3, 12, 27] as const).map((lvl, i) => <span key={lvl} className="relative"><Avatar {...getUser(["u2", "u5", "u8"][i]!)} size="md" /><LevelBadge level={lvl} size="xs" className="absolute -bottom-1 left-1/2 -translate-x-1/2" /></span>)}</div>
       <div className="min-w-0"><h2 className="font-display text-2xl font-bold leading-tight sm:text-3xl">{f.l((c) => c.invite.title, "grid")}</h2><p className="mt-2 max-w-2xl text-muted-foreground">{f.l((c) => c.invite.copy, "grid")}</p></div>
       <Button size="lg" variant="outline" className="min-h-12 w-full bg-card sm:w-fit" asChild><Link to="/invite">{f.l((c) => c.invite.cta)} <ArrowRight /></Link></Button>
     </div></section>

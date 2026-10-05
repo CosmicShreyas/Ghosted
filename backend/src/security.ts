@@ -118,7 +118,9 @@ async function linkInviter(userId: string, code: string, ipHash: string | null) 
       const { count } = await admin().from("session_devices").select("session_id", { count: "exact", head: true }).eq("user_id", inviter.id).eq("ip_hash", ipHash);
       if ((count ?? 0) > 0) return; // same connection as the inviter: not credited
     }
-    await admin().from("profiles").update({ referred_by: inviter.id, referred_at: new Date().toISOString() }).eq("id", userId).is("referred_by", null);
+    const { data: linked } = await admin().from("profiles").update({ referred_by: inviter.id, referred_at: new Date().toISOString() }).eq("id", userId).is("referred_by", null).select("id");
+    // A small XP thank-you for the join itself (the big one comes when they share a story).
+    if (linked?.length) (await import("./levels.js")).award(inviter.id, "invite_join", userId);
   } catch (e) { console.error("[invite] link", (e as Error).message); }
 }
 

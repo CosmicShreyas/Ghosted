@@ -8,7 +8,7 @@ export const SITE_URL = ((import.meta.env["VITE_SITE_URL"] as string | undefined
 export const SITE_NAME = "Ghosted";
 const IMAGE = `${SITE_URL}/icon-512.png`;
 // 1200×630 preview cards drawn by the API (backend/src/og.ts), served at /og/… through vercel.json.
-export const ogImage = { site: `${SITE_URL}/og/site.png`, story: (id: string) => `${SITE_URL}/og/s/${id}.png`, company: (slug: string) => `${SITE_URL}/og/c/${slug}.png` };
+export const ogImage = { site: `${SITE_URL}/og/site.png`, story: (id: string) => `${SITE_URL}/og/s/${id}.png`, company: (slug: string) => `${SITE_URL}/og/c/${slug}.png`, person: (id: string) => `${SITE_URL}/og/u/${id}.png` };
 
 type Head = { title: string; description: string; path?: string; type?: "website" | "article"; noindex?: boolean; jsonLd?: object[]; image?: string };
 

@@ -32,7 +32,7 @@ export type Me = {
   createdAt?: string;
 };
 export type Tone = "sassy" | "calm";
-export type Notify = { relatable: boolean; chitchatReplies: boolean; newFollowers: boolean; flaggedCompanies: boolean; weeklyDigest: boolean };
+export type Notify = { relatable: boolean; chitchatReplies: boolean; newFollowers: boolean; flaggedCompanies: boolean; weeklyDigest: boolean; levelUps?: boolean };
 
 // The one rule for which name to show: your real name only if you've gone public AND chosen to
 // show your name; otherwise your anonymous handle. Use these everywhere a name is displayed.
@@ -108,7 +108,8 @@ export function useMe() {
   useEffect(() => { if (apiEnabled && query.isSuccess) signedInHint.set(query.data !== null); }, [query.isSuccess, query.data]);
   // Profile or settings changed on another device (or tab): fetch the fresh copy. While signed in,
   // the same live check also notices if this device gets signed out and logs out here.
-  useLive(query.data ? "me" : null, () => void qc.invalidateQueries({ queryKey: ["me"] }));
+  // "me" also moves when you earn XP, so your level, progress and profile refresh too.
+  useLive(query.data ? "me" : null, () => { for (const k of [["me"], ["my-level"], ["person"]]) void qc.invalidateQueries({ queryKey: k }); });
   // Mirror the account's tone onto this device, so pages without a profile (loading screen,
   // log-in page) speak in the same voice.
   useEffect(() => { if (query.data?.tone) setPrefs({ tone: query.data.tone }); }, [query.data?.tone]);

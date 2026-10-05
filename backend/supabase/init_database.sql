@@ -1532,4 +1532,118 @@ alter table public.applications add column if not exists reminder_level smallint
 alter table public.applications add column if not exists reminder_since date;
 create index if not exists applications_reminders on public.applications (waiting_since) where status = 'waiting';
 
+-- ============================================================================
+-- Levels, XP and streaks (replaces invite levels, missions and avatar rings).
+--   xp_events          one row per thing that earned XP: kind + ref is unique per member, so the
+--                      same story, reaction or follow can never pay twice (un-react and re-react
+--                      earns nothing). `day` is the India date, for daily caps and streaks.
+--   profiles.xp        lifetime XP; profiles.level is worked out from it (level_for_xp)
+--   profiles.streak    consecutive India days with at least one XP event; best_streak is the record
+--   award_xp()         the only way XP is added: checks the daily cap, scales the XP down as the
+--                      level goes up, adds the daily streak bonus on the day's first event, and
+--                      returns what happened (including whether the member levelled up)
+-- The backfill at the end credits existing activity once (no multiplier, no streak). Safe to run
+-- again: every insert ignores rows that already exist.
+-- ============================================================================
+create table if not exists public.xp_events (
+  id         bigint generated always as identity primary key,
+  user_id    uuid not null references public.profiles (id) on delete cascade,
+  kind       text not null check (kind in ('read','react','chitchat','story','follow','invite_join','invite','daily')),
+  ref        text not null check (char_length(ref) between 1 and 80),
+  day        date not null default ((now() at time zone 'Asia/Kolkata')::date),
+  xp         integer not null check (xp between 0 and 10000),
+  created_at timestamptz not null default now(),
+  unique (user_id, kind, ref)
+);
+create index if not exists xp_events_user_day on public.xp_events (user_id, day, kind);
+alter table public.xp_events enable row level security;
+revoke all on public.xp_events from anon, authenticated;
+grant select, insert, update, delete on public.xp_events to service_role;
+
+alter table public.profiles add column if not exists xp integer not null default 0 check (xp >= 0);
+alter table public.profiles add column if not exists level smallint not null default 1 check (level between 1 and 99);
+alter table public.profiles add column if not exists streak smallint not null default 0 check (streak >= 0);
+alter table public.profiles add column if not exists best_streak smallint not null default 0 check (best_streak >= 0);
+alter table public.profiles add column if not exists streak_day date;
+
+-- XP needed to go from level L to L+1: 100 × L^1.5 (100, 283, 520, 800, 1118…), so every level
+-- takes longer than the one before. Keep in step with backend/src/levels.ts.
+create or replace function public.level_for_xp(p_xp integer) returns smallint
+language plpgsql immutable as $$
+declare lvl integer := 1; need bigint := 0; step bigint;
+begin
+  loop
+    step := round(100 * power(lvl, 1.5));
+    exit when p_xp < need + step or lvl >= 99;
+    need := need + step;
+    lvl := lvl + 1;
+  end loop;
+  return lvl;
+end $$;
+
+create or replace function public.award_xp(p_user uuid, p_kind text, p_ref text, p_base integer, p_cap integer)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+  today date := (now() at time zone 'Asia/Kolkata')::date;
+  p record;
+  mult numeric;
+  gain integer;
+  bonus integer := 0;
+  new_streak integer;
+  new_xp integer;
+  new_level smallint;
+begin
+  if p_cap > 0 and (select count(*) from xp_events where user_id = p_user and kind = p_kind and day = today) >= p_cap then
+    return jsonb_build_object('awarded', 0, 'reason', 'cap');
+  end if;
+  select xp, level, streak, best_streak, streak_day into p from profiles where id = p_user for update;
+  if not found then return jsonb_build_object('awarded', 0, 'reason', 'no_profile'); end if;
+  -- Higher levels earn less per action: level 1 gets it all, level 11 about half, level 26 a third.
+  mult := 1.0 / (1 + 0.1 * (p.level - 1));
+  gain := greatest(1, round(p_base * mult));
+  insert into xp_events (user_id, kind, ref, day, xp) values (p_user, p_kind, p_ref, today, gain) on conflict (user_id, kind, ref) do nothing;
+  if not found then return jsonb_build_object('awarded', 0, 'reason', 'duplicate'); end if;
+  -- The day's first XP: keep (or start) the streak and pay the streak bonus, 5 + 1 per streak day up to 30.
+  new_streak := coalesce(p.streak, 0);
+  if p.streak_day is distinct from today then
+    new_streak := case when p.streak_day = today - 1 then new_streak + 1 else 1 end;
+    bonus := greatest(1, round((5 + least(new_streak, 30)) * mult));
+    insert into xp_events (user_id, kind, ref, day, xp) values (p_user, 'daily', today::text, today, bonus) on conflict (user_id, kind, ref) do nothing;
+  end if;
+  new_xp := p.xp + gain + bonus;
+  new_level := level_for_xp(new_xp);
+  update profiles set xp = new_xp, level = new_level, streak = new_streak, best_streak = greatest(p.best_streak, new_streak), streak_day = today where id = p_user;
+  return jsonb_build_object('awarded', gain + bonus, 'bonus', bonus, 'xp', new_xp, 'level', new_level, 'from_level', p.level, 'streak', new_streak);
+end $$;
+revoke all on function public.award_xp(uuid, text, text, integer, integer) from public, anon, authenticated;
+grant execute on function public.award_xp(uuid, text, text, integer, integer) to service_role;
+grant execute on function public.level_for_xp(integer) to service_role;
+
+-- Backfill: what members already did counts once, at base XP.
+insert into public.xp_events (user_id, kind, ref, day, xp)
+  select author_id, 'story', id::text, (created_at at time zone 'Asia/Kolkata')::date, 50 from public.stories where status = 'published'
+  on conflict (user_id, kind, ref) do nothing;
+insert into public.xp_events (user_id, kind, ref, day, xp)
+  select user_id, 'react', story_id::text, (created_at at time zone 'Asia/Kolkata')::date, 4 from public.reactions
+  on conflict (user_id, kind, ref) do nothing;
+insert into public.xp_events (user_id, kind, ref, day, xp)
+  select author_id, 'chitchat', id::text, (created_at at time zone 'Asia/Kolkata')::date, 10 from public.comments where status = 'published'
+  on conflict (user_id, kind, ref) do nothing;
+insert into public.xp_events (user_id, kind, ref, day, xp)
+  select user_id, 'follow', 'c:' || company_id::text, (created_at at time zone 'Asia/Kolkata')::date, 5 from public.company_follows
+  on conflict (user_id, kind, ref) do nothing;
+insert into public.xp_events (user_id, kind, ref, day, xp)
+  select follower_id, 'follow', 'p:' || followee_id::text, (created_at at time zone 'Asia/Kolkata')::date, 5 from public.follows
+  on conflict (user_id, kind, ref) do nothing;
+insert into public.xp_events (user_id, kind, ref, day, xp)
+  select referred_by, 'invite_join', id::text, (coalesce(referred_at, created_at) at time zone 'Asia/Kolkata')::date, 30 from public.profiles where referred_by is not null
+  on conflict (user_id, kind, ref) do nothing;
+insert into public.xp_events (user_id, kind, ref, day, xp)
+  select distinct p.referred_by, 'invite', p.id::text, (now() at time zone 'Asia/Kolkata')::date, 120
+  from public.profiles p where p.referred_by is not null and exists (select 1 from public.stories s where s.author_id = p.id and s.status = 'published')
+  on conflict (user_id, kind, ref) do nothing;
+update public.profiles p set xp = t.total, level = public.level_for_xp(t.total)
+  from (select user_id, sum(xp)::integer as total from public.xp_events group by user_id) t
+  where t.user_id = p.id and p.xp < t.total;
+
 commit;

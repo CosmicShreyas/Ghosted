@@ -5,7 +5,7 @@ import { useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { motion } from "motion/react";
 import { Charts } from "@/components/lazy-charts";
-import { Bell, BellOff, BellRing, BriefcaseBusiness, Gift, CalendarDays, Clock, HeartHandshake, Linkedin, Loader2, MapPin, MessageCircle, MoreHorizontal, PenLine, ShieldAlert, Sparkles, UserCheck, UserPlus, Users, Volume2, VolumeX } from "lucide-react";
+import { Bell, BellOff, BellRing, BriefcaseBusiness, Gift, CalendarDays, Clock, HeartHandshake, Linkedin, Loader2, MapPin, MessageCircle, MoreHorizontal, PenLine, Share2, ShieldAlert, Sparkles, UserCheck, UserPlus, Users, Volume2, VolumeX } from "lucide-react";
 import { toast } from "sonner";
 import { Avatar, Banner, CompanyMark } from "@/components/ghosted";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,7 @@ import type { PersonPage, PersonStats, usePerson } from "@/lib/people";
 import { cn, formatCount } from "@/lib/utils";
 import { activeDot, axis, barCursor, ChartTooltip, grid, INK, lineCursor, SERIES } from "./chart-kit";
 import { card, popup, popupBody } from "./ui-kit";
-import { FlairRing } from "@/lib/invite";
+import { LevelBadge, LevelProgress, StreakChip, titleFor } from "@/lib/levels";
 
 const nf = formatCount;
 const joined = (iso: string | null) => (iso ? new Intl.DateTimeFormat("en-IN", { month: "long", year: "numeric" }).format(new Date(iso)) : null);
@@ -39,29 +39,44 @@ export function PersonHeader({ page, actions }: { page: PersonPage; actions: Rea
     ["Other reactions", s.flagsReceived, Sparkles, "text-emerald-600 dark:text-emerald-300"],
     ["Chitchats", s.chitchatsReceived, MessageCircle],
     ["Followers", s.followers, Users],
+    ["Following", s.following, UserCheck],
   ];
+  const level = p.level ?? null;
   return <section className={cn(card, "overflow-hidden")}>
     {/* Their banner: DiceBear shapes seeded from their avatar, in Ghosted's palette. */}
     <Banner seed={p.avatarSeed} className="h-24 border-b-2 border-foreground sm:h-32" />
     <div className="px-4 pb-5 sm:px-6">
       <div className="-mt-10 flex flex-wrap items-end justify-between gap-3 sm:-mt-12">
-        <div className="rounded-full bg-card p-1"><FlairRing flair={p.flair}><div className="[&_img]:size-20 sm:[&_img]:size-24"><Avatar seed={p.avatarSeed} pastel={p.pastel} size="lg" label={p.name} /></div></FlairRing></div>
+        {/* The avatar with its level badge beside it (the badge's colour climbs from pale yellow to red). */}
+        <div className="flex min-w-0 items-end gap-2 sm:gap-3">
+          <div className="rounded-full bg-card p-1"><div className="[&_img]:size-20 sm:[&_img]:size-24"><Avatar seed={p.avatarSeed} pastel={p.pastel} size="lg" label={p.name} /></div></div>
+          {level && !p.bot && <div className="mb-1 flex flex-col items-start gap-0.5"><LevelBadge level={level} size="md" /><span className="pl-0.5 text-[11px] font-bold text-muted-foreground">{p.title ?? titleFor(level)}</span></div>}
+        </div>
         <div className="flex flex-wrap items-center gap-2 pb-1">{actions}</div>
       </div>
       <div className="mt-3 min-w-0">
-        <h1 className="break-words font-display text-2xl font-bold sm:text-3xl">{p.name}</h1>        <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+        <h1 className="break-words font-display text-2xl font-bold sm:text-3xl">{p.name}</h1>
+        <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
           <span className={cn("inline-flex items-center gap-1 rounded-full border-2 border-foreground px-2 py-0.5 text-[11px] font-bold uppercase", r ? "bg-flag-amber text-foreground" : "bg-flag-green text-primary-foreground")}>{r ? "Public profile" : "Anonymous"}</span>
-          {p.voices != null && <span title="People who joined with their invite and shared a story" className="inline-flex items-center gap-1 rounded-full border-2 border-foreground bg-accent px-2 py-0.5 text-[11px] font-bold uppercase text-foreground"><Gift className="size-3" />Brought {formatCount(p.voices)} voices</span>}
           {joined(p.joinedAt) && <span className="inline-flex items-center gap-1"><CalendarDays className="size-3.5" />Joined {joined(p.joinedAt)}</span>}
-          <span>{nf(s.following)} following</span>
+          <span><strong className="font-bold text-foreground">{nf(s.followers)}</strong> {s.followers === 1 ? "follower" : "followers"}</span>
+          <span><strong className="font-bold text-foreground">{nf(s.following)}</strong> following</span>
         </p>
+        {/* Your own page: how close you are to the next level, and your streak. */}
+        {p.isMe && p.progress && level && <div className="mt-4 rounded-xl border-2 border-foreground bg-background p-3 sm:p-4">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm font-bold">Your road to LV {level + 1}</p>
+            <span className="flex items-center gap-2"><StreakChip streak={p.progress.streak} activeToday={p.progress.activeToday} /><Link to="/dashboard" search={{ view: "insights" }} className="text-xs font-bold text-primary hover:underline">How to level up</Link></span>
+          </div>
+          <LevelProgress level={level} into={p.progress.into} need={p.progress.need} />
+        </div>}
         {(chips.length > 0 || r?.linkedin) && <div className="mt-3 flex flex-wrap gap-2">
           {chips.map(({ icon: Icon, text }) => <span key={text} className="inline-flex items-center gap-1.5 rounded-full border-2 border-foreground bg-background px-2.5 py-1 text-xs font-bold"><Icon className="size-3.5" />{text}</span>)}
           {r?.linkedin && <a href={`https://www.linkedin.com/${r.linkedin.replace(/\/$/, "")}`} target="_blank" rel="noopener noreferrer nofollow" className="inline-flex items-center gap-1.5 rounded-full border-2 border-foreground bg-background px-2.5 py-1 text-xs font-bold hover:bg-muted"><Linkedin className="size-3.5" />LinkedIn</a>}
         </div>}
       </div>
-      {/* Their numbers: 2 columns on small phones, 3 on larger phones, all 5 in a row from tablets. */}
-      <div className="mt-5 grid grid-cols-2 gap-2 min-[420px]:grid-cols-3 md:grid-cols-5">{tiles.map(([label, n, Icon, tone]) => <div key={label} className="rounded-lg border-2 border-foreground bg-background p-3">
+      {/* Their numbers: 2 columns on small phones, 3 on larger phones and tablets, all 6 in a row on wide screens. */}
+      <div className="mt-5 grid grid-cols-2 gap-2 min-[420px]:grid-cols-3 xl:grid-cols-6">{tiles.map(([label, n, Icon, tone]) => <div key={label} className="rounded-lg border-2 border-foreground bg-background p-3">
         <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase text-muted-foreground"><Icon className={cn("size-3.5", tone)} /><span className="truncate">{label}</span></p>
         <p className={cn("mt-1 font-display text-2xl font-bold tabular-nums", tone)}>{nf(n)}</p>
       </div>)}</div>
@@ -76,8 +91,16 @@ type Person = ReturnType<typeof usePerson>;
 export function PersonActions({ page, person, onReport }: { page: PersonPage; person: Person; onReport: () => void }) {
   const [busy, setBusy] = useState<string | null>(null);
   const rel = page.relationship;
-  if (page.profile.isMe) return <Button variant="outline" asChild><Link to="/dashboard" search={{ view: "settings" }}><PenLine />Edit profile</Link></Button>;
-  if (!rel) return null;
+  // Sharing a page: the link's preview is a card with their level badge (backend og.ts personCard).
+  const shareProfile = <Button variant="outline" size="icon" aria-label="Share profile" title="Share profile" onClick={() => void (async () => {
+    const url = `${window.location.origin}/u/${page.profile.publicId}`;
+    try {
+      if (navigator.share && window.matchMedia("(pointer: coarse)").matches) await navigator.share({ title: `${page.profile.name} on Ghosted`, url });
+      else { await navigator.clipboard.writeText(url); toast.success("Profile link copied. Its preview shows the level badge."); }
+    } catch (e) { if ((e as Error).name !== "AbortError") toast.error("Couldn't copy the link."); }
+  })()}><Share2 /></Button>;
+  if (page.profile.isMe) return <>{shareProfile}<Button variant="outline" asChild><Link to="/dashboard" search={{ view: "settings" }}><PenLine />Edit profile</Link></Button></>;
+  if (!rel) return shareProfile;
   const name = page.profile.name;
   const run = async (id: string, fn: () => Promise<unknown>, ok: string) => {
     setBusy(id);
@@ -98,6 +121,7 @@ export function PersonActions({ page, person, onReport }: { page: PersonPage; pe
       className={cn(rel.notify && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground")}>
       {spin("bell", rel.notify ? <BellRing /> : <Bell />)}
     </Button>
+    {shareProfile}
     <DropdownMenu>
       <DropdownMenuTrigger asChild><Button variant="outline" size="icon" aria-label="More options"><MoreHorizontal /></Button></DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-60 border-2 border-foreground shadow-hard">

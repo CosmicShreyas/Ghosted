@@ -6,7 +6,7 @@ import { Bookmark, Check, Flag, HandHeart, Heart, HeartHandshake, Lightbulb, Mes
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Avatar, QuickBadge } from "@/components/ghosted";
-import { FlairRing } from "@/lib/invite";
+import { LevelBadge, markRead } from "@/lib/levels";
 import { plainText, StoryBody } from "@/components/markdown";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -64,6 +64,8 @@ export function FeedStory({ story, saved, onSave, onOpenCompany, full = false }:
   const held = useRef(false);
   const reactSeq = useRef(0);
   useEffect(() => setState({ mine: story.myReaction, counts: story.reactions }), [story.myReaction, story.reactions]);
+  // On the story's own page: after 8 seconds of reading, it counts as read (XP, once per story).
+  useEffect(() => { if (!full) return; const t = window.setTimeout(() => markRead(story.id), 8000); return () => window.clearTimeout(t); }, [full, story.id]);
   const toggle = async (kind: StoryReaction) => {
     const prev = state;
     const next = prev.mine === kind ? null : kind;
@@ -132,9 +134,9 @@ export function FeedStory({ story, saved, onSave, onOpenCompany, full = false }:
     className={cn(card, "p-5", !full && "cursor-pointer transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-hard", story.greenFlags?.length && "border-flag-green bg-flag-green/[0.07] shadow-[4px_4px_0_0_var(--flag-green)]")}>
     <div className="flex items-start gap-3">
       {/* The avatar and name open this person's page (addressed by id, whatever name they show). */}
-      <PersonLink author={author} className="shrink-0 rounded-full"><FlairRing flair={author.flair}><Avatar seed={author.avatarSeed} pastel={author.pastel} size="sm" label={author.name} /></FlairRing></PersonLink>
+      <PersonLink author={author} className="shrink-0 rounded-full"><Avatar seed={author.avatarSeed} pastel={author.pastel} size="sm" label={author.name} /></PersonLink>
       <div className="min-w-0 flex-1">
-        <PersonLink author={author} className="block truncate text-sm font-bold underline-offset-2 hover:underline">{author.name}</PersonLink>
+        <span className="flex min-w-0 items-center gap-1.5"><PersonLink author={author} className="block truncate text-sm font-bold underline-offset-2 hover:underline">{author.name}</PersonLink><LevelBadge level={author.level} size="xs" /></span>
         <p className="flex min-w-0 flex-wrap items-center gap-x-1 text-xs text-muted-foreground">
           <span className="truncate">about <Link to="/c/$slug" params={{ slug: company.id }} className="font-semibold text-foreground underline underline-offset-2 decoration-foreground/30 transition-colors hover:text-primary hover:decoration-primary">{company.name}</Link> · {story.timeLabel}</span>
           {story.goofy === "redacted" && <Link to="/u/$id" params={{ id: GOOFY_ID }} title="Goofy, our AutoMod, replaced a person's name with [name] so nobody can be identified" className="inline-flex items-center gap-1 rounded-full border border-foreground/30 py-px pl-0.5 pr-1.5 text-[10px] font-bold uppercase tracking-wide hover:bg-muted"><img src={GOOFY_AVATAR} alt="" className="size-3.5 rounded-full object-cover" />Name hidden by Goofy</Link>}

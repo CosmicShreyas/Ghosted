@@ -181,6 +181,15 @@ Phone and browser notifications (Web Push), from the "Phone notifications" secti
 - Rows are removed on sign-out, when turned off, and automatically when the push service reports the address gone (404/410). Service role only.
 - No pushes between 9 PM and 8 AM IST (the in-app notification still arrives).
 
+### Levels, XP and streaks
+
+From the "Levels, XP and streaks" section. Replaces invite levels, missions and avatar rings (the old `profiles.flair` column is no longer used).
+
+- `xp_events`: one row per thing that earned XP (`kind`: read, react, chitchat, story, follow, invite_join, invite, daily). `(user_id, kind, ref)` is unique, so nothing pays twice; `day` is the India date for daily caps and streaks. Service role only.
+- `profiles.xp`, `level`, `streak`, `best_streak`, `streak_day`.
+- `level_for_xp(xp)`: level L to L+1 needs `100 × L^1.5` XP. `award_xp(user, kind, ref, base, cap)`: the only way XP is added; applies the daily cap, scales XP down by level (`1 / (1 + 0.1 × (level − 1))`), adds the daily streak bonus and returns whether the member levelled up. Rules and caps: `backend/src/levels.ts`.
+- The section backfills existing stories, reactions, chitchats, follows and invites once, at base XP.
+
 ### Waiting Room reminders
 
 From the "Waiting Room reminders" section: `applications.reminder_level` (0, 1 = day-7 push sent, 2 = day-14 push sent) and `applications.reminder_since` (the `waiting_since` those reminders were for, so a restarted clock starts them over). The daily automation job sends them at 09:45 IST.

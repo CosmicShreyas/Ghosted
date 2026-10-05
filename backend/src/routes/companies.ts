@@ -17,6 +17,7 @@ import { reviewText } from "../algorithms/index.js";
 import { reportAs } from "../goofy/index.js";
 import { goofyControls } from "../platform.js";
 import { waitingCount } from "../interest.js";
+import { award } from "../levels.js";
 
 const COLORS = ["bg-logo-violet", "bg-logo-coral", "bg-logo-blue", "bg-logo-green", "bg-logo-pink", "bg-logo-amber", "bg-logo-red"];
 const slugify = (name: string) => name.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60);
@@ -190,6 +191,7 @@ export const companyRoutes = new Hono<AppEnv>()
     const { data: existing } = await admin().from("company_follows").select("notify").eq("user_id", me(c).id).eq("company_id", id).maybeSingle();
     const { error } = await admin().from("company_follows").upsert({ user_id: me(c).id, company_id: id, notify: c.req.valid("json").notify ?? existing?.notify ?? false }, { onConflict: "user_id,company_id" });
     if (error) dbFail("follow company", error);
+    if (!existing) award(me(c).id, "follow", `c:${id}`);
     later(bump({ user: me(c).id, topics: ["me"], shared: [`company:${c.req.valid("param").slug}`] }));
     return c.json({ relationship: await companyRelationship(me(c).id, id) });
   })

@@ -5,7 +5,7 @@ import { Hono, type Context } from "hono";
 import { z } from "zod";
 import { ApiError, dbFail, notFound } from "../errors.js";
 import { AUTHOR_COLUMNS, storyAuthor, type AuthorRow, type StoryRow } from "../dto.js";
-import { flairsFor, referralStats } from "../referral.js";
+import { award, levelFor, titleFor } from "../levels.js";
 import { hydrate, publishedStories } from "../stories.js";
 import { me, optionalAuth, rateLimit, requireAuth, type AppEnv } from "../security.js";
 import { admin } from "../supabase.js";
@@ -185,10 +185,11 @@ export const peopleRoutes = new Hono<AppEnv>()
       viewer && viewer.id !== person.id ? relationship(viewer.id, person.id) : Promise.resolve(null),
       storiesPage(c, person, undefined, 10),
     ]);
-    const flair = (await flairsFor([person.public_id])).get(String(person.public_id)) ?? null;
-    // Invite Level 2 perk: "Brought N voices" on their page (a count only, never who).
-    const { voices } = await referralStats(person.id).catch(() => ({ voices: 0 }));
-    return c.json({ profile: { ...storyAuthor(person), flair, voices: voices >= 3 ? voices : null, joinedAt: person.created_at, isMe: viewer?.id === person.id }, stats, relationship: rel, ...first });
+    // Their level is public (the badge); your own page also gets your progress and streak.
+    const isMe = viewer?.id === person.id;
+    const level = Number((person as { level?: number }).level ?? 1);
+    const progress = isMe ? await levelFor(person.id).catch(() => null) : null;
+    return c.json({ profile: { ...storyAuthor(person), level, title: titleFor(level), joinedAt: person.created_at, isMe, ...(progress && { progress: { xp: progress.xp, into: progress.into, need: progress.need, streak: progress.streak, activeToday: progress.activeToday } }) }, stats, relationship: rel, ...first });
   })
 
   // More of their stories, newest first (`before` = the last story's createdAt).
@@ -216,6 +217,7 @@ export const peopleRoutes = new Hono<AppEnv>()
     if (error) dbFail("follow", error);
     // Tell them once, as the follower currently appears (their handle, or name if public).
     if (!existing && person.kind !== "bot") later(notifyNewFollower(person.id, me(c)));
+    if (!existing) award(me(c).id, "follow", `p:${person.id}`);
     changed(me(c).id, person);
     return c.json({ relationship: await relationship(me(c).id, person.id) });
   })

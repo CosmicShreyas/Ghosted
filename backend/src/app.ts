@@ -8,6 +8,8 @@ import { env } from "./env.js";
 import { admin } from "./supabase.js";
 import { storyScore } from "./score.js";
 import { inviterByCode } from "./referral.js";
+import { levelColor, titleFor } from "./levels.js";
+import { storyAuthor, type AuthorRow } from "./dto.js";
 import { hit, type FunnelEvent } from "./funnel.js";
 // The preview-image renderer (satori + resvg, which has a native binary) is loaded only when an
 // image is requested. If it can't load on the server, only /v1/og fails; the rest of the API is
@@ -177,7 +179,7 @@ app.post("/v1/track", rateLimit({ name: "track", max: 120, windowSeconds: 600 })
 // An invite link's code → who invited you (their public handle and avatar only, never more).
 app.get("/v1/invite/:code", rateLimit({ name: "invite-lookup", max: 60, windowSeconds: 60 }), async (c) => {
   const p = await inviterByCode(c.req.param("code").toUpperCase()).catch(() => null);
-  return c.json(p ? { valid: true, inviter: { handle: p.handle, avatarSeed: p.avatar_seed, pastel: p.pastel } } : { valid: false });
+  return c.json(p ? { valid: true, inviter: { handle: p.handle, avatarSeed: p.avatar_seed, pastel: p.pastel, level: p.level ?? 1 } } : { valid: false });
 });
 
 // Link-preview images (see og.ts), served on the site's domain through the /og rewrite. Anything
@@ -218,6 +220,28 @@ app.get("/v1/og/c/:file", rateLimit({ name: "og", max: 120, windowSeconds: 60 })
     const { companyCard } = await og();
     return png(c, await companyCard({ name: r.name, stories: r.story_count, score: r.flag_score, ghosted: r.ghosted_count, avgWait: r.avg_days_waited, city: r.hq_city }, site));
   } catch (e) { console.error("[og] company", (e as Error).message); return fallback(c, site); }
+});
+// A member's page, with their level badge. Only what their public page already shows.
+app.get("/v1/og/u/:file", rateLimit({ name: "og", max: 120, windowSeconds: 60 }), async (c) => {
+  const site = env().FRONTEND_URL;
+  const id = ogParam(c, /^([0-9]{15})\.png$/);
+  if (!id) return fallback(c, site);
+  try {
+    const { data } = await admin().from("profiles").select("*").eq("public_id", id).maybeSingle();
+    const p = data as (AuthorRow & { id: string; kind?: string; level?: number }) | null;
+    if (!p || p.kind === "bot") return fallback(c, site);
+    const [stories, followers] = await Promise.all([
+      admin().from("stories").select("id").eq("author_id", p.id).eq("status", "published").limit(2000),
+      admin().from("follows").select("follower_id", { count: "exact", head: true }).eq("followee_id", p.id),
+    ]);
+    const ids = ((stories.data ?? []) as { id: string }[]).map((s) => s.id);
+    const { data: counts } = ids.length ? await admin().from("story_counts").select("relatable").in("story_id", ids.slice(0, 1000)) : { data: [] };
+    const relatable = ((counts ?? []) as { relatable: number }[]).reduce((n, r) => n + Number(r.relatable ?? 0), 0);
+    const author = storyAuthor(p);
+    const level = Number(p.level ?? 1);
+    const { personCard } = await og();
+    return png(c, await personCard({ name: author.name, avatarUrl: `https://api.dicebear.com/9.x/open-peeps/png?seed=${encodeURIComponent(author.avatarSeed)}&size=180`, level, title: titleFor(level), color: levelColor(level), stories: ids.length, relatable, followers: followers.count ?? 0, anonymous: !author.revealed }, site));
+  } catch (e) { console.error("[og] person", (e as Error).message); return fallback(c, site); }
 });
 app.get("/v1/og/site.png", rateLimit({ name: "og", max: 120, windowSeconds: 60 }), (c) => fallback(c, env().FRONTEND_URL));
 

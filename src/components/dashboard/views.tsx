@@ -23,7 +23,8 @@ import { compact, useMyStats } from "@/lib/my-stats";
 import { useDailyPrompt } from "@/lib/prompts";
 import { SlidingPill, usePill } from "@/components/sliding-pill";
 import { FoundingProgress } from "@/lib/founding";
-import { BlockerCard, InviteCard, MissionsCard, Spotlight } from "./momentum";
+import { BlockerCard, Spotlight } from "./momentum";
+import { LevelCard } from "./level-card";
 
 // Two-series chart colours, validated for colour-blind separation and contrast (dataviz validator).
 const SERIES = { ghosted: "var(--chart-violet)", offers: "var(--chart-cyan)" };
@@ -169,8 +170,7 @@ export function HomeView({ me, ...c }: Common & { me: Me }) {
 
     <FoundingProgress />
     <BlockerCard />
-    <MissionsCard onShare={c.onShare} />
-    <InviteCard />
+    <LevelCard onShare={c.onShare} />
     <Spotlight />
 
     {/* Desktop only: on phones/tablets the prompt gets cut off, and the top bar's Share button does the same job. */}

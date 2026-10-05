@@ -5,7 +5,6 @@ import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Building2, Check, Copy, Gift, HeartHandshake, Hourglass, Loader2, MessageCircle, MessageCircleQuestion, PenLine, Target, X } from "lucide-react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { inviteLink, useInvite, VOICE_TIERS } from "@/lib/invite";
 import { CompanyMark } from "@/components/ghosted";
 import { Button } from "@/components/ui/button";
 import { apiEnabled } from "@/lib/api";
@@ -39,68 +38,7 @@ export function Spotlight({ className }: { className?: string }) {
   </section>;
 }
 
-// ---------- missions: small things that make Ghosted better, each one a step toward flair ----------
-
-const MISSION_ICON: Record<string, typeof Check> = { share: PenLine, react: HeartHandshake, chitchat: MessageCircle, follow: Building2, ask: MessageCircleQuestion, track: Hourglass, invite: Gift };
-
-export function MissionsCard({ onShare }: { onShare: () => void }) {
-  const tone = useTone();
-  const navigate = useNavigate();
-  const { data } = useInvite();
-  const onGo = (view: "home" | "waiting" | "companies") => { void navigate({ to: "/dashboard", search: { view } }); window.scrollTo({ top: 0 }); };
-  if (!data) return null;
-  const all = data.missions.length;
-  if (data.completed >= all) return null; // all done: the card steps aside
-  const run = (id: string) => {
-    if (id === "share") return onShare();
-    if (id === "track") return onGo("waiting");
-    if (id === "follow") return onGo("companies");
-    if (id === "invite") { void navigate({ to: "/invite" }); return; }
-    onGo("home");
-  };
-  const nextFlair = data.completed < 3 ? { at: 3, name: "Missions ring" } : { at: 6, name: "All missions ring" };
-  return <section className="rounded-xl border-2 border-foreground bg-card p-4 shadow-hard-sm sm:p-5">
-    <div className="flex flex-wrap items-end justify-between gap-2">
-      <div><h2 className="flex items-center gap-2 font-display text-xl font-bold"><Target className="size-5 text-primary" />Your missions</h2>
-        <p className="text-sm text-muted-foreground">{voice(tone, `${nextFlair.at - data.completed} more to unlock the ${nextFlair.name} for your avatar.`, `Complete ${nextFlair.at - data.completed} more to unlock the ${nextFlair.name}.`)}</p></div>
-      <p className="font-display text-2xl font-bold tabular-nums">{data.completed}<span className="text-base text-muted-foreground">/{all}</span></p>
-    </div>
-    <div className="relative mt-3 h-2.5 rounded-full border-2 border-foreground bg-muted"><motion.div className="h-full rounded-full bg-primary" initial={{ width: 0 }} animate={{ width: `${(data.completed / all) * 100}%` }} /></div>
-    <ul className="mt-4 grid gap-2 sm:grid-cols-2">{data.missions.map((m) => {
-      const done = m.done >= m.goal;
-      const Icon = MISSION_ICON[m.id] ?? Check;
-      return <li key={m.id}><button type="button" disabled={done} onClick={() => run(m.id)} className={cn("flex min-h-14 w-full items-center gap-3 rounded-lg border-2 p-2.5 text-left transition-colors", done ? "border-flag-green/40 bg-flag-green/10" : "border-foreground/15 hover:border-foreground")}>
-        <span className={cn("grid size-9 shrink-0 place-items-center rounded-full border-2", done ? "border-flag-green bg-flag-green text-primary-foreground" : "border-foreground bg-accent")}>{done ? <Check className="size-4" /> : <Icon className="size-4" />}</span>
-        <span className="min-w-0 flex-1"><span className={cn("block text-sm font-bold", done && "line-through opacity-70")}>{m.label}</span><span className="block truncate text-xs text-muted-foreground">{done ? "Done" : m.goal > 1 ? `${m.done} of ${m.goal} · ${m.hint}` : m.hint}</span></span>
-      </button></li>;
-    })}</ul>
-  </section>;
-}
-
-// ---------- invites: a small card on home; the full page is /invite ----------
-
-export function InviteCard() {
-  const { data } = useInvite();
-  const [copied, setCopied] = useState(false);
-  if (!data?.code) return null;
-  const link = inviteLink(data.code);
-  const copy = async () => { try { await navigator.clipboard.writeText(link); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { /* clipboard blocked */ } };
-  const next = VOICE_TIERS.find((t) => data.voices < t);
-  return <section className="relative overflow-hidden rounded-xl border-2 border-foreground bg-accent p-4 shadow-hard-sm sm:p-5">
-    <div className="flex flex-wrap items-center gap-4">
-      <span className="grid size-12 shrink-0 place-items-center rounded-xl border-2 border-foreground bg-card"><Gift className="size-6" /></span>
-      <div className="min-w-0 flex-1">
-        <h2 className="font-display text-xl font-bold">{data.voices ? `You've brought ${formatCount(data.voices)} ${data.voices === 1 ? "voice" : "voices"}` : "Invite someone who's been through it"}</h2>
-        <p className="text-sm text-muted-foreground">{next ? `${next - data.voices} more ${next - data.voices === 1 ? "voice" : "voices"} to reach Invite Level ${VOICE_TIERS.indexOf(next as 1 | 3 | 10) + 1}. A voice is someone who joins with your link and shares a story.` : "You're at Invite Level 3, the top level. Thank you for growing Ghosted."}</p>
-      </div>
-      <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap">
-        <Button className="min-h-11" onClick={() => void copy()}>{copied ? <Check /> : <Copy />}{copied ? "Copied" : "Copy invite link"}</Button>
-        <Button className="min-h-11" variant="outline" asChild><Link to="/invite">How it works</Link></Button>
-      </div>
-    </div>
-    {data.joined > 0 && <p className="mt-3 text-xs font-semibold text-muted-foreground">{formatCount(data.joined)} joined with your link · {formatCount(data.stories)} stories · {formatCount(data.relatable)} people found them relatable</p>}
-  </section>;
-}
+// Your level, missions' replacement, lives in level-card.tsx.
 
 // ---------- blocker survey ----------
 

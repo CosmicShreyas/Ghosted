@@ -17,10 +17,12 @@ import { useAccountActions, useAuthGuard, useMe } from "@/lib/session";
 import type { StoryModel } from "@/lib/stories";
 import type { Company } from "@/mock/data";
 import { GameBreak } from "@/components/game-break";
+import { ogImage, pageMeta } from "@/lib/meta";
 
 // A person's page, addressed only by their 15-digit public id (never a name or an internal id).
 export const Route = createFileRoute("/u/$id")({
-  head: () => ({ meta: [{ title: "Profile | Ghosted" }, { name: "description", content: "Their hiring stories, the companies they've reviewed, and how the community reacted." }, { name: "robots", content: "noindex" }] }),
+  // Not indexed (robots.txt and noindex), but shared links get a preview card with the level badge.
+  head: ({ params }) => ({ meta: pageMeta({ title: "Profile | Ghosted", description: "Their hiring stories, their level on Ghosted, and how the community reacted.", noindex: true, path: `/u/${params.id}`, image: ogImage.person(params.id) }) }),
   component: PersonPageRoute,
 });
 

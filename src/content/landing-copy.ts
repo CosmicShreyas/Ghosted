@@ -77,8 +77,8 @@ const enRaw = {
     decent: "Actually decent", snacks: "Proceed with snacks", nobody: "Nobody here yet.",
   },
   invite: {
-    title: "Bring a voice, level up together.",
-    copy: "Invite someone who's been through a hiring process. When they share their experience, you both reach Invite Level 1 and get a ring on your avatar. Levels 2 and 3 come at 3 and 10 friends. No money, no spam, nobody learns who you are.",
+    title: "Show up, level up. Bring a friend, level up faster.",
+    copy: "Every story you read, react to and add earns XP. Keep a daily streak and climb from LV 1 to the deep-red levels everyone notices. Inviting someone who shares their story is the biggest XP boost there is. No money, no spam, nobody learns who you are.",
     cta: "How invites work",
   },
   pitch: landingPitch,
@@ -217,7 +217,7 @@ const hi: Partial_ = {
     emptyTitle: "बोर्ड पर पहली कंपनी लाइए।", emptyCopy: "हर कंपनी का फ़्लैग स्कोर उम्मीदवारों के अनुभवों से बनता है। आपका अनुभव लगभग 30 सेकंड लेता है, और आप Ghosted की पहली 50 आवाज़ों में हो सकते हैं।",
     decent: "सच में ठीक-ठाक", snacks: "स्नैक्स लेकर जाइए", nobody: "अभी यहाँ कोई नहीं।",
   },
-  invite: { title: "एक आवाज़ लाइए, साथ में लेवल बढ़ाइए।", copy: "किसी ऐसे को बुलाइए जो हायरिंग प्रोसेस से गुज़रा हो। जब वे अपना अनुभव साझा करते हैं, तो आप दोनों इनवाइट लेवल 1 पर पहुँचते हैं और अवतार पर एक रिंग मिलती है। लेवल 2 और 3, 3 और 10 दोस्तों पर। कोई पैसा नहीं, कोई स्पैम नहीं, किसी को पता नहीं चलता आप कौन हैं।", cta: "इनवाइट कैसे काम करते हैं" },
+  invite: { title: "रोज़ आइए, लेवल बढ़ाइए। दोस्त लाइए, और तेज़ी से बढ़िए।", copy: "हर कहानी पढ़ने, रिएक्ट करने और जोड़ने पर XP मिलता है। रोज़ की स्ट्रीक बनाए रखिए और LV 1 से ऊपर चढ़िए। किसी ऐसे को बुलाना जो अपनी कहानी साझा करे, सबसे बड़ा XP बूस्ट है। कोई पैसा नहीं, कोई स्पैम नहीं, किसी को पता नहीं चलता आप कौन हैं।", cta: "इनवाइट कैसे काम करते हैं" },
   pitch: {
     eyebrow: "हमारी बात", headline: ["हर कोई नौकरी को रेट करता है।", "हायरिंग को कोई नहीं।"],
     manifesto: ["आपने उन्हें छह राउंड दिए।", "पूरे वीकेंड का “दो घंटे का” असाइनमेंट।", "आपका नोटिस पीरियड, आपके रेफ़रेंस, आपकी उम्मीदें।", "उन्होंने आपको चुप्पी दी।", "Ghosted वह जगह है जहाँ उस चुप्पी को आख़िरकार स्कोर मिलता है।"],
@@ -353,7 +353,7 @@ const kn: Partial_ = {
     emptyTitle: "ಬೋರ್ಡ್‌ಗೆ ಮೊದಲ ಕಂಪನಿ ತನ್ನಿ.", emptyCopy: "ಪ್ರತಿ ಕಂಪನಿಯ ಫ್ಲ್ಯಾಗ್ ಸ್ಕೋರ್ ಅಭ್ಯರ್ಥಿಗಳ ಅನುಭವದಿಂದ ಬರುತ್ತದೆ. ನಿಮ್ಮದು ಸುಮಾರು 30 ಸೆಕೆಂಡ್, ಮತ್ತು ನೀವು Ghosted ನ ಮೊದಲ 50 ಧ್ವನಿಗಳಲ್ಲಿ ಒಬ್ಬರಾಗಬಹುದು.",
     decent: "ನಿಜವಾಗಿಯೂ ಪರವಾಗಿಲ್ಲ", snacks: "ತಿಂಡಿ ಜೊತೆ ಹೋಗಿ", nobody: "ಇಲ್ಲಿ ಇನ್ನೂ ಯಾರೂ ಇಲ್ಲ.",
   },
-  invite: { title: "ಒಂದು ಧ್ವನಿ ತನ್ನಿ, ಒಟ್ಟಿಗೆ ಲೆವೆಲ್ ಏರಿ.", copy: "ನೇಮಕಾತಿ ಪ್ರಕ್ರಿಯೆ ಅನುಭವಿಸಿದ ಯಾರನ್ನಾದರೂ ಆಹ್ವಾನಿಸಿ. ಅವರು ತಮ್ಮ ಅನುಭವ ಹಂಚಿಕೊಂಡಾಗ, ನೀವಿಬ್ಬರೂ ಇನ್ವೈಟ್ ಲೆವೆಲ್ 1 ತಲುಪುತ್ತೀರಿ ಮತ್ತು ಅವತಾರಕ್ಕೆ ಉಂಗುರ ಸಿಗುತ್ತದೆ. ಲೆವೆಲ್ 2 ಮತ್ತು 3, 3 ಮತ್ತು 10 ಸ್ನೇಹಿತರಿಗೆ. ಹಣವಿಲ್ಲ, ಸ್ಪ್ಯಾಮ್ ಇಲ್ಲ, ನೀವು ಯಾರು ಎಂದು ಯಾರಿಗೂ ತಿಳಿಯುವುದಿಲ್ಲ.", cta: "ಆಹ್ವಾನಗಳು ಹೇಗೆ ಕೆಲಸ ಮಾಡುತ್ತವೆ" },
+  invite: { title: "ದಿನವೂ ಬನ್ನಿ, ಲೆವೆಲ್ ಏರಿ. ಸ್ನೇಹಿತರನ್ನು ತನ್ನಿ, ಇನ್ನೂ ವೇಗವಾಗಿ ಏರಿ.", copy: "ಪ್ರತಿ ಕಥೆ ಓದಿದಾಗ, ಪ್ರತಿಕ್ರಿಯಿಸಿದಾಗ ಮತ್ತು ಸೇರಿಸಿದಾಗ XP ಸಿಗುತ್ತದೆ. ದೈನಂದಿನ ಸ್ಟ್ರೀಕ್ ಉಳಿಸಿಕೊಂಡು LV 1 ರಿಂದ ಮೇಲೇರಿ. ತಮ್ಮ ಕಥೆ ಹಂಚಿಕೊಳ್ಳುವ ಯಾರನ್ನಾದರೂ ಆಹ್ವಾನಿಸುವುದೇ ಅತಿ ದೊಡ್ಡ XP ಬೂಸ್ಟ್. ಹಣವಿಲ್ಲ, ಸ್ಪ್ಯಾಮ್ ಇಲ್ಲ, ನೀವು ಯಾರು ಎಂದು ಯಾರಿಗೂ ತಿಳಿಯುವುದಿಲ್ಲ.", cta: "ಆಹ್ವಾನಗಳು ಹೇಗೆ ಕೆಲಸ ಮಾಡುತ್ತವೆ" },
   pitch: {
     eyebrow: "ನಮ್ಮ ಮಾತು", headline: ["ಎಲ್ಲರೂ ಕೆಲಸವನ್ನು ರೇಟ್ ಮಾಡುತ್ತಾರೆ.", "ನೇಮಕಾತಿಯನ್ನು ಯಾರೂ ಇಲ್ಲ."],
     manifesto: ["ನೀವು ಅವರಿಗೆ ಆರು ಸುತ್ತು ಕೊಟ್ಟಿರಿ.", "ವೀಕೆಂಡ್ ಪೂರ್ತಿಯ “ಎರಡು ಗಂಟೆಯ” ಅಸೈನ್‌ಮೆಂಟ್.", "ನಿಮ್ಮ ನೋಟೀಸ್ ಅವಧಿ, ರೆಫರೆನ್ಸ್‌ಗಳು, ನಿಮ್ಮ ಭರವಸೆಗಳು.", "ಅವರು ನಿಮಗೆ ಮೌನ ಕೊಟ್ಟರು.", "ಆ ಮೌನಕ್ಕೆ ಕೊನೆಗೂ ಸ್ಕೋರ್ ಸಿಗುವ ಜಾಗ Ghosted."],
@@ -489,7 +489,7 @@ const hinglish: Partial_ = {
     emptyTitle: "Board pe pehli company lao.", emptyCopy: "Har company ka Flag Score candidates ke experiences se banta hai. Tumhara bas 30 second leta hai, aur tum Ghosted ki pehli 50 awaazon mein ho sakte ho.",
     decent: "Sach mein theek-thaak", snacks: "Snacks leke jaana", nobody: "Abhi yahan koi nahi.",
   },
-  invite: { title: "Ek awaaz lao, saath mein level up karo.", copy: "Kisi aise ko invite karo jo hiring process se guzra ho. Jab woh apna experience share karte hain, tum dono Invite Level 1 pe pahunchte ho aur avatar pe ek ring milti hai. Level 2 aur 3, 3 aur 10 friends pe. Na paisa, na spam, kisi ko pata nahi chalta tum kaun ho.", cta: "Invites kaise kaam karte hain" },
+  invite: { title: "Roz aao, level up karo. Dost lao, aur fast level up karo.", copy: "Har story padhne, react karne aur add karne pe XP milta hai. Daily streak banaye rakho aur LV 1 se upar chadho. Kisi aise ko invite karna jo apni story share kare, sabse bada XP boost hai. Na paisa, na spam, kisi ko pata nahi chalta tum kaun ho.", cta: "Invites kaise kaam karte hain" },
   pitch: {
     eyebrow: "Hamari baat", headline: ["Sab job ko rate karte hain.", "Hiring ko koi nahi."],
     manifesto: ["Tumne unhe chhe rounds diye.", "Poore weekend ka “do ghante ka” assignment.", "Tumhara notice period, references, tumhari umeedein.", "Unhone tumhe chuppi di.", "Ghosted woh jagah hai jahan us chuppi ko finally score milta hai."],

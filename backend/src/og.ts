@@ -129,6 +129,23 @@ export async function receiptCard(s: { id: string; title: string; company: strin
     receipt));
 }
 
+// A member's page: avatar, name, level badge and title, and their numbers. Never anything private.
+export async function personCard(p: { name: string; avatarUrl: string; level: number; title: string; color: { bg: string; fg: string }; stories: number; relatable: number; followers: number; anonymous: boolean }, site: string) {
+  const stat = (n: number, label: string) => h("div", { flexDirection: "column", border: `3px solid ${INK}`, borderRadius: 20, background: CREAM, padding: "14px 22px", minWidth: 170 },
+    h("div", { fontFamily: "Display", fontSize: 48, color: INK, lineHeight: 1 }, String(n)),
+    h("div", { fontFamily: "Body", fontWeight: 700, fontSize: 20, color: "#6B6560", marginTop: 6 }, label));
+  return render(frame(site,
+    h("div", { alignItems: "center", gap: 40, width: "100%" },
+      h("div", { width: 190, height: 190, borderRadius: 999, border: `5px solid ${INK}`, background: "#E9E2FF", overflow: "hidden" }, { type: "img", props: { src: p.avatarUrl, width: 180, height: 180 } }),
+      h("div", { flexDirection: "column", gap: 14, flex: 1 },
+        h("div", { gap: 12, alignItems: "center" },
+          h("div", { border: `4px solid ${INK}`, borderRadius: 999, background: p.color.bg, color: p.color.fg, padding: "8px 22px", fontFamily: "Display", fontSize: 34, boxShadow: `5px 5px 0 ${INK}` }, `LV ${p.level}`),
+          pill(p.title, "#fff"),
+          ...(p.anonymous ? [pill("Anonymous", "#22C55E", "#fff")] : [])),
+        h("div", { fontFamily: "Display", fontSize: p.name.length > 22 ? 56 : 72, color: INK, lineHeight: 1.05 }, clip(p.name, 32)))),
+    h("div", { gap: 16, width: "100%" }, stat(p.stories, p.stories === 1 ? "story" : "stories"), stat(p.relatable, "found relatable"), stat(p.followers, p.followers === 1 ? "follower" : "followers"))));
+}
+
 export async function companyCard(c: { name: string; stories: number; score: number | null; ghosted: number; avgWait: number | null; city: string | null }, site: string) {
   const facts = [`${c.stories} ${c.stories === 1 ? "candidate experience" : "candidate experiences"}`, ...(c.avgWait != null ? [`average wait ${c.avgWait} days`] : []), ...(c.ghosted ? [`${c.ghosted} ghosted`] : [])];
   return render(frame(site,

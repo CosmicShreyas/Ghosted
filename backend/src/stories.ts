@@ -3,20 +3,20 @@ import { STORY_COLUMNS, STORY_REACTIONS, storyDto, type Counts, type StoryRow } 
 import type { Profile } from "./security.js";
 import { admin } from "./supabase.js";
 import { loadFounders } from "./founding.js";
-import { flairsFor } from "./referral.js";
+import { levelsFor } from "./levels.js";
 
 // Adds reaction/comment counts and (if logged in) the viewer's own reactions to a batch of stories.
 export async function hydrate(rows: StoryRow[], viewer: Profile | null) {
   if (!rows.length) return [];
   const ids = rows.map((r) => r.id);
   // The founders list is warmed alongside, so author lines can show "Founding contributor #N".
-  // Everything in one parallel round: counts, your reactions, founders and authors' flair (the
-  // avatar ring, looked up separately so a missing column never breaks stories).
-  const [countsRes, mineRes, , flairs, greenRes] = await Promise.all([
+  // Everything in one parallel round: counts, your reactions, founders and authors' levels (the
+  // badge, looked up separately so a missing column never breaks stories).
+  const [countsRes, mineRes, , levels, greenRes] = await Promise.all([
     admin().from("story_counts").select("story_id, relatable, insightful, creative, support, love, flags, comments").in("story_id", ids),
     viewer ? admin().from("reactions").select("story_id, kind").eq("user_id", viewer.id).in("story_id", ids) : Promise.resolve({ data: [], error: null }),
     loadFounders(),
-    flairsFor(rows.map((r) => r.author?.public_id).filter((x): x is number => x != null)),
+    levelsFor(rows.map((r) => r.author?.public_id).filter((x): x is number => x != null)),
     // Green flag shout-outs (an error, e.g. the table not created yet, just means none).
     admin().from("story_green_flags").select("story_id, flags").in("story_id", ids).then((r) => r, () => ({ data: null, error: null })),
   ]);
@@ -27,7 +27,7 @@ export async function hydrate(rows: StoryRow[], viewer: Profile | null) {
   const mine = viewer ? new Set((mineRes.data ?? []).map((r) => `${r.story_id}:${r.kind}`)) : undefined;
   return rows.map((r) => {
     const dto = { ...storyDto(r, counts.get(r.id), mine), greenFlags: green.get(r.id) ?? null };
-    return dto.author ? { ...dto, author: { ...dto.author, flair: flairs.get(dto.author.publicId) ?? null } } : dto;
+    return dto.author ? { ...dto, author: { ...dto.author, level: levels.get(dto.author.publicId) ?? null } } : dto;
   });
 }
 

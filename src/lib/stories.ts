@@ -8,8 +8,8 @@ import { api, apiEnabled, API_URL } from "@/lib/api";
 import { companies as sampleCompanies, getCompany, getUser, stories as sampleStories, type Company, type Story } from "@/mock/data";
 
 // foundingRank: "Founding contributor #N" for the first 50 people to publish (null otherwise).
-// flair: the avatar ring they picked from what they've unlocked (src/lib/invite.tsx).
-export type Author = { publicId: string; name: string; avatarSeed: string; pastel: string; revealed: Revealed | null; foundingRank?: number | null; flair?: "violet" | "sunrise" | "mint" | "gold" | "cosmic" | null };
+// level: their Ghosted level, shown as the LV badge (src/lib/levels.tsx).
+export type Author = { publicId: string; name: string; avatarSeed: string; pastel: string; revealed: Revealed | null; foundingRank?: number | null; level?: number | null };
 export type Revealed = { name: string | null; role: string | null; experience: string | null; city: string | null; linkedin: string | null };
 
 export const STORY_REACTIONS = ["relatable", "insightful", "creative", "support", "love"] as const;

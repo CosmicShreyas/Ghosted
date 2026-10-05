@@ -19,6 +19,7 @@ import type { Review } from "../algorithms/index.js";
 import { checkJourney } from "../score.js";
 import { notifyWaiting } from "../interest.js";
 import { notifyInviter } from "../referral.js";
+import { award } from "../levels.js";
 
 const rating = z.number().int().min(1).max(5);
 
@@ -153,6 +154,7 @@ export const storyRoutes = new Hono<AppEnv>()
     // Anyone who tapped "I want to know about this company" hears about it now.
     later(notifyWaiting(company.id as string));
     later(notifyInviter(me(c) as { id: string; referred_by?: string | null }));
+    award(me(c).id, "story", String(data.public_id));
     const [story] = await hydrate([await storyByPublicId(String(data.public_id))], me(c));
     later(bump({ user: me(c).id, topics: ["stories"], shared: ["feed", `person:${me(c).public_id}`] })); // every open feed, your other devices, your page
     later(notifyFollowers(me(c), story!.publicId, body.title)); // followers who rang your bell
@@ -204,6 +206,14 @@ export const storyRoutes = new Hono<AppEnv>()
     return c.json({ ok: true });
   })
 
+  // Reading a story (its page stayed open a few seconds): XP once per story, never for your own.
+  .post("/:id/read", requireAuth, rateLimit({ name: "story-read", max: 60, windowSeconds: 600, by: "user" }), idParam, async (c) => {
+    const { data } = await admin().from("stories").select("id, author_id").eq("public_id", c.req.valid("param").id).eq("status", "published").maybeSingle();
+    const s = data as { id: string; author_id: string } | null;
+    if (s && s.author_id !== me(c).id) award(me(c).id, "read", s.id);
+    return c.body(null, 204);
+  })
+
   // A person has one reaction per story. Tapping it again removes it; choosing another replaces it.
   .post("/:id/reactions", requireAuth, rateLimit({ name: "react", max: 90, windowSeconds: 60, by: "user" }), idParam, validate("json", z.object({ kind: z.enum(["relatable", "insightful", "creative", "support", "love"]) })), async (c) => {
     const story = { id: await publishedStoryId(c.req.valid("param").id) };
@@ -216,6 +226,7 @@ export const storyRoutes = new Hono<AppEnv>()
       const { error: iErr } = await admin().from("reactions").insert({ ...key, kind });
       if (iErr && iErr.code !== "23505") dbFail("react", iErr);
       if (!iErr && kind === "relatable") later(notifyRelatable(story.id, me(c).id));
+      if (!iErr) award(me(c).id, "react", story.id); // once per story, however often it's toggled
     }
     later(bump({ user: me(c).id, topics: ["stories"], shared: [`story:${c.req.valid("param").id}`] }));
     return c.json(await countsFor(story.id, me(c).id));
@@ -318,6 +329,7 @@ export const storyRoutes = new Hono<AppEnv>()
       return c.json({ pending: true, message: `Goofy: ${say("held", me(c).tone ?? "sassy", { what: "chitchat", reason: topReason(review) })}` }, 202);
     }
     later(notifyReply(story.id, me(c).id, body));
+    award(me(c).id, "chitchat", data.id as string);
     // The person being replied to hears about it too (unless it's the story's author, told above, or you).
     if (parent && parent.author_id !== me(c).id && parent.author_id !== (storyOwner?.author_id as string | undefined)) later(addNotification(parent.author_id, "reply", `${storyAuthor(me(c)).name} replied to your chitchat: “${body.slice(0, 80)}”`, String(story.public_id)));
     later(bump({ shared: [`story:${c.req.valid("param").id}`] }));

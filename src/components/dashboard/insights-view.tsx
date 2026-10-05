@@ -25,6 +25,7 @@ import { INDUSTRY_LABEL } from "./global-widgets";
 import { activeDot, axis, ChartTooltip, grid, lineCursor } from "./chart-kit";
 import { toast } from "sonner";
 import { GhostedWrapped } from "./wrapped";
+import { LevelGuide } from "./level-card";
 
 const SERIES = { ghosted: "var(--chart-violet)", offers: "var(--chart-cyan)" };
 const STAGE_NAME: Record<string, string> = { application: "Application", screening: "Screening", technical: "Technical", final: "Final round", offer: "Offer" };
@@ -362,6 +363,7 @@ export function InsightsView({ openCompany, filters = DEFAULT_FILTERS, onFilters
 
   return <div className="space-y-4 sm:space-y-5">
     {head}
+    {apiEnabled && <LevelGuide />}
     <GhostedWrapped />
     <Controls data={data} filters={active} onFilters={update} />
 

@@ -1,29 +1,16 @@
-// Invites, missions and flair: the loop that brings people in and keeps them active.
+// Invites: the link that brings people in. Rewards are XP (levels.ts), not rings or missions.
 //
 //   invite code   private per member (8 characters); a link /invite?ref=CODE
-//   a "voice"     someone who joined with your code AND has published a story. Only voices count,
-//                 so empty sign-ups earn nothing and can't be farmed
-//   missions      six things that make Ghosted better (share, react, chitchat, follow, track,
-//                 invite); progress is computed live from real activity
-//   flair         cosmetics unlocked by voices and missions; the member picks one, and it colours
-//                 their avatar ring and page banner everywhere
+//   joining       someone signs up with your code: a small XP thank-you (security.ts linkInviter)
+//   a "voice"     someone who joined with your code AND has published a story: the biggest XP
+//                 payout on Ghosted, once per person. Only voices pay big, so empty sign-ups can't
+//                 be farmed
 import { randomInt } from "node:crypto";
 import { admin } from "./supabase.js";
 import { addNotification } from "./notify.js";
 import { hit } from "./funnel.js";
 import { GOOFY_PUBLIC_ID } from "./goofy/index.js";
-
-export const FLAIRS = {
-  // Invite levels (the ids stay as stored in profiles.flair; only the names people see changed).
-  sunrise: { label: "Invite Level 1", how: "Bring your first voice, or join through an invite and share a story" },
-  gold: { label: "Invite Level 2", how: "Bring 3 voices" },
-  cosmic: { label: "Invite Level 3", how: "Bring 10 voices" },
-  // Mission rings.
-  violet: { label: "Missions ring", how: "Complete 3 missions" },
-  mint: { label: "All missions ring", how: "Complete all 6 missions" },
-} as const;
-export type Flair = keyof typeof FLAIRS;
-export const isFlair = (v: unknown): v is Flair => typeof v === "string" && v in FLAIRS;
+import { award, XP_RULES } from "./levels.js";
 
 const ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 export async function codeFor(profileId: string, existing: string | null | undefined) {
@@ -38,8 +25,8 @@ export async function codeFor(profileId: string, existing: string | null | undef
 
 export async function inviterByCode(code: string) {
   if (!/^[A-Z2-9]{8}$/.test(code)) return null;
-  const { data } = await admin().from("profiles").select("id, public_id, handle, avatar_seed, pastel, kind").eq("ref_code", code).maybeSingle();
-  const p = data as { id: string; public_id: number; handle: string; avatar_seed: string; pastel: string; kind?: string } | null;
+  const { data } = await admin().from("profiles").select("id, public_id, handle, avatar_seed, pastel, kind, level").eq("ref_code", code).maybeSingle();
+  const p = data as { id: string; public_id: number; handle: string; avatar_seed: string; pastel: string; kind?: string; level?: number } | null;
   return p && p.kind !== "bot" ? p : null;
 }
 
@@ -61,42 +48,6 @@ export async function referralStats(profileId: string) {
   return { joined: ids.length, voices, stories, relatable };
 }
 
-export type Mission = { id: string; label: string; hint: string; done: number; goal: number };
-export async function missionsFor(profileId: string, voices: number) {
-  const n = (q: PromiseLike<{ count: number | null }>) => Promise.resolve(q).then((r) => r.count ?? 0, () => 0);
-  const [stories, reactions, chitchats, follows, tracked, asked, answered] = await Promise.all([
-    n(admin().from("stories").select("id", { count: "exact", head: true }).eq("author_id", profileId).eq("status", "published")),
-    n(admin().from("reactions").select("story_id", { count: "exact", head: true }).eq("user_id", profileId)),
-    n(admin().from("comments").select("id", { count: "exact", head: true }).eq("author_id", profileId).eq("status", "published")),
-    n(admin().from("company_follows").select("company_id", { count: "exact", head: true }).eq("user_id", profileId)),
-    n(admin().from("applications").select("id", { count: "exact", head: true }).eq("user_id", profileId)),
-    // Ask candidates: a published question or answer (0 if the Q&A tables aren't installed yet).
-    n(admin().from("company_questions").select("id", { count: "exact", head: true }).eq("author_id", profileId).eq("status", "published")),
-    n(admin().from("company_answers").select("id", { count: "exact", head: true }).eq("author_id", profileId).eq("status", "published")),
-  ]);
-  const list: Mission[] = [
-    { id: "share", label: "Share your first story", hint: "About 30 seconds with a quick story", done: Math.min(stories, 1), goal: 1 },
-    { id: "react", label: "React to 3 stories", hint: "Relatable, eye-opening, with you…", done: Math.min(reactions, 3), goal: 3 },
-    { id: "chitchat", label: "Leave a chitchat", hint: "Add what you know under a story", done: Math.min(chitchats, 1), goal: 1 },
-    { id: "follow", label: "Follow a company", hint: "Hear when someone shares about it", done: Math.min(follows, 1), goal: 1 },
-    { id: "ask", label: "Ask or answer on a company page", hint: "Ask candidates, or help someone who asked", done: Math.min(asked + answered, 1), goal: 1 },
-    { id: "track", label: "Track an application", hint: "The Waiting Room nudges you if they go quiet", done: Math.min(tracked, 1), goal: 1 },
-    { id: "invite", label: "Bring a voice", hint: "Invite someone who shares a story", done: Math.min(voices, 1), goal: 1 },
-  ];
-  return { list, completed: list.filter((m) => m.done >= m.goal).length, hasStory: stories > 0 };
-}
-
-// Everything a member has unlocked.
-export function unlockedFlairs({ voices, completed, joinedViaInviteWithStory }: { voices: number; completed: number; joinedViaInviteWithStory: boolean }): Flair[] {
-  const out: Flair[] = [];
-  if (completed >= 3) out.push("violet");
-  if (voices >= 1 || joinedViaInviteWithStory) out.push("sunrise");
-  if (completed >= 6) out.push("mint");
-  if (voices >= 3) out.push("gold");
-  if (voices >= 10) out.push("cosmic");
-  return out;
-}
-
 // Someone you invited just published their first story: that's a voice. Best effort.
 export async function notifyInviter(author: { id: string; referred_by?: string | null }) {
   try {
@@ -104,23 +55,9 @@ export async function notifyInviter(author: { id: string; referred_by?: string |
     if (count !== 1) return;
     await hit("first_story"); // the funnel's last step, for everyone (invited or not)
     if (!author.referred_by) return;
+    award(author.referred_by, "invite", author.id);
     const { voices } = await referralStats(author.referred_by);
-    const level = voices >= 10 ? 3 : voices >= 3 ? 2 : 1;
-    const next = voices < 3 ? 3 : voices < 10 ? 10 : null;
-    await addNotification(author.referred_by, "system", `Someone you invited just shared their first story. That's ${voices} ${voices === 1 ? "voice" : "voices"}: you're at Invite Level ${level}${next ? `, ${next - voices} to go for Level ${level + 1}` : ", the top level"}.`);
-    // Level perks, the moment they're reached: Level 2 shows "Brought N voices" on your page;
-    // Level 3 gets a personal thank-you from Goofy.
-    if (voices === 3) await addNotification(author.referred_by, "system", "Invite Level 2 unlocked: the gold ring, and “Brought 3 voices” now shows on your page. Pick the ring on the Invite page.");
-    if (voices === 10) await addNotification(author.referred_by, "goofy", "Ten voices. TEN. You've done more for the next candidate than most HR teams do in a year. Invite Level 3 is yours, and so is my eternal, slightly ghostly gratitude.", undefined, GOOFY_PUBLIC_ID);
+    await addNotification(author.referred_by, "system", `Someone you invited just shared their first story. That's the biggest XP drop on Ghosted (${XP_RULES.invite.xp} XP before level scaling), and ${voices} ${voices === 1 ? "voice" : "voices"} brought in so far.`);
+    if (voices === 10) await addNotification(author.referred_by, "goofy", "Ten voices. TEN. You've done more for the next candidate than most HR teams do in a year. My eternal, slightly ghostly gratitude.", undefined, GOOFY_PUBLIC_ID);
   } catch (e) { console.error("[invite] notify", (e as Error).message); }
-}
-
-// Flair for a batch of authors (by public id). Tolerates the column not existing yet.
-export async function flairsFor(publicIds: (number | string)[]) {
-  const map = new Map<string, Flair>();
-  if (!publicIds.length) return map;
-  const { data, error } = await admin().from("profiles").select("public_id, flair").in("public_id", [...new Set(publicIds.map(String))]).not("flair", "is", null);
-  if (error) return map;
-  for (const r of (data ?? []) as { public_id: number; flair: string | null }[]) if (isFlair(r.flair)) map.set(String(r.public_id), r.flair);
-  return map;
 }
