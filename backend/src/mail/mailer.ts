@@ -18,14 +18,17 @@ export async function sendMail(to: string, input: Message, { theme = "light" }: 
 
 let transport: Transporter | undefined;
 
-// A From address on a different domain than the account that sends it fails DMARC alignment, and
-// Gmail files that as spam (or rewrites the sender). Logged once per instance, never the addresses.
+// Sending through a mailbox login (Gmail, Outlook...) with a From address on another domain fails
+// DMARC alignment, and Gmail files that as spam (or rewrites the sender). Relay logins such as
+// Brevo's "...@smtp-brevo.com" are fine: the relay signs for the authenticated From domain.
+// Logged once per instance, never the addresses.
+const MAILBOX_DOMAINS = new Set(["gmail.com", "googlemail.com", "outlook.com", "hotmail.com", "live.com", "yahoo.com", "zoho.com", "zohomail.in"]);
 let warned = false;
 function warnIfMisaligned(from: string, user: string | undefined) {
   if (warned || !user) return;
   warned = true;
   const domain = (s: string) => s.split("@")[1]?.toLowerCase() ?? "";
-  if (domain(from) && domain(user) && domain(from) !== domain(user)) console.warn("[mail] MAIL_FROM_EMAIL and SMTP_USER are on different domains: emails will likely fail SPF/DMARC alignment and land in spam. Send from an address on the SMTP account's own domain, or use a provider that signs for your domain (see backend/README.md).");
+  if (domain(from) && MAILBOX_DOMAINS.has(domain(user)) && domain(from) !== domain(user)) console.warn("[mail] MAIL_FROM_EMAIL and SMTP_USER are on different domains: emails will likely fail SPF/DMARC alignment and land in spam. Send from an address on the SMTP account's own domain, or use a provider that signs for your domain (see backend/README.md).");
 }
 
 async function sendSmtp(to: string, message: Message) {
