@@ -17,7 +17,7 @@ import { useChitchats, type Chitchat, type ChitchatSort } from "@/lib/chitchats"
 import { useReachEnd } from "@/lib/feed";
 import { displayName, useMe, useTone, voice } from "@/lib/session";
 import { samplePublicId, timeAgo, type Author } from "@/lib/stories";
-import { apiEnabled } from "@/lib/api";
+import { apiEnabled, askToJoin } from "@/lib/api";
 import { cn, formatCount } from "@/lib/utils";
 import { PersonLink } from "./widgets";
 import { card } from "./ui-kit";
@@ -70,10 +70,15 @@ export function Composer({ onPost, placeholder, autoFocus, onCancel, compact, la
 
 function Item({ c, isReply, storyAuthorId, onReply, hooks, onReport }: { c: Chitchat; isReply?: boolean; storyAuthorId: string; onReply: () => void; hooks: ReturnType<typeof useChitchats>; onReport: (c: Chitchat) => void }) {
   const tone = useTone();
+  const { signedOut } = useMe();
   const [busy, setBusy] = useState(false);
   if (c.deleted || !c.author) return <div className="flex items-center gap-3 py-2 text-sm italic text-muted-foreground"><span className="grid size-9 shrink-0 place-items-center rounded-full border-2 border-dashed border-foreground/30"><Trash2 className="size-3.5" /></span>This chitchat was deleted.</div>;
   const a: Author = c.author;
-  const relate = async () => { try { await hooks.relate(c); } catch (err) { toast.error(err instanceof ApiRequestError && err.status === 401 ? "Log in to react." : "Couldn't save that."); } };
+  // Signed out: reading is free, reacting needs an account (the join prompt, not an error).
+  const relate = async () => {
+    if (apiEnabled && signedOut) return askToJoin();
+    try { await hooks.relate(c); } catch (err) { if (!(err instanceof ApiRequestError && err.status === 401)) toast.error("Couldn't save that."); }
+  };
   const remove = async () => { setBusy(true); try { await hooks.remove(c); toast.success(voice(tone, "Chitchat deleted. It never happened.", "Your chitchat was deleted.")); } catch { toast.error("Couldn't delete it."); } finally { setBusy(false); } };
   return <div className="flex gap-3">
     <PersonLink author={a} className="shrink-0 rounded-full"><Avatar seed={a.avatarSeed} pastel={a.pastel} size="sm" label={a.name} /></PersonLink>
@@ -116,7 +121,8 @@ function ReportDialog({ target, onClose, onSubmit }: { target: Chitchat | null; 
 
 export function ChitchatThread({ storyId, storyAuthorId }: { storyId: string; storyAuthorId: string }) {
   const tone = useTone();
-  const { me } = useMe();
+  const { me, signedOut } = useMe();
+  const guest = apiEnabled && signedOut;
   const myAuthor: Author = { publicId: me.publicId ?? samplePublicId("u1"), name: displayName(me), avatarSeed: me.avatarSeed, pastel: me.pastel, revealed: null };
   const [sort, setSort] = useState<ChitchatSort>("top");
   // Pages of 10 top-level chitchats, in the server's order for the chosen sort, loaded as you scroll.
@@ -139,7 +145,12 @@ export function ChitchatThread({ storyId, storyAuthorId }: { storyId: string; st
       </div>}
     </div>
 
-    <div className="mt-4"><Composer onPost={(b) => hooks.post(b)} placeholder={voice(tone, "Add to the tea. Been there? Know something useful?", "Share something useful with the next candidate.")} /></div>
+    {/* Signed out: read every chitchat; joining is one tap away when you want to add one. */}
+    <div className="mt-4">{guest
+      ? <button type="button" onClick={askToJoin} className="flex w-full items-center gap-3 rounded-xl border-2 border-dashed border-foreground/40 p-4 text-left text-sm hover:border-foreground">
+          <MessageCircle className="size-5 shrink-0 text-primary" /><span className="min-w-0 flex-1"><span className="block font-bold">{voice(tone, "Got something to add? Join the chitchat.", "Join to add a chitchat.")}</span><span className="block text-xs text-muted-foreground">Free and anonymous. You'll come straight back to this story.</span></span>
+        </button>
+      : <Composer onPost={(b) => hooks.post(b)} placeholder={voice(tone, "Add to the tea. Been there? Know something useful?", "Share something useful with the next candidate.")} />}</div>
     <Link to="/u/$id" params={{ id: GOOFY_ID }} className="mt-2 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground">
       <img src={GOOFY_AVATAR} alt="" className="size-4 rounded-full border border-foreground object-cover" />{voice(tone, "Goofy's watching this thread. Keep it spicy, not vulgar.", "Goofy, our AutoMod, keeps this thread respectful.")}
     </Link>
@@ -155,9 +166,9 @@ export function ChitchatThread({ storyId, storyAuthorId }: { storyId: string; st
             const open = expanded.has(t.publicId) || t.replies.length <= 3;
             const shown = open ? t.replies : t.replies.slice(0, 2);
             return <motion.li key={t.publicId} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-              <Item c={t} storyAuthorId={storyAuthorId} onReply={() => setReplyTo(t.publicId)} hooks={hooks} onReport={setReporting} />
+              <Item c={t} storyAuthorId={storyAuthorId} onReply={() => (guest ? askToJoin() : setReplyTo(t.publicId))} hooks={hooks} onReport={setReporting} />
               {(shown.length > 0 || replyTo === t.publicId) && <div className="ml-4 mt-3 space-y-4 border-l-2 border-foreground/15 pl-4 sm:ml-[18px] sm:pl-6">
-                {shown.map((r) => <Item key={r.publicId} c={r} isReply storyAuthorId={storyAuthorId} onReply={() => setReplyTo(t.publicId)} hooks={hooks} onReport={setReporting} />)}
+                {shown.map((r) => <Item key={r.publicId} c={r} isReply storyAuthorId={storyAuthorId} onReply={() => (guest ? askToJoin() : setReplyTo(t.publicId))} hooks={hooks} onReport={setReporting} />)}
                 {!open && <button type="button" onClick={() => setExpanded((s) => new Set(s).add(t.publicId))} className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:underline"><CornerDownRight className="size-3.5" />Show {t.replies.length - 2} more {t.replies.length - 2 === 1 ? "reply" : "replies"}</button>}
                 <AnimatePresence>{replyTo === t.publicId && <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
                   <Composer compact autoFocus onPost={(b) => hooks.post(b, t.publicId)} onCancel={() => setReplyTo(null)} placeholder={`Reply to ${t.author?.name ?? "this thread"}…`} />

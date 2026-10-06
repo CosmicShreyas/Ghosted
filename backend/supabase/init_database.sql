@@ -1908,4 +1908,15 @@ update public.moderation_terms set status = 'retired', updated_at = now()
 alter table public.profiles add column if not exists away_nudged_at timestamptz;
 create index if not exists session_devices_last_seen on public.session_devices (last_seen_at desc);
 
+-- ============================================================================
+-- Takedown process (backend/src/takedown.ts, public page /takedown): removal and correction
+-- requests record their reason (`basis`), a company's good-faith statement, and the decision's
+-- `outcome`. Requesters are emailed at each step and can check status with their reference and
+-- email; a story's author is told at acknowledgement (72 hours to respond) and at the decision.
+-- Safe to run again.
+-- ============================================================================
+alter table public.content_requests add column if not exists basis text check (basis is null or basis in ('defamation','false_fact','personal_data','confidential','harassment','impersonation','copyright','other'));
+alter table public.content_requests add column if not exists good_faith boolean;
+alter table public.content_requests add column if not exists outcome text check (outcome is null or outcome in ('no_action','author_corrected','redacted','removed','other'));
+
 commit;

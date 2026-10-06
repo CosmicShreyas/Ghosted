@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Check, Copy, Hand, Heart, HeartCrack, Mail, PenLine, RotateCcw, Search, Trophy } from "lucide-react";
 import { Link } from "@tanstack/react-router";
+import { openStoryComposer } from "@/lib/guest";
 import { Button } from "@/components/ui/button";
 import { track } from "@/lib/api";
 import { useLanding } from "@/content/landing-copy";
@@ -227,7 +228,7 @@ export function HiringMinefield() {
         <p className="min-w-0 flex-1 font-display text-lg font-bold">{status === "won" ? W.endWon : W.endLost}</p>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" asChild><a href="#top-search"><Search />{W.search}</a></Button>
-          <Button asChild><Link to="/auth" search={{ intent: "share" }}><PenLine />{W.shareRun}</Link></Button>
+          <Button onClick={openStoryComposer}><PenLine />{W.shareRun}</Button>
         </div>
       </motion.div>}</AnimatePresence>
     </div>

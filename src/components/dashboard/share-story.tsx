@@ -11,8 +11,10 @@ import { useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
 import {
   ArrowLeft, ArrowRight, Bold, Briefcase, Building2, Check, ClipboardCheck, Code, Eye, SquareCode, FileSearch, Ghost, Heading, Italic, List, ListOrdered,
-  Loader2, MessageSquareQuote, PartyPopper, PenLine, Plus, Sparkles, Star, Strikethrough, Undo2, Wand2, XCircle, Zap, IndianRupee, ChevronDown, Shuffle, type LucideIcon,
+  Loader2, MessageSquareQuote, PartyPopper, PenLine, Plus, Sparkles, Star, Strikethrough, Undo2, Wand2, XCircle, Zap, IndianRupee, ChevronDown, Shuffle, UserPlus, type LucideIcon,
 } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
+import { postAfterJoin } from "@/lib/guest";
 import { toast } from "sonner";
 import { Avatar, CompanyMark, FlagScore, QuickBadge } from "@/components/ghosted";
 import { HumanCheck, useHumanCheck } from "@/components/human-check";
@@ -259,11 +261,15 @@ export function ShareModal({ open, onOpenChange, editing = null, presetCompany =
   const f = useFit(); // labels keep their English size, so nothing moves when the language changes
   const pv = (p: { sassy: string; calm: string }) => voice(tone, p.sassy, p.calm);
   const fv = (pick: (c: typeof C) => { sassy: string; calm: string }) => f.c((c) => voice(tone, pick(c).sassy, pick(c).calm));
-  const { me } = useMe();
+  const { me, signedOut } = useMe();
+  // Signed out: the whole story can be written first; the last step becomes "Join and post" and the
+  // draft waits in this browser until they're in (lib/guest.ts).
+  const guest = apiEnabled && signedOut;
+  const navigate = useNavigate();
   const { list: companyList, index } = useCompanyIndex();
   // Solves in the background while the form is open (done long before the last step); editing an
-  // existing story doesn't need it.
-  const shield = useHumanCheck(open && !editing);
+  // existing story doesn't need it, and neither does a guest (they solve it after joining).
+  const shield = useHumanCheck(open && !editing && !guest);
   const [d, setD] = useState<Draft>(EMPTY);
   const [step, setStep] = useState(0);
   const [reached, setReached] = useState(0);
@@ -312,9 +318,13 @@ export function ShareModal({ open, onOpenChange, editing = null, presetCompany =
       first = firstOpen(start); setRestored(false); setReached(first);
     } else {
       const saved = loadDraft();
-      if (saved && !isBlank(saved)) { start = { ...saved, ...(presetCompany && { company: presetCompany }) }; setRestored(true); }
+      // Just joined after writing it as a guest: straight back to "Review and post".
+      const resume = !guest && postAfterJoin.pending() && saved && !isBlank(saved);
+      if (resume) postAfterJoin.clear();
+      if (saved && !isBlank(saved)) { start = { ...saved, ...(presetCompany && { company: presetCompany }) }; setRestored(!resume); }
       else if (presetCompany) start = { ...EMPTY, company: presetCompany };
-      setReached(0);
+      if (resume) first = STEPS.length - 1;
+      setReached(resume ? STEPS.length - 1 : 0);
     }
     setD(start); setStep(first); setDone(false); setTried(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -379,6 +389,8 @@ export function ShareModal({ open, onOpenChange, editing = null, presetCompany =
 
   const post = async () => {
     if (editing) return saveEdit();
+    // Guest: keep the draft, join, and come back here to post it.
+    if (guest) { saveDraft(d); postAfterJoin.set(); close(false); void navigate({ to: "/auth", search: { intent: "share" } }); return; }
     if (!apiEnabled) { if (!preset) clearDraft(); setDone(true); onPublished?.(null); return; }
     setBusy(true);
     let escalated = false;
@@ -540,11 +552,17 @@ export function ShareModal({ open, onOpenChange, editing = null, presetCompany =
         {d.quick && <button type="button" onClick={() => set("body", autoBody(d, company?.name ?? "the company"))} className="mt-3 inline-flex min-h-11 items-center gap-1.5 rounded-full border-2 border-foreground/30 px-3 text-xs font-bold hover:border-foreground sm:min-h-9"><Shuffle className="size-3.5" />{f.c((c) => c.reword)}</button>}
         {flagScore !== null && <p className="mt-4 border-t-2 border-dashed border-foreground/15 pt-3 text-xs font-semibold text-muted-foreground">{C.scoreLine} <span className={cn("font-display text-sm font-bold", scoreTone(flagScore))}>{flagScore}</span>{j.salary && d.min && d.max ? ` · ₹${d.min} to ${d.max} LPA` : ""}{neverHired(d.outcome) && days != null ? ` · waited ${waitPhrase(days)}` : ""}</p>}
       </article>
-      <div className="flex items-center gap-3 rounded-lg border-2 border-foreground bg-muted/50 p-3">
-        <Avatar seed={me.avatarSeed} pastel={me.pastel} size="sm" label={displayName(me)} />
-        <p className="min-w-0 flex-1 text-sm"><span className="font-bold">{fill(C.postingAs, { name: displayName(me) })}</span><span className="block text-xs text-muted-foreground">{isPublic(me) ? C.publicNote : C.anonNote} {C.changeNote}</span></p>
-      </div>
-      {!editing && <HumanCheck shield={shield} />}
+      {guest
+        ? <div className="flex items-start gap-3 rounded-lg border-2 border-foreground bg-accent p-3">
+            <UserPlus className="mt-0.5 size-5 shrink-0" />
+            <p className="min-w-0 flex-1 text-sm"><span className="font-bold">{pv({ sassy: "Last step: a free, anonymous account.", calm: "Last step: create your free, anonymous account." })}</span>
+              <span className="block text-xs text-muted-foreground">{pv({ sassy: "Your story is saved on this device. Join (about a minute), pick your fake name, and you'll land right back here to post it. Nobody sees your real name.", calm: "Your story is saved on this device. After you join or log in, you'll come back here to post it. Only your anonymous handle is shown." })}</span></p>
+          </div>
+        : <div className="flex items-center gap-3 rounded-lg border-2 border-foreground bg-muted/50 p-3">
+            <Avatar seed={me.avatarSeed} pastel={me.pastel} size="sm" label={displayName(me)} />
+            <p className="min-w-0 flex-1 text-sm"><span className="font-bold">{fill(C.postingAs, { name: displayName(me) })}</span><span className="block text-xs text-muted-foreground">{isPublic(me) ? C.publicNote : C.anonNote} {C.changeNote}</span></p>
+          </div>}
+      {!editing && !guest && <HumanCheck shield={shield} />}
     </div>,
   ];
 
@@ -603,7 +621,9 @@ export function ShareModal({ open, onOpenChange, editing = null, presetCompany =
             ? <Button className={tap} onClick={() => go(step + 1)}>{f.c((c) => c.steps[STEPS[step + 1]!.id])}<ArrowRight /></Button>
             : editing
               ? <Button onClick={() => void post()} disabled={busy} className={cn(tap, "min-w-36")}>{busy ? <Loader2 className="animate-spin" /> : <Check />}{f.c((c) => (busy ? c.saving : c.save))}</Button>
-              : <Button onClick={() => void post()} disabled={busy || shield.status !== "done"} className={cn(tap, "min-w-36")}>{busy ? <Loader2 className="animate-spin" /> : <Sparkles />}{f.c((c) => (busy ? c.posting : shield.status !== "done" ? c.checking : c.post))}</Button>}
+              : guest
+                ? <Button onClick={() => void post()} className={cn(tap, "min-w-36")}><UserPlus />Join and post</Button>
+                : <Button onClick={() => void post()} disabled={busy || shield.status !== "done"} className={cn(tap, "min-w-36")}>{busy ? <Loader2 className="animate-spin" /> : <Sparkles />}{f.c((c) => (busy ? c.posting : shield.status !== "done" ? c.checking : c.post))}</Button>}
         </div>
       </>}
       <ListCompanyDialog open={listing} onOpenChange={setListing} onListed={(co) => set("company", co.id)} />

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Github, LayoutDashboard } from "lucide-react";
+import { Github, LayoutDashboard, PenLine } from "lucide-react";
+import { openStoryComposer } from "@/lib/guest";
 import { useMe } from "@/lib/session";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-picker";
@@ -24,7 +25,7 @@ export function SiteHeader() {
   return <header className="sticky top-0 z-40 border-b-2 border-foreground bg-background/95 backdrop-blur"><div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6"><Brand /><nav className="hidden items-center gap-7 text-sm font-semibold md:flex"><a href="/#how">How it works</a><a href="/#ghost-o-meter">Ghost-o-meter</a><a href="/#companies">Companies</a><a href="/#gauntlet">The gauntlet</a><a href="/#stories">Stories</a></nav><div className="flex items-center gap-1.5 sm:gap-3"><ThemeToggle className="size-9 sm:size-10" />{signedIn
     // Signed in (e.g. opening /invite or the policy pages from the dashboard): one way back in.
     ? <Button size="sm" className="px-3 sm:h-10 sm:px-4" asChild><Link to="/dashboard"><LayoutDashboard className="size-4" /><span className="sm:hidden">Dashboard</span><span className="hidden sm:inline">Go to dashboard</span></Link></Button>
-    : <><Button variant="ghost" size="sm" className="px-2.5 sm:h-10 sm:px-4" asChild><Link to="/auth" search={{ tab: "login" }}>Log in</Link></Button><Button size="sm" className="px-3 sm:h-10 sm:px-4" asChild><Link to="/auth"><span className="sm:hidden">Join</span><span className="hidden sm:inline">Join anonymously</span></Link></Button></>}</div></div></header>;
+    : <><Button variant="ghost" size="sm" className="px-2.5 sm:h-10 sm:px-4" asChild><Link to="/auth" search={{ tab: "login" }}>Log in</Link></Button>{/* Write first, join at the end: the story form opens straight away (lib/guest.ts). */}<Button size="sm" className="px-3 sm:h-10 sm:px-4" onClick={openStoryComposer}><PenLine className="size-4" /><span className="sm:hidden">Write</span><span className="hidden sm:inline">Write your story</span></Button></>}</div></div></header>;
 }
 
 const footerLinks = [
@@ -33,6 +34,7 @@ const footerLinks = [
   { to: "/terms", label: "Terms & Conditions" },
   { to: "/community", label: "Community Rules" },
   { to: "/moderation", label: "How moderation works" },
+  { to: "/takedown", label: "Takedown requests" },
   { to: "/feedback", label: "Feedback & Support" },
 ] as const;
 

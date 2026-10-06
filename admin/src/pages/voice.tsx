@@ -12,28 +12,40 @@ import { adminApi, SITE_URL } from "../api";
 import { LoadMore, useAdminList } from "../paging";
 import { card, Empty, PageHead, Panel, Segmented, Skeleton } from "../ui";
 
-type Request = { publicId: string; kind: "removal" | "factual_error"; target_url: string; email: string; relationship: string; details: string; status: string; resolution: string | null; created_at: string; acknowledged_at: string | null; resolved_at: string | null };
+type Request = { publicId: string; kind: "removal" | "factual_error"; target_url: string; email: string; relationship: string; details: string; status: string; resolution: string | null; created_at: string; acknowledged_at: string | null; resolved_at: string | null; basis?: string | null; good_faith?: boolean | null; outcome?: string | null };
 type Item = { publicId: string; body: string; status: string; createdAt: string; company: { name: string; slug: string } | null };
 
 const HOUR = 3_600_000;
 const age = (iso: string) => { const h = Math.floor((Date.now() - Date.parse(iso)) / HOUR); return h < 48 ? `${h}h ago` : `${Math.floor(h / 24)}d ago`; };
 const RELATION: Record<string, string> = { subject: "It's about them", company: "Represents the company", author: "Wrote it", other: "Other" };
 
+// The takedown process (backend/src/takedown.ts): acknowledging emails the requester and tells the
+// story's author (72 hours to respond); a decision needs an outcome and reasons, which are emailed.
+const OUTCOMES = [["no_action", "No action (stays up)"], ["author_corrected", "Author corrected it"], ["redacted", "Redacted part of it"], ["removed", "Removed it"], ["other", "Other"]] as const;
+const BASIS: Record<string, string> = { defamation: "Defamation", false_fact: "Factual error", personal_data: "Personal data", confidential: "Confidential", harassment: "Harassment", impersonation: "Impersonation / intimate images (urgent)", copyright: "Copyright", other: "Other" };
 function RequestCard({ r, onDone }: { r: Request; onDone: () => void }) {
   const [note, setNote] = useState(r.resolution ?? "");
+  const [outcome, setOutcome] = useState<string>(r.outcome ?? "");
   const [busy, setBusy] = useState(false);
   const hours = (Date.now() - Date.parse(r.created_at)) / HOUR;
   // Late against the promise: not acknowledged within 24 h, or not decided within 15 days.
   const late = (!r.acknowledged_at && hours > 24) || (!r.resolved_at && hours > 15 * 24);
+  // The author's 72 hours to respond, from acknowledgement (not for urgent unlawful content).
+  const authorWindowLeft = r.acknowledged_at ? 72 - (Date.now() - Date.parse(r.acknowledged_at)) / HOUR : null;
   const act = async (status: "acknowledged" | "resolved" | "declined") => {
+    if (status !== "acknowledged" && (!outcome || note.trim().length < 10)) { toast.error("Pick the outcome and write the reasons first: they're emailed to the requester."); return; }
+    if (status !== "acknowledged" && outcome === "removed" && authorWindowLeft != null && authorWindowLeft > 0 && r.basis !== "impersonation" && !window.confirm(`The author still has about ${Math.ceil(authorWindowLeft)} hours to respond. Remove anyway?`)) return;
     setBusy(true);
-    try { await adminApi(`/voice/requests/${r.publicId}`, { method: "POST", body: { status, ...(note.trim() && { resolution: note.trim() }) } }); toast.success(status === "acknowledged" ? "Marked acknowledged. Email the requester to confirm." : "Decision saved. Email the requester with it."); onDone(); }
+    try { await adminApi(`/voice/requests/${r.publicId}`, { method: "POST", body: { status, ...(note.trim() && { resolution: note.trim() }), ...(status !== "acknowledged" && { outcome }) } }); toast.success(status === "acknowledged" ? "Acknowledged. The requester was emailed and the author told." : "Decision saved and emailed to the requester. The author was told."); onDone(); }
     catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
   };
   return <li className={cn(card, "p-4", late && "border-flag-red")}>
     <div className="flex flex-wrap items-center gap-2 text-xs">
       <span className={cn("rounded-full px-2 py-0.5 font-bold", r.kind === "removal" ? "bg-flag-red text-primary-foreground" : "bg-flag-amber text-foreground")}>{r.kind === "removal" ? "Removal" : "Factual error"}</span>
       <span className="font-bold">{RELATION[r.relationship] ?? r.relationship}</span>
+      {r.basis && <span className={cn("rounded-full border-2 px-2 py-0.5 font-bold", r.basis === "impersonation" ? "border-flag-red text-flag-red" : "border-foreground/20")}>{BASIS[r.basis] ?? r.basis}</span>}
+      {r.good_faith && <span className="font-semibold text-muted-foreground">good-faith statement given</span>}
+      {authorWindowLeft != null && authorWindowLeft > 0 && !r.resolved_at && <span className="font-semibold text-muted-foreground">author has ~{Math.ceil(authorWindowLeft)}h to respond</span>}
       <span className="text-muted-foreground">#{r.publicId} · {age(r.created_at)}</span>
       {late && <span className="inline-flex items-center gap-1 font-bold text-flag-red"><Clock className="size-3.5" />Past the promised time</span>}
       <span className="ml-auto rounded-full border-2 border-foreground/20 px-2 py-0.5 font-bold capitalize">{r.status}</span>
@@ -42,7 +54,11 @@ function RequestCard({ r, onDone }: { r: Request; onDone: () => void }) {
     <p className="mt-2 whitespace-pre-wrap text-sm">{r.details}</p>
     <p className="mt-2 text-xs text-muted-foreground">Reply to: <a href={`mailto:${r.email}?subject=${encodeURIComponent(`Your Ghosted request #${r.publicId}`)}`} className="font-bold text-foreground hover:underline">{r.email}</a></p>
     {(r.status === "open" || r.status === "acknowledged") && <div className="mt-3 space-y-2">
-      <Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} maxLength={2000} placeholder="Decision note (kept with the request): what you did and why." className="border-2 border-foreground" />
+      <select value={outcome} onChange={(e) => setOutcome(e.target.value)} aria-label="Outcome" className="h-10 w-full rounded-md border-2 border-foreground bg-background px-3 text-sm sm:w-auto">
+        <option value="">Outcome (needed to resolve or decline)</option>
+        {OUTCOMES.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+      </select>
+      <Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} maxLength={2000} placeholder="The reasons, in plain words. This is emailed to the requester." className="border-2 border-foreground" />
       <div className="flex flex-wrap gap-2">
         {r.status === "open" && <Button size="sm" variant="outline" disabled={busy} onClick={() => void act("acknowledged")}><Check />Acknowledge</Button>}
         <Button size="sm" disabled={busy} onClick={() => void act("resolved")}><Check />Resolve</Button>

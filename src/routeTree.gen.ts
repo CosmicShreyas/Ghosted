@@ -20,6 +20,7 @@ import { Route as ForHrRouteImport } from './routes/for-hr'
 import { Route as InviteRouteImport } from './routes/invite'
 import { Route as ModerationRouteImport } from './routes/moderation'
 import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as TakedownRouteImport } from './routes/takedown'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as CSlugRouteImport } from './routes/c.$slug'
 import { Route as PulseSlugRouteImport } from './routes/pulse.$slug'
@@ -81,6 +82,11 @@ const PrivacyRoute = PrivacyRouteImport.update({
   path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TakedownRoute = TakedownRouteImport.update({
+  id: '/takedown',
+  path: '/takedown',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
   path: '/terms',
@@ -119,6 +125,7 @@ export interface FileRoutesByFullPath {
   '/invite': typeof InviteRoute
   '/moderation': typeof ModerationRoute
   '/privacy': typeof PrivacyRoute
+  '/takedown': typeof TakedownRoute
   '/terms': typeof TermsRoute
   '/c/$slug': typeof CSlugRoute
   '/pulse/$slug': typeof PulseSlugRoute
@@ -137,6 +144,7 @@ export interface FileRoutesByTo {
   '/invite': typeof InviteRoute
   '/moderation': typeof ModerationRoute
   '/privacy': typeof PrivacyRoute
+  '/takedown': typeof TakedownRoute
   '/terms': typeof TermsRoute
   '/c/$slug': typeof CSlugRoute
   '/pulse/$slug': typeof PulseSlugRoute
@@ -156,6 +164,7 @@ export interface FileRoutesById {
   '/invite': typeof InviteRoute
   '/moderation': typeof ModerationRoute
   '/privacy': typeof PrivacyRoute
+  '/takedown': typeof TakedownRoute
   '/terms': typeof TermsRoute
   '/c/$slug': typeof CSlugRoute
   '/pulse/$slug': typeof PulseSlugRoute
@@ -176,6 +185,7 @@ export interface FileRouteTypes {
     | '/invite'
     | '/moderation'
     | '/privacy'
+    | '/takedown'
     | '/terms'
     | '/c/$slug'
     | '/pulse/$slug'
@@ -194,6 +204,7 @@ export interface FileRouteTypes {
     | '/invite'
     | '/moderation'
     | '/privacy'
+    | '/takedown'
     | '/terms'
     | '/c/$slug'
     | '/pulse/$slug'
@@ -212,6 +223,7 @@ export interface FileRouteTypes {
     | '/invite'
     | '/moderation'
     | '/privacy'
+    | '/takedown'
     | '/terms'
     | '/c/$slug'
     | '/pulse/$slug'
@@ -231,6 +243,7 @@ export interface RootRouteChildren {
   InviteRoute: typeof InviteRoute
   ModerationRoute: typeof ModerationRoute
   PrivacyRoute: typeof PrivacyRoute
+  TakedownRoute: typeof TakedownRoute
   TermsRoute: typeof TermsRoute
   CSlugRoute: typeof CSlugRoute
   PulseSlugRoute: typeof PulseSlugRoute
@@ -317,6 +330,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/takedown': {
+      id: '/takedown'
+      path: '/takedown'
+      fullPath: '/takedown'
+      preLoaderRoute: typeof TakedownRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/terms': {
       id: '/terms'
       path: '/terms'
@@ -367,6 +387,7 @@ const rootRouteChildren: RootRouteChildren = {
   InviteRoute: InviteRoute,
   ModerationRoute: ModerationRoute,
   PrivacyRoute: PrivacyRoute,
+  TakedownRoute: TakedownRoute,
   TermsRoute: TermsRoute,
   CSlugRoute: CSlugRoute,
   PulseSlugRoute: PulseSlugRoute,

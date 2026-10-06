@@ -97,13 +97,14 @@ export function ReactionChips({ counts, comments }: { counts: Partial<StoryReact
 // A real story (API) on the landing page's story wall: same look as the sample cards.
 export function StoryModelCard({ story, readMore = "Read more" }: { story: StoryModel; readMore?: React.ReactNode }) {
   // Every card is the same size: one-line role and title, the story capped at four lines, and
-  // "Read more" (which asks visitors to join) always in the same place.
-  return <article className="card-lift flex h-full flex-col rounded-xl border-2 border-foreground bg-card p-5 shadow-hard-sm">
+  // "Read more" always in the same place. The whole card opens the story: no account needed to read.
+  return <article className="card-lift relative flex h-full flex-col rounded-xl border-2 border-foreground bg-card p-5 shadow-hard-sm">
     <div className="mb-4 flex items-center gap-3"><Avatar seed={story.author.avatarSeed} pastel={story.author.pastel} size="sm" label={story.author.name} /><div className="min-w-0"><p className="truncate text-sm font-bold">{story.author.name}</p><p className="truncate text-xs text-muted-foreground">about {story.company.name} · {story.timeLabel}</p></div></div>
     <div className="mb-3 flex min-w-0 items-center gap-2"><span className="shrink-0 rounded-full border-2 border-foreground bg-accent px-2.5 py-0.5 text-[11px] font-bold uppercase">{story.outcomeLabel}</span>{story.role && <span className="truncate text-xs font-semibold text-muted-foreground">{story.role}</span>}</div>
     <h3 className="mb-1 truncate font-bold">{story.title || `About ${story.company.name}`}</h3>
     <p className="line-clamp-4 h-[6.5em] leading-relaxed">{plainText(story.body)}</p>
-    <Link to="/auth" className="mt-2 inline-flex w-fit items-center gap-1 rounded text-sm font-bold text-primary hover:underline focus-visible:outline-2 focus-visible:outline-ring">{readMore}<ArrowRight className="size-4" /></Link>
+    {/* The link's ::after covers the card, so a tap anywhere opens the story. */}
+    <Link to="/s/$id" params={{ id: story.id }} aria-label={`Read the story: ${story.title || `about ${story.company.name}`}`} className="mt-2 inline-flex w-fit items-center gap-1 rounded text-sm font-bold text-primary after:absolute after:inset-0 after:rounded-xl after:content-[''] hover:underline focus-visible:outline-2 focus-visible:outline-ring">{readMore}<ArrowRight className="size-4" /></Link>
     <div className="mt-auto pt-4"><ReactionChips counts={story.reactions} comments={story.comments} /></div>
   </article>;
 }

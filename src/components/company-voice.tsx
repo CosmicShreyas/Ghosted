@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Composer } from "@/components/dashboard/chitchats";
 import { card, popup, popupBody } from "@/components/dashboard/ui-kit";
 import { ApiRequestError, apiEnabled, askToJoin } from "@/lib/api";
-import { repsApi, sendContentRequest, useQuestions, useRepReplies, type Question, type RepReply, type Relationship, type RequestKind } from "@/lib/company-voice";
+import { BASIS_LABEL, repsApi, sendContentRequest, type Basis, useQuestions, useRepReplies, type Question, type RepReply, type Relationship, type RequestKind } from "@/lib/company-voice";
 import { speak } from "@/lib/goofy";
 import { useMe, useTone, voice } from "@/lib/session";
 import { timeAgo } from "@/lib/stories";
@@ -200,14 +200,19 @@ export function ContentRequestDialog({ open, onOpenChange, targetUrl = "" }: { o
   const [email, setEmail] = useState("");
   const [rel, setRel] = useState<Relationship>("subject");
   const [details, setDetails] = useState("");
+  const [basis, setBasis] = useState<Basis | "">("");
+  const [goodFaith, setGoodFaith] = useState(false);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<string | null>(null);
-  const close = (v: boolean) => { onOpenChange(v); if (!v) { setDone(null); setDetails(""); } };
-  const valid = /^https?:\/\//.test(url.trim()) && email.includes("@") && details.trim().length >= 20 && (!signedOut || shield.status === "done");
+  useEffect(() => { if (open && targetUrl) setUrl(targetUrl); }, [open, targetUrl]);
+  const close = (v: boolean) => { onOpenChange(v); if (!v) { setDone(null); setDetails(""); setBasis(""); setGoodFaith(false); } };
+  // A company asking for something to come down must give the reason and the good-faith statement.
+  const companyRemoval = rel === "company" && kind === "removal";
+  const valid = /^https?:\/\//.test(url.trim()) && email.includes("@") && details.trim().length >= 20 && (!signedOut || shield.status === "done") && (!companyRemoval || (!!basis && goodFaith));
   const submit = async () => {
     if (!apiEnabled) { setDone("PREVIEW"); return; }
     setBusy(true);
-    try { const r = await sendContentRequest({ kind, targetUrl: url.trim(), email: email.trim(), relationship: rel, details: details.trim(), ...(signedOut && { captchaToken: shield.getToken() }) }); setDone(r.reference); }
+    try { const r = await sendContentRequest({ kind, targetUrl: url.trim(), email: email.trim(), relationship: rel, details: details.trim(), ...(basis && { basis }), ...(companyRemoval && { goodFaith }), ...(signedOut && { captchaToken: shield.getToken() }) }); setDone(r.reference); }
     catch (e) { if (e instanceof ApiRequestError && e.message.startsWith("Goofy: ")) speak(e.message, "error"); else toast.error(errText(e, "Couldn't send the request.")); shield.reset(); }
     finally { setBusy(false); }
   };
@@ -222,7 +227,7 @@ export function ContentRequestDialog({ open, onOpenChange, targetUrl = "" }: { o
         <p className="mt-4 flex items-start gap-2 rounded-lg border-2 border-foreground bg-accent p-3 text-sm font-semibold"><Clock className="mt-0.5 size-4 shrink-0" /><span>Acknowledged within <b>24 hours</b>, decided within <b>15 days</b>.</span></p>
         {done ? <div className="mt-5 rounded-lg border-2 border-flag-green bg-flag-green/10 p-4 text-sm">
             <p className="flex items-center gap-2 font-bold"><CheckCircle2 className="size-4 text-flag-green" />Request received.</p>
-            <p className="mt-1">{done === "PREVIEW" ? "Preview mode: requests aren't sent here." : <>Your reference is <b className="tabular-nums">{done}</b>. We'll email {email} within 24 hours to acknowledge it.</>}</p>
+            <p className="mt-1">{done === "PREVIEW" ? "Preview mode: requests aren't sent here." : <>Your reference is <b className="tabular-nums">{done}</b>. We've emailed {email} a receipt and will acknowledge it within 24 hours. Check its status any time on the <a href="/takedown" className="font-bold text-primary hover:underline">Takedown requests</a> page.</>}</p>
             <Button className="mt-3" size="sm" onClick={() => close(false)}>Done</Button>
           </div>
           : <form className="mt-5 space-y-4" onSubmit={(e) => { e.preventDefault(); if (valid) void submit(); }}>
@@ -236,12 +241,22 @@ export function ContentRequestDialog({ open, onOpenChange, targetUrl = "" }: { o
               {/* An even 2-column grid on phones (no ragged wrapping), one row on wider screens. */}
               <div className="mt-1.5 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">{RELATIONSHIPS.map((r) => <button key={r.id} type="button" aria-pressed={rel === r.id} onClick={() => setRel(r.id)} className={cn("min-h-10 rounded-full border-2 border-foreground px-3 text-xs font-bold leading-tight", rel === r.id ? "bg-foreground text-background" : "bg-card hover:bg-muted")}>{r.label}</button>)}</div>
             </div>
+            <label className="block text-sm font-bold">The reason{companyRemoval ? <span className="text-flag-red"> *</span> : <span className="font-normal text-muted-foreground"> (optional)</span>}
+              <select value={basis} onChange={(e) => setBasis(e.target.value as Basis | "")} className="mt-1 h-11 w-full rounded-md border-2 border-foreground bg-background px-3 text-sm font-normal">
+                <option value="">Choose one</option>
+                {(Object.keys(BASIS_LABEL) as Basis[]).map((b) => <option key={b} value={b}>{BASIS_LABEL[b]}</option>)}
+              </select>
+            </label>
             <label className="block text-sm font-bold">{kind === "factual_error" ? "What's wrong, and what's correct?" : "Why should it come down?"}
               <Textarea value={details} onChange={(e) => setDetails(e.target.value)} maxLength={3000} rows={4} placeholder={kind === "factual_error" ? "Quote the part that's wrong and explain what actually happened. Evidence helps." : "Which rule or law it breaks, for example it names a private person or shares confidential information."} className="mt-1 border-2 border-foreground font-normal" required />
               <span className="mt-1 block text-xs font-normal text-muted-foreground">{details.trim().length < 20 ? `At least 20 characters (${20 - details.trim().length} to go)` : `${details.length}/3000`}</span>
             </label>
             <label className="block text-sm font-bold">Email for our reply<Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className="mt-1 h-11 border-2 border-foreground font-normal" required /></label>
             <p className="text-xs text-muted-foreground">Used only to reply about this request. We don't tell the author who asked.</p>
+            {companyRemoval && <label className="flex items-start gap-2 rounded-lg border-2 border-foreground bg-muted/50 p-3 text-xs">
+              <input type="checkbox" checked={goodFaith} onChange={(e) => setGoodFaith(e.target.checked)} className="mt-0.5 size-4 shrink-0 accent-[var(--primary)]" />
+              <span>I confirm I'm authorised to act for this company, that the information in this request is accurate, and that I believe in good faith the content breaks Ghosted's rules or the law, not just that it's critical. <a href="/takedown" target="_blank" rel="noopener" className="font-bold text-primary hover:underline">How takedowns work</a></span>
+            </label>}
             {signedOut && <HumanCheck shield={shield} />}
             <Button type="submit" className="w-full" disabled={!valid || busy}>{busy && <Loader2 className="animate-spin" />}Send request</Button>
           </form>}

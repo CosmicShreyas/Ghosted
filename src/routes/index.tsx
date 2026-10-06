@@ -8,6 +8,7 @@ import { useAuthGuard } from "@/lib/session";
 import { LevelBadge } from "@/lib/levels";
 import { organizationLd, pageHead, websiteLd } from "@/lib/meta";
 import { api, apiEnabled, track } from "@/lib/api";
+import { openStoryComposer } from "@/lib/guest";
 import { useT } from "@/lib/i18n";
 import { useLanding } from "@/content/landing-copy";
 import { useFit } from "@/components/fit";
@@ -130,7 +131,8 @@ function LandingPage() {
   const rated = list.filter(isRated).sort((a, b) => b.score - a.score);
   const loved = apiEnabled ? rated.filter((c) => c.score >= 50).slice(0, 4) : companies.slice(0, 4);
   const warned = apiEnabled ? [...rated].reverse().filter((c) => c.score < 50).slice(0, 4) : companies.slice(-4).reverse();
-  const wall = useQuery({ queryKey: ["landing-stories"], queryFn: async () => (await api<{ stories: StoryDto[] }>("/v1/stories?limit=6")).stories, enabled: apiEnabled, staleTime: 60_000 });
+  const [wallLimit, setWallLimit] = useState(6);
+  const wall = useQuery({ queryKey: ["landing-stories", wallLimit], queryFn: async () => (await api<{ stories: StoryDto[] }>(`/v1/stories?limit=${wallLimit}`)).stories, enabled: apiEnabled, staleTime: 60_000, placeholderData: (prev) => prev });
   const wallStories = (wall.data ?? []).map((s) => fromApi(s, new Map(list.map((c) => [c.id, c]))));
   useEffect(() => { if (!waiting) track("visit"); }, [waiting]);
   if (waiting) return <Preloader />;
@@ -146,7 +148,8 @@ function LandingPage() {
         <p className="mt-4 max-w-xl text-lg leading-relaxed text-muted-foreground">{f.t("hero.lede", "grid")}</p>
         <CompanySearch className="mt-7 max-w-xl" />
         <div className="mt-6 flex flex-wrap items-center gap-3">
-          <Button size="lg" asChild><Link to="/auth" search={{ intent: "share" }}><PenLine />{f.t("hero.share")} <ArrowRight /></Link></Button>
+          {/* Write first, join at the end (lib/guest.ts). */}
+          <Button size="lg" onClick={openStoryComposer}><PenLine />{f.t("hero.share")} <ArrowRight /></Button>
           <Button size="lg" variant="outline" asChild><a href="#ghost-o-meter"><Hourglass />{f.t("hero.waiting")}</a></Button>
         </div>
         <p className="mt-4 flex max-w-lg items-center gap-2 text-sm font-semibold"><ShieldCheck className="size-4 shrink-0 text-flag-green" />{f.t("hero.trust")}</p>
@@ -191,7 +194,7 @@ function LandingPage() {
       {apiEnabled && !loved.length && !warned.length
         ? <div className="mt-10 grid gap-5 rounded-xl border-2 border-foreground bg-card p-6 shadow-hard-sm sm:p-8 md:grid-cols-[1fr_auto] md:items-center">
             <div><p className="font-display text-2xl font-bold">{f.l((c) => c.flags.emptyTitle, "grid")}</p><p className="mt-2 max-w-md text-muted-foreground">{f.l((c) => c.flags.emptyCopy, "grid")}</p></div>
-            <div className="grid gap-3"><Button asChild><Link to="/auth" search={{ intent: "share" }}><PenLine />{f.t("hero.share")}</Link></Button></div>
+            <div className="grid gap-3"><Button onClick={openStoryComposer}><PenLine />{f.t("hero.share")}</Button></div>
           </div>
         : <div className="mt-10 grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-2 [&>*]:min-w-0">{([[L.flags.decent, loved, "text-flag-green"], [L.flags.snacks, warned, "text-flag-red"]] as const).map(([title, group, tone]) => <div key={title}><h3 className={`mb-4 text-xl font-bold ${tone}`}>{title}</h3><div className="space-y-3">
             {group.length === 0 && <p className="rounded-xl border-2 border-dashed border-foreground/40 p-4 text-sm text-muted-foreground">{L.flags.nobody}</p>}
@@ -210,17 +213,21 @@ function LandingPage() {
     <HiringMinefield />
 
     <section id="stories" className="mx-auto max-w-7xl px-4 py-24 sm:px-6">
-      <div className="flex flex-wrap items-end justify-between gap-4"><div><p className="mb-3 text-sm font-bold uppercase text-primary">{f.l((c) => c.wall.eyebrow)}</p><h2 className="text-4xl font-bold sm:text-5xl">{f.l((c) => c.wall.title, "grid")}</h2></div><Button variant="outline" asChild><Link to="/auth" search={{ intent: "share" }}><PenLine />{f.l((c) => c.wall.add)}</Link></Button></div>
+      <div className="flex flex-wrap items-end justify-between gap-4"><div><p className="mb-3 text-sm font-bold uppercase text-primary">{f.l((c) => c.wall.eyebrow)}</p><h2 className="text-4xl font-bold sm:text-5xl">{f.l((c) => c.wall.title, "grid")}</h2></div><Button variant="outline" onClick={openStoryComposer}><PenLine />{f.l((c) => c.wall.add)}</Button></div>
       {apiEnabled
-        ? wallStories.length ? <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">{wallStories.map((story) => <StoryModelCard key={story.id} story={story} readMore={f.l((c) => c.wall.readMore)} />)}</div>
+        ? wallStories.length ? <>
+            {/* Every card opens the full story: reading needs no account. */}
+            <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">{wallStories.map((story) => <StoryModelCard key={story.id} story={story} readMore={f.l((c) => c.wall.readMore)} />)}</div>
+            {wall.data && wall.data.length >= wallLimit && wallLimit < 30 && <div className="mt-8 flex justify-center"><Button variant="outline" size="lg" disabled={wall.isFetching} onClick={() => setWallLimit((n) => Math.min(30, n + 6))}>{wall.isFetching ? "Loading…" : "Show more stories"}</Button></div>}
+          </>
           : <div className="mt-10 grid gap-5 rounded-xl border-2 border-foreground bg-card p-6 shadow-hard-sm sm:p-8 md:grid-cols-[1fr_auto] md:items-center">
               <div><p className="font-display text-2xl font-bold">{wall.isPending ? L.wall.loading : L.wall.firstTitle}</p>{!wall.isPending && <p className="mt-2 max-w-lg text-muted-foreground">{L.wall.firstCopy}</p>}</div>
-              {!wall.isPending && <Button asChild><Link to="/auth" search={{ intent: "share" }}><PenLine />{t("hero.share")}</Link></Button>}
+              {!wall.isPending && <Button onClick={openStoryComposer}><PenLine />{t("hero.share")}</Button>}
             </div>
         : <div className="mt-10 columns-1 gap-5 space-y-5 md:columns-2 lg:columns-3">{stories.slice(0, 6).map((story) => <StoryCard key={story.id} story={story} />)}</div>}
     </section>
 
     <section className="border-y-2 border-foreground bg-foreground text-background"><div className="mx-auto grid max-w-7xl items-center gap-12 px-4 py-20 sm:px-6 md:grid-cols-2"><div><div className="mb-4 grid size-12 place-items-center rounded-xl border-2 border-background/50 bg-primary text-primary-foreground shadow-hard-sm"><EyeOff /></div><h2 className="text-4xl font-bold">{f.l((c) => c.privacy.title1)}<br />{f.l((c) => c.privacy.title2)}</h2><p className="mt-4 max-w-lg leading-relaxed text-background/70">{f.l((c) => c.privacy.copy, "grid")}</p></div><PrivacyDemo /></div></section>
-    <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6"><div className="rounded-xl border-2 border-foreground bg-primary p-8 text-primary-foreground shadow-hard md:flex md:items-center md:justify-between md:gap-8 md:p-12"><div><Feather className="mb-5 size-8" /><h2 className="text-4xl font-bold">{f.l((c) => c.cta.title, "grid")}</h2><p className="mt-2 opacity-80">{f.l((c) => c.cta.copy, "grid")}</p></div><Button size="lg" variant="outline" className="mt-7 bg-background text-foreground md:mt-0" asChild><Link to="/auth" search={{ intent: "share" }}>{f.l((c) => c.cta.share)} <ArrowRight /></Link></Button></div></section>
+    <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6"><div className="rounded-xl border-2 border-foreground bg-primary p-8 text-primary-foreground shadow-hard md:flex md:items-center md:justify-between md:gap-8 md:p-12"><div><Feather className="mb-5 size-8" /><h2 className="text-4xl font-bold">{f.l((c) => c.cta.title, "grid")}</h2><p className="mt-2 opacity-80">{f.l((c) => c.cta.copy, "grid")}</p></div><Button size="lg" variant="outline" className="mt-7 bg-background text-foreground md:mt-0" onClick={openStoryComposer}>{f.l((c) => c.cta.share)} <ArrowRight /></Button></div></section>
   </main><SiteFooter /></div>;
 }

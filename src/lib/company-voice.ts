@@ -153,5 +153,13 @@ export function usePledge(slug: string) {
 
 export type RequestKind = "removal" | "factual_error";
 export type Relationship = "author" | "company" | "subject" | "other";
-export const sendContentRequest = (b: { kind: RequestKind; targetUrl: string; email: string; relationship: Relationship; details: string; captchaToken?: string | undefined }) =>
+export type Basis = "defamation" | "false_fact" | "personal_data" | "confidential" | "harassment" | "impersonation" | "copyright" | "other";
+export const BASIS_LABEL: Record<Basis, string> = {
+  defamation: "Defamatory: damages a reputation with something untrue", false_fact: "A factual error", personal_data: "Identifies a private person or shares personal data",
+  confidential: "Shares confidential or trade-secret material", harassment: "Harassment or threats", impersonation: "Impersonation or intimate images (urgent)",
+  copyright: "Copyrighted material", other: "Something else",
+};
+export const sendContentRequest = (b: { kind: RequestKind; targetUrl: string; email: string; relationship: Relationship; details: string; basis?: Basis; goodFaith?: boolean; captchaToken?: string | undefined }) =>
   api<{ reference: string; acknowledgeHours: number; resolveDays: number }>("/v1/voice/requests", { method: "POST", body: b });
+export type RequestStatus = { kind: RequestKind; status: "open" | "acknowledged" | "resolved" | "declined"; createdAt: string; acknowledgedAt: string | null; resolvedAt: string | null; outcome: string | null; resolution: string | null };
+export const requestStatus = (ref: string, email: string) => api<RequestStatus>(`/v1/voice/requests/${ref}?email=${encodeURIComponent(email.trim())}`);

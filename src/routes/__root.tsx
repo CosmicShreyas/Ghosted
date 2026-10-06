@@ -13,6 +13,9 @@ import { CookieConsent } from "@/components/cookie-consent";
 import { IosInstallHint } from "@/components/ios-install";
 import { PushPrompt } from "@/components/push-prompt";
 import { LevelWatch } from "@/components/level-watch";
+import { JoinPrompt } from "@/components/public-shell";
+import { ReadingGate } from "@/components/reading-gate";
+import { GuestComposer } from "@/components/guest-composer";
 import { Preloader } from "@/components/preloader";
 import { useSigningOut, useTone } from "@/lib/session";
 import { AnnouncementBar } from "@/components/announcement";
@@ -189,6 +192,10 @@ function RootComponent() {
         {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
         <Outlet />
         <LevelWatch />
+        {/* Signed out: read freely, join when you act, or after 5 minutes of reading; write first. */}
+        <JoinPrompt />
+        <ReadingGate />
+        <GuestComposer />
       </MotionPrefs>
       <Toaster position="bottom-right" />
       {/* Asked once; any choice is remembered for a year. Footer → Cookie settings reopens it. */}

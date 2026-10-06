@@ -45,6 +45,7 @@ import { askCount, hrThemes, pulse } from "../demand.js";
 import { floorCount } from "../lib/aggregate.js";
 import { makePledge, pledgesFor, withdrawPledge } from "../pledges.js";
 import { hit } from "../funnel.js";
+import { sendTakedownUpdate } from "../takedown.js";
 import { changesLeft, CHANGES_PER_MONTH, citedStories, createChange, MAX_CITED } from "../changes.js";
 
 const OPEN_QUESTIONS_PER_DAY = 3;
@@ -99,14 +100,19 @@ async function notifyQuestion(company: Company, askerId: string, body: string) {
 type QRow = { id: string; public_id: number; author_id: string; body_z: string; best_answer_id: string | null; created_at: string };
 type ARow = { id: string; public_id: number; question_id: string; author_id: string; body_z: string; basis: "story" | "follower"; created_at: string };
 
+// The takedown process (public page: /takedown). `basis` is the reason in law or in the rules;
+// companies asking for a removal must name one and confirm they're asking in good faith.
+export const BASES = ["defamation", "false_fact", "personal_data", "confidential", "harassment", "impersonation", "copyright", "other"] as const;
 const requestBody = z.object({
   kind: z.enum(["removal", "factual_error"]),
   targetUrl: z.string().trim().url().max(500),
   email: z.string().trim().toLowerCase().email().max(254),
   relationship: z.enum(["author", "company", "subject", "other"]),
   details: z.string().trim().min(20).max(3000),
+  basis: z.enum(BASES).optional(),
+  goodFaith: z.boolean().optional(),
   captchaToken: z.string().max(4000).optional(),
-}).strict();
+}).strict().refine((b) => !(b.relationship === "company" && b.kind === "removal") || (!!b.basis && b.goodFaith === true), { message: "Companies asking for a removal must choose the reason and confirm the good-faith statement.", path: ["basis"] });
 
 export const voiceRoutes = new Hono<AppEnv>()
 
@@ -459,7 +465,21 @@ export const voiceRoutes = new Hono<AppEnv>()
     const viewer = c.get("profile");
     if (!viewer) await verifyChallenge(c, b.captchaToken);
     const url = new URL(b.targetUrl);
-    const { data, error } = await admin().from("content_requests").insert({ kind: b.kind, target_url: url.toString(), requester_id: viewer?.id ?? null, email: b.email, relationship: b.relationship, details: b.details }).select("public_id").single();
+    const row = { kind: b.kind, target_url: url.toString(), requester_id: viewer?.id ?? null, email: b.email, relationship: b.relationship, details: b.details };
+    let { data, error } = await admin().from("content_requests").insert({ ...row, basis: b.basis ?? null, good_faith: b.goodFaith ?? null }).select("public_id").single();
+    // Before the Takedown section of init_database.sql runs, the request still goes in.
+    if (error && /basis|good_faith/.test(error.message)) ({ data, error } = await admin().from("content_requests").insert(row).select("public_id").single());
     if (error) dbFail("content request (run the Ask candidates section of init_database.sql)", error);
-    return c.json({ reference: String((data as { public_id: number }).public_id), acknowledgeHours: 24, resolveDays: 15 }, 201);
+    const reference = String((data as { public_id: number }).public_id);
+    later(sendTakedownUpdate(b.email, { reference, kind: b.kind, status: "received" }));
+    return c.json({ reference, acknowledgeHours: 24, resolveDays: 15 }, 201);
+  })
+
+  // Where a request stands, for the person who sent it: the reference and the same email.
+  .get("/requests/:ref", rateLimit({ name: "request-status", max: 30, windowSeconds: 600 }), validate("param", z.object({ ref: publicId })), validate("query", z.object({ email: z.string().trim().toLowerCase().email().max(254) })), async (c) => {
+    const { data } = await admin().from("content_requests").select("*").eq("public_id", c.req.valid("param").ref).maybeSingle();
+    const r = data as { email: string; kind: string; status: string; created_at: string; acknowledged_at: string | null; resolved_at: string | null; resolution: string | null; outcome?: string | null } | null;
+    // Same answer for a wrong reference and a wrong email: nobody can probe someone else's request.
+    if (!r || r.email.toLowerCase() !== c.req.valid("query").email) throw notFound("Request");
+    return c.json({ kind: r.kind, status: r.status, createdAt: r.created_at, acknowledgedAt: r.acknowledged_at, resolvedAt: r.resolved_at, outcome: r.outcome ?? null, resolution: r.resolution });
   });

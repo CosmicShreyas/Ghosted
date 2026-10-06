@@ -5,6 +5,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowRight, Building2, Hourglass, Loader2, PenLine, Search, ShieldCheck } from "lucide-react";
+import { openStoryComposer } from "@/lib/guest";
 import { CompanyMark, FlagScore } from "@/components/ghosted";
 import { Button } from "@/components/ui/button";
 import { apiEnabled, track } from "@/lib/api";
@@ -80,7 +81,7 @@ export function LandingHero() {
           <p className="text-sm font-bold text-primary">Already went through a hiring process?</p>
           <p className="mt-1 font-display text-2xl font-bold leading-tight">Add your experience anonymously.</p>
           <p className="mt-2 text-sm text-muted-foreground">Tap a few answers and post in about 30 seconds. Writing more is optional.</p>
-          <Button size="lg" className="mt-4 min-h-12 w-full" asChild><Link to="/auth" search={{ intent: "share" }}><PenLine />Share my experience<ArrowRight /></Link></Button>
+          <Button size="lg" className="mt-4 min-h-12 w-full" onClick={openStoryComposer}><PenLine />Share my experience<ArrowRight /></Button>
           <p className="mt-3 flex items-center gap-2 text-xs font-semibold"><ShieldCheck className="size-4 shrink-0 text-flag-green" />No name. No company email. Employers never see who you are.</p>
         </div>
         <a href="#ghost-o-meter" className="group flex items-center gap-3 rounded-xl border-2 border-foreground bg-accent p-4 shadow-hard-sm transition-transform hover:-translate-y-0.5">

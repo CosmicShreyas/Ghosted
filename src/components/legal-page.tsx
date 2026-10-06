@@ -10,6 +10,8 @@ const docs = [
   { to: "/privacy", label: "Privacy Policy" },
   { to: "/terms", label: "Terms & Conditions" },
   { to: "/community", label: "Community Rules" },
+  { to: "/moderation", label: "How moderation works" },
+  { to: "/takedown", label: "Takedown requests" },
 ] as const;
 
 export const docHead = (doc: Doc, description: string, path: string) => pageHead({

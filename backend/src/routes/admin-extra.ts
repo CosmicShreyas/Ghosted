@@ -27,6 +27,7 @@ import { funnel } from "../funnel.js";
 import { publishChangeEffects } from "../changes.js";
 import { withdrawPledge } from "../pledges.js";
 import { INDUSTRIES } from "../lib/industries.js";
+import { OUTCOMES as TAKEDOWN_OUTCOMES, sendTakedownUpdate, tellAuthor } from "../takedown.js";
 
 const DAY = 86400_000;
 const pid = z.string().regex(/^\d{15}$/);
@@ -134,21 +135,29 @@ export const adminExtraRoutes = new Hono<AdminEnv>()
   // Requests: oldest first, with how long they've waited against the 24 h / 15 day promise.
   .get("/voice/requests", validate("query", z.object({ status: z.enum(["open", "acknowledged", "resolved", "declined", "all"]).default("open"), offset: offsetQ })), async (c) => {
     const { status, offset } = c.req.valid("query");
-    let q = db().from("content_requests").select("public_id, kind, target_url, email, relationship, details, status, resolution, created_at, acknowledged_at, resolved_at").order("created_at", { ascending: status === "open" || status === "acknowledged" }).range(offset, offset + PAGE);
+    let q = db().from("content_requests").select("*").order("created_at", { ascending: status === "open" || status === "acknowledged" }).range(offset, offset + PAGE);
     q = status === "all" ? q : status === "open" ? q.in("status", ["open", "acknowledged"]) : q.eq("status", status);
     const { data, error } = await q;
     if (error) dbFail("content requests (run the Ask candidates section of init_database.sql)", error);
     return c.json(paged(((data ?? []) as Record<string, unknown>[]).map((r) => ({ ...r, publicId: String(r.public_id) })), offset));
   })
-  .post("/voice/requests/:id", validate("param", z.object({ id: z.string().regex(/^\d{15}$/) })), validate("json", z.object({ status: z.enum(["acknowledged", "resolved", "declined"]), resolution: z.string().trim().max(2000).optional() }).strict()), async (c) => {
-    const { status, resolution } = c.req.valid("json");
+  // Every step of the takedown process (takedown.ts): the requester is emailed at each step; the
+  // story's author is told at acknowledgement (72 hours to edit or respond) and at the decision.
+  // A decision needs an outcome and written reasons.
+  .post("/voice/requests/:id", validate("param", z.object({ id: z.string().regex(/^\d{15}$/) })), validate("json", z.object({ status: z.enum(["acknowledged", "resolved", "declined"]), resolution: z.string().trim().max(2000).optional(), outcome: z.enum(TAKEDOWN_OUTCOMES).optional() }).strict()), async (c) => {
+    const { status, resolution, outcome } = c.req.valid("json");
+    if (status !== "acknowledged" && (!outcome || !resolution || resolution.length < 10)) throw new ApiError(400, "decision_incomplete", "A decision needs an outcome and the reasons (at least a sentence), which are sent to the requester.");
     const now = new Date().toISOString();
     const patch: Record<string, unknown> = { status, ...(resolution !== undefined && { resolution }) };
     if (status === "acknowledged") patch["acknowledged_at"] = now;
     else { patch["resolved_at"] = now; patch["acknowledged_at"] = now; }
-    const { data, error } = await db().from("content_requests").update(patch).eq("public_id", c.req.valid("param").id).select("public_id, acknowledged_at").single();
+    let { data, error } = await db().from("content_requests").update({ ...patch, ...(outcome && { outcome }) }).eq("public_id", c.req.valid("param").id).select("public_id, acknowledged_at, email, kind, target_url").single();
+    if (error && /outcome/.test(error.message)) ({ data, error } = await db().from("content_requests").update(patch).eq("public_id", c.req.valid("param").id).select("public_id, acknowledged_at, email, kind, target_url").single());
     if (error) dbFail("update request", error);
-    await audit(c, `content_request_${status}`, { kind: "request", ref: c.req.valid("param").id });
+    const r = data as { email: string; kind: string; target_url: string };
+    await sendTakedownUpdate(r.email, { reference: c.req.valid("param").id, kind: r.kind, status, outcome: outcome ?? null, resolution: resolution ?? null });
+    await tellAuthor(r.target_url, status === "acknowledged" ? "acknowledged" : "decided", outcome ?? null).catch(() => undefined);
+    await audit(c, `content_request_${status}`, { kind: "request", ref: c.req.valid("param").id }, outcome ? { outcome } : undefined);
     return c.json({ ok: true, request: data });
   })
   // Company reps' replies and held questions/answers: what's waiting, and the live replies.

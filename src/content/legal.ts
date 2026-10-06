@@ -344,6 +344,72 @@ export const moderationDoc: Doc = {
   ],
 };
 
+// The takedown process, step by step (backend/src/takedown.ts runs it; the form is the "Request a
+// correction" dialog on every story and company page).
+export const takedownDoc: Doc = {
+  eyebrow: "Takedown requests",
+  title: "How to ask us to correct or remove content.",
+  intro: "Companies, people mentioned in a story, authors and anyone else can ask us to correct or remove something on Ghosted. Every request is reviewed by a person, follows the same steps, and gets a written decision. We don't remove honest experiences just because they're negative, and nobody, including companies, can pay to change an outcome.",
+  updated: e.effective,
+  sections: [
+    { id: "who", heading: "1. Who can ask", blocks: [[
+      "A company, through someone authorised to act for it. You don't need to be a verified representative.",
+      "A person a story or chitchat is about, or who can be identified from it.",
+      "The author of the content.",
+      "Anyone who believes content breaks our Community Rules or the law.",
+    ]] },
+    { id: "grounds", heading: "2. What we act on", blocks: [
+      "We correct or remove content that breaks the Community Rules or Indian law, including content that:",
+      [
+        "States something untrue as fact that damages a reputation (defamation), as opposed to an honest opinion or experience.",
+        "Contains a factual error that can be shown to be wrong.",
+        "Identifies a private individual or shares personal data, under the DPDP Act 2023.",
+        "Shares confidential or trade-secret material, or copyrighted material without permission.",
+        "Harasses or threatens someone, impersonates a person, or shares intimate images.",
+      ],
+      "We don't act on content just because it's critical, unflattering or bad for business. A one-star experience told honestly stays up.",
+    ] },
+    { id: "include", heading: "3. What to include", blocks: [
+      "Use \"Request a correction\" on the story or company page (or the button below). Include:",
+      [
+        "The link to the exact story, chitchat or page.",
+        "Whether you want a correction or a removal, and the reason (the ground from section 2).",
+        "What's wrong and, for a correction, what's actually true. Evidence helps: dates, documents, policies.",
+        "An email address for our reply.",
+        "Companies asking for a removal also confirm they're authorised to act for the company and are asking in good faith.",
+      ],
+    ] },
+    { id: "steps", heading: "4. What happens next", blocks: [[
+      "Straight away: you get a reference number and an email receipt.",
+      "Within 24 hours: a moderator acknowledges it and starts the review. You're emailed.",
+      "The author is told: if it's about a story, its author is told a request was made (never by whom) and has 72 hours to edit it or give their side. Many requests are settled here: the author fixes the detail themselves.",
+      "Urgent unlawful content, such as intimate images or impersonation, is acted on within 24 hours of the request, as the Intermediary Rules, 2021 require, without waiting for the author.",
+      "Within 15 days: a decision, emailed to you with the reasons. The author is told the outcome too.",
+    ]] },
+    { id: "outcomes", heading: "5. Possible outcomes", blocks: [[
+      "No action: the content stays up as it is, with our reasons.",
+      "Corrected by the author: they edited it during the review.",
+      "Redacted: only the problem part is removed or replaced (for example a person's name becomes [name]).",
+      "Removed: the whole story or chitchat comes down, and the author is told why.",
+    ],
+      "While a request is being reviewed, the content usually stays up. We hide it in the meantime only when it's likely unlawful or puts someone at risk.",
+    ] },
+    { id: "status", heading: "6. Check where a request stands", blocks: [
+      "Enter your reference number and the email you used. We show the same message for a wrong reference and a wrong email, so nobody can look up someone else's request.",
+    ] },
+    { id: "appeal", heading: "7. If you disagree", blocks: [
+      "Reply to the decision email with your reasons. A different moderator reviews it. Authors can do the same through Feedback & Support. Eligible decisions can also be taken to the Grievance Appellate Committee under the Intermediary Rules, 2021. See the Terms & Conditions for the grievance process.",
+      { type: "email", email: e.email.grievance, label: "Contact the grievance team", description: "For legal notices, or to appeal a decision" },
+    ] },
+    { id: "never", heading: "8. What we never do", blocks: [[
+      "Tell the requester, a company or anyone else who wrote the content, except under a valid order of a competent court or authority.",
+      "Tell the author who made the request.",
+      "Remove content because a company asked, paid, or threatened to. Every decision is made on the rules and the law.",
+      "Let companies edit, hide or rank anything themselves. Only our moderators act, and every action is logged.",
+    ]] },
+  ],
+};
+
 export const communityDoc: Doc = {
   eyebrow: "Community Rules",
   title: "Be honest. Be specific. Be decent.",

@@ -72,7 +72,10 @@ function DashboardPage() {
   const [linkPreset, setLinkPreset] = useState<StoryPreset | null>(null);
   useEffect(() => {
     if (!search.share) return;
-    setLinkPreset({ ...(search.company && { company: search.company }), ...(search.outcome && { outcome: search.outcome }) });
+    // Nothing to prefill (e.g. just joined after writing a story as a guest): the plain form, which
+    // brings back the saved draft.
+    if (!search.company && !search.outcome) setShare(true);
+    else setLinkPreset({ ...(search.company && { company: search.company }), ...(search.outcome && { outcome: search.outcome }) });
     void navigate({ to: "/dashboard", search: { ...(search.view && { view: search.view }) }, replace: true });
   }, [search.share, search.company, search.outcome, search.view, navigate]);
   // Companies open their own page (/c/<slug>) instead of a popup.

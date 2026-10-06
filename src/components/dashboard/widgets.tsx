@@ -67,6 +67,8 @@ export function FeedStory({ story, saved, onSave, onOpenCompany, full = false }:
   // On the story's own page: after 8 seconds of reading, it counts as read (XP, once per story).
   useEffect(() => { if (!full) return; const t = window.setTimeout(() => markRead(story.id), 8000); return () => window.clearTimeout(t); }, [full, story.id]);
   const toggle = async (kind: StoryReaction) => {
+    // Signed out: reading is free; reacting opens the join prompt instead of a silent rollback.
+    if (apiEnabled && !signedIn) { setPickerOpen(false); askToJoin(); return; }
     const prev = state;
     const next = prev.mine === kind ? null : kind;
     const counts = { ...prev.counts };
