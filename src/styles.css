@@ -315,6 +315,13 @@
   &:hover { animation-play-state: paused; }
 }
 
+/* The footer's ghost: a slow, barely-there drift and sway (stops with reduced motion). */
+@keyframes footer-ghost-drift {
+  0%, 100% { transform: translate(0, 0) rotate(-6deg); }
+  50% { transform: translate(-18px, -14px) rotate(-2deg); }
+}
+.footer-ghost { animation: footer-ghost-drift 14s ease-in-out infinite; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }

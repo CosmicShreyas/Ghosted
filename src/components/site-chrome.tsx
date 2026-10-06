@@ -9,6 +9,7 @@ import { entity } from "@/content/legal";
 import { openCookieSettings } from "@/components/cookie-consent";
 import { LanguagePicker } from "@/components/language-picker";
 import { useT } from "@/lib/i18n";
+import { cn } from "@/lib/utils";
 
 export function Brand() {
   return <Link to="/" className="flex items-center gap-1.5 font-display text-2xl font-bold tracking-tight" aria-label="Ghosted home"><img src="/ghosted-mark.png" alt="" className="size-10 object-contain" />Ghosted.</Link>;
@@ -28,22 +29,38 @@ export function SiteHeader() {
     : <><Button variant="ghost" size="sm" className="px-2.5 sm:h-10 sm:px-4" asChild><Link to="/auth" search={{ tab: "login" }}>Log in</Link></Button>{/* Write first, join at the end: the story form opens straight away (lib/guest.ts). */}<Button size="sm" className="px-3 sm:h-10 sm:px-4" onClick={openStoryComposer}><PenLine className="size-4" /><span className="sm:hidden">Write</span><span className="hidden sm:inline">Write your story</span></Button></>}</div></div></header>;
 }
 
-const footerLinks = [
-  { to: "/about", label: "About" },
-  { to: "/privacy", label: "Privacy Policy" },
-  { to: "/terms", label: "Terms & Conditions" },
-  { to: "/community", label: "Community Rules" },
-  { to: "/moderation", label: "How moderation works" },
-  { to: "/takedown", label: "Takedown requests" },
-  { to: "/feedback", label: "Feedback & Support" },
+// The footer's columns, each with a heading.
+const footerColumns = [
+  { title: "Ghosted", links: [{ to: "/about", label: "About" }, { to: "/feedback", label: "Feedback & Support" }, { to: "/for-hr", label: "For HR teams" }] },
+  { title: "Policies", links: [{ to: "/privacy", label: "Privacy Policy" }, { to: "/terms", label: "Terms & Conditions" }, { to: "/community", label: "Community Rules" }] },
+  { title: "Safety & trust", links: [{ to: "/moderation", label: "How moderation works" }, { to: "/takedown", label: "Takedown requests" }] },
 ] as const;
+
+const linkCls = "w-fit underline-offset-4 hover:text-primary hover:underline focus-visible:outline-2 focus-visible:outline-ring";
+const headingCls = "mb-3 text-xs font-bold uppercase tracking-wide text-muted-foreground";
 
 export function SiteFooter() {
   const t = useT();
-  return <footer className="border-t-2 border-foreground">
-    <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-10 text-sm sm:px-6 md:flex-row md:items-center md:justify-between">
-      <div><Brand /><p className="mt-2 text-muted-foreground">{t("footer.tagline")}</p><p className="mt-1 text-xs text-muted-foreground">© {new Date().getFullYear()} Ghosted. Stories are the personal opinions of their authors, not statements of fact by Ghosted.</p></div>
-      <nav aria-label="Legal and company" className="flex flex-wrap gap-x-6 gap-y-2 font-semibold">{footerLinks.map((l) => <Link key={l.to} to={l.to} className="underline-offset-4 hover:text-primary hover:underline" activeProps={{ className: "text-primary" }}>{l.label}</Link>)}<a href={entity.github} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 underline-offset-4 hover:text-primary hover:underline"><Github className="size-4" />Open source</a><button type="button" onClick={openCookieSettings} className="underline-offset-4 hover:text-primary hover:underline">Cookie settings</button><LanguagePicker /></nav>
+  return <footer className="relative overflow-hidden border-t-2 border-foreground">
+    {/* A big ghost drifting slowly behind everything, barely there. It holds still with reduced motion. */}
+    <img src="/ghosted-mark.png" alt="" aria-hidden="true" className="footer-ghost pointer-events-none absolute -bottom-16 right-[-4rem] w-[22rem] select-none opacity-[0.05] sm:w-[28rem] dark:opacity-[0.07]" />
+    {/* Brand on the left; then a column per category. Phones: brand, then two columns of links. */}
+    <div className="relative mx-auto grid max-w-7xl gap-10 px-4 py-12 text-sm sm:px-6 lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)] lg:gap-16">
+      <div className="min-w-0"><Brand /><p className="mt-2 text-muted-foreground">{t("footer.tagline")}</p><p className="mt-3 text-xs text-muted-foreground">© {new Date().getFullYear()} Ghosted. Stories are the personal opinions of their authors, not statements of fact by Ghosted.</p></div>
+      <div className="grid min-w-0 grid-cols-2 gap-x-6 gap-y-8 sm:grid-cols-4">
+        {footerColumns.map((col) => <nav key={col.title} aria-label={col.title} className="min-w-0">
+          <p className={headingCls}>{col.title}</p>
+          <ul className="flex flex-col gap-2.5 font-semibold">{col.links.map((l) => <li key={l.to}><Link to={l.to} className={linkCls} activeProps={{ className: "text-primary" }}>{l.label}</Link></li>)}</ul>
+        </nav>)}
+        <div className="min-w-0">
+          <p className={headingCls}>Preferences</p>
+          <ul className="flex flex-col items-start gap-2.5 font-semibold">
+            <li><a href={entity.github} target="_blank" rel="noopener noreferrer" className={cn(linkCls, "inline-flex items-center gap-1.5")}><Github className="size-4" />Open source</a></li>
+            <li><button type="button" onClick={openCookieSettings} className={linkCls}>Cookie settings</button></li>
+            <li><LanguagePicker /></li>
+          </ul>
+        </div>
+      </div>
     </div>
   </footer>;
 }
