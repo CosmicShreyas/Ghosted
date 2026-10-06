@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { Check, Copy, Flag, Gift, Hand, Heart, HeartCrack, Mail, PenLine, RotateCcw, Search, Trophy } from "lucide-react";
+import { Check, Copy, Gift, Hand, Heart, HeartCrack, Mail, PenLine, RotateCcw, Search, Trophy } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { openStoryComposer } from "@/lib/guest";
 import { useMe } from "@/lib/session";
@@ -92,7 +92,7 @@ export function GhostOMeter() {
 
 const COLS = 8;
 const ROWS = 5;
-const MINES = 4;
+const MINES = 10;
 const LIVES = 3;
 const SAFE = COLS * ROWS - MINES;
 
@@ -116,12 +116,12 @@ const around = (i: number) => {
 };
 
 // Walking steps between two tiles (no diagonal shortcuts), so a diagonal neighbour is two steps away.
-// On an 8x5 board with four slaps this spreads the numbers out evenly enough to plan a route.
+// The board is deliberately dense (10 slaps in 40 tiles), so most numbers are 4s and 3s.
 const steps = (a: number, b: number) => Math.abs(Math.floor(a / COLS) - Math.floor(b / COLS)) + Math.abs((a % COLS) - (b % COLS));
 const heatOf = (distance: number) => Math.max(1, 5 - distance);
 
 // Mines are placed after the first click, never on or next to it, so the first dig is always safe.
-// They never touch each other and are split across both halves of the board, so the heat numbers
+// They never share an edge and are split evenly across both halves of the board, so the heat numbers
 // can always be read like a map instead of the slaps bunching up in one corner.
 function plant(first: number): Cell[] {
   const keepClear = new Set([first, ...around(first)]);
@@ -130,11 +130,11 @@ function plant(first: number): Cell[] {
     let tries = 0;
     while (mines.length < MINES && tries++ < 500) {
       const i = Math.floor(Math.random() * COLS * ROWS);
-      if (keepClear.has(i) || mines.some((m) => steps(m, i) < 3)) continue;
+      if (keepClear.has(i) || mines.some((m) => steps(m, i) < 2)) continue;
       mines.push(i);
     }
     const left = mines.filter((m) => m % COLS < COLS / 2).length;
-    if (mines.length < MINES || ((left < 2 || left > MINES - 2) && attempt < 50)) continue;
+    if (mines.length < MINES || ((left < MINES / 2 - 1 || left > MINES / 2 + 1) && attempt < 50)) continue;
     const board = blank();
     for (const m of mines) { const cell = board[m]; if (cell) cell.mine = true; }
     board.forEach((cell, i) => { cell.heat = heatOf(Math.min(...mines.map((m) => steps(m, i)))); });
@@ -303,11 +303,11 @@ export function HiringMinefield() {
               return <motion.button key={i} type="button" whileHover={!c.open && !over ? { y: -3 } : {}} whileTap={!c.open && !over ? { scale: 0.9 } : {}} onClick={() => dig(i)} onContextMenu={(e) => { e.preventDefault(); mark(i); }} disabled={c.open || over}
                 aria-label={c.open ? (c.mine ? W.trap : done ? W.settledTile : `${c.heat}: ${W.legend[4 - c.heat] ?? ""}`) : c.marked ? W.markedTile : W.hidden}
                 className={cn("grid aspect-square place-items-center rounded-md border-2 font-sans text-xl font-bold tabular-nums transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent sm:text-3xl",
-                  !c.open && "cursor-pointer border-background/20 bg-primary hover:bg-primary/85", !c.open && c.marked && "bg-flag-amber text-foreground hover:bg-flag-amber/85", !c.open && marking && !over && "ring-2 ring-inset ring-accent/60", !c.open && over && "cursor-default opacity-60",
+                  !c.open && "cursor-pointer border-background/20 bg-primary hover:bg-primary/85", !c.open && c.marked && "border-dashed border-background/70 bg-flag-red text-primary-foreground hover:bg-flag-red/85", !c.open && marking && !over && "ring-2 ring-inset ring-accent/60", !c.open && over && "cursor-default opacity-60",
                   c.open && !c.mine && "border-transparent bg-background", c.open && !c.mine && (done ? "text-flag-green" : heatTone[c.heat]), c.open && c.mine && "border-foreground bg-flag-red text-primary-foreground")}>
                 {c.open ? (c.mine ? <motion.span initial={{ scale: 0, rotate: -50 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: "spring", stiffness: 500, damping: 12 }}><Hand className="size-6 sm:size-8" strokeWidth={2.5} /></motion.span>
                   : done ? <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 500, damping: 16 }}><Check className="size-6 sm:size-8" strokeWidth={3} /></motion.span> : c.heat)
-                  : c.marked && <Flag className="size-5 sm:size-7" strokeWidth={2.5} />}
+                  : c.marked && <motion.span initial={{ scale: 0, rotate: 30 }} animate={{ scale: 1, rotate: -12 }} transition={{ type: "spring", stiffness: 500, damping: 14 }}><Hand className="size-5 sm:size-7" strokeWidth={2.5} /></motion.span>}
               </motion.button>;
             })}
           </div>
@@ -318,8 +318,8 @@ export function HiringMinefield() {
               <li className="flex items-center gap-1.5"><span className="grid size-5 place-items-center rounded-full bg-background text-flag-green"><Check className="size-3.5" strokeWidth={3} /></span>{W.legendTick}</li>
             </ul>
             <button type="button" onClick={() => setMarking((m) => !m)} disabled={over || status === "idle"} aria-pressed={marking}
-              className={cn("inline-flex min-h-9 items-center gap-1.5 rounded-full border-2 px-3 text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50", marking ? "border-flag-amber bg-flag-amber text-foreground" : "border-background/40 text-background hover:border-background")}>
-              <Flag className="size-3.5" />{marking ? W.markOn : W.markOff}{marked > 0 && <span className="tabular-nums opacity-80">{marked}/{MINES}</span>}
+              className={cn("inline-flex min-h-9 items-center gap-1.5 rounded-full border-2 px-3 text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50", marking ? "border-flag-red bg-flag-red text-primary-foreground" : "border-background/40 text-background hover:border-background")}>
+              <Hand className="size-3.5" />{marking ? W.markOn : W.markOff}{marked > 0 && <span className="tabular-nums opacity-80">{marked}/{MINES}</span>}
             </button>
           </div>
           <AnimatePresence>{hit && <motion.div key={slaps.length} initial={{ opacity: 0, scale: 0.6, rotate: -8 }} animate={{ opacity: 1, scale: 1, rotate: -3 }} exit={{ opacity: 0, scale: 1.08 }} transition={{ type: "spring", stiffness: 420, damping: 14 }} className="absolute inset-0 z-10 m-auto flex h-fit max-w-sm flex-col items-center rounded-xl border-2 border-foreground bg-flag-red p-6 text-center text-primary-foreground shadow-hard"><Hand className="size-10" strokeWidth={2.5} /><p className="mt-2 font-display text-4xl font-bold">SLAP!</p><p className="mt-1 text-sm font-bold uppercase opacity-90">{say(hit).title}</p><p className="mt-2 font-semibold">{say(hit).line}</p></motion.div>}</AnimatePresence>
