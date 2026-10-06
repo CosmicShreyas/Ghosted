@@ -4,7 +4,7 @@
 // (No keyword stuffing: search engines ignore the keywords tag and penalise repeated terms.)
 // The address the site is actually served from (crawlers fetch preview images from here, so it must
 // resolve). Set VITE_SITE_URL in Vercel when a custom domain is live; until then, the Vercel address.
-export const SITE_URL = ((import.meta.env["VITE_SITE_URL"] as string | undefined) || "https://ghosted-platform.vercel.app").replace(/\/$/, "");
+export const SITE_URL = ((import.meta.env["VITE_SITE_URL"] as string | undefined) || "https://ghostd.in").replace(/\/$/, "");
 export const SITE_NAME = "Ghosted";
 const IMAGE = `${SITE_URL}/icon-512.png`;
 // 1200×630 preview cards drawn by the API (backend/src/og.ts), served at /og/… through vercel.json.

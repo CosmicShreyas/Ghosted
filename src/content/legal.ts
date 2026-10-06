@@ -7,12 +7,14 @@
 export const entity = {
   brand: "Ghosted",
   site: "the Ghosted website and related services",
-  effective: "2 October 2026",
+  effective: "7 October 2026",
   github: "https://github.com/CosmicShreyas/Ghosted",
   email: {
-    support: "ghosted.help+support@gmail.com",
-    privacy: "ghosted.help+privacy@gmail.com",
-    grievance: "ghosted.help+grievance@gmail.com",
+    hello: "hello@ghostd.in",
+    support: "support@ghostd.in",
+    privacy: "privacy@ghostd.in",
+    grievance: "grievance@ghostd.in",
+    takedown: "takedown@ghostd.in",
   },
 };
 
@@ -82,9 +84,11 @@ export const aboutDoc: Doc = {
     { id: "contact", heading: "Contact", blocks: [
       "Ghosted is currently an independent, pre-launch project and does not claim to be a private limited company or to maintain a registered office.",
       "For general questions or reports, use Feedback & Support in the app or contact us by email.",
-      { type: "email", email: e.email.support, label: "Email Ghosted Support", description: "General questions, account help, and company enquiries" },
+      { type: "email", email: e.email.hello, label: "Say hello", description: "Press, partnerships, and anything else" },
+      { type: "email", email: e.email.support, label: "Email Ghosted Support", description: "Account help and questions about using Ghosted" },
       { type: "email", email: e.email.privacy, label: "Email the Privacy team", description: "Access, correction, deletion, and other personal-data requests" },
-      { type: "email", email: e.email.grievance, label: "Submit a grievance", description: "Content complaints, appeals, and legal notices" },
+      { type: "email", email: e.email.grievance, label: "Submit a grievance", description: "Content complaints and appeals" },
+      { type: "email", email: e.email.takedown, label: "Send a takedown or legal notice", description: "Company complaints, court orders, and other legal notices" },
     ] },
   ],
 };
@@ -399,7 +403,8 @@ export const takedownDoc: Doc = {
     ] },
     { id: "appeal", heading: "7. If you disagree", blocks: [
       "Reply to the decision email with your reasons. A different moderator reviews it. Authors can do the same through Feedback & Support. Eligible decisions can also be taken to the Grievance Appellate Committee under the Intermediary Rules, 2021. See the Terms & Conditions for the grievance process.",
-      { type: "email", email: e.email.grievance, label: "Contact the grievance team", description: "For legal notices, or to appeal a decision" },
+      { type: "email", email: e.email.grievance, label: "Contact the grievance team", description: "To appeal a decision" },
+      { type: "email", email: e.email.takedown, label: "Send a legal notice", description: "Court orders, government directions, and other formal notices" },
     ] },
     { id: "never", heading: "8. What we never do", blocks: [[
       "Tell the requester, a company or anyone else who wrote the content, except under a valid order of a competent court or authority.",

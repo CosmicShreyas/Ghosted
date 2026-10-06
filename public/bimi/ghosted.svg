@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" version="1.2" baseProfile="tiny-ps" viewBox="0 0 512 512">
+  <title>Ghosted</title>
+  <rect width="512" height="512" fill="#F4EEFF"/>
+  <g transform="translate(66 62) scale(0.75)">
+    <path d="M250 50C164 50 116 124 108 214L104 246C76 234 44 246 42 280C40 318 80 342 116 350C114 402 128 444 150 456C172 466 192 444 212 452C232 460 242 476 264 472C288 468 294 444 316 448C340 452 354 472 380 462C404 452 402 424 396 402L388 258C384 140 340 50 250 50Z" fill="#A574F7" stroke="#22152F" stroke-width="22" stroke-linejoin="round"/>
+    <path d="M154 140C170 104 204 84 236 82" fill="none" stroke="#D9C4FF" stroke-width="18" stroke-linecap="round"/>
+    <path d="M196 168L248 178M296 178L346 166" fill="none" stroke="#22152F" stroke-width="16" stroke-linecap="round"/>
+    <circle cx="226" cy="204" r="17" fill="#22152F"/>
+    <circle cx="322" cy="204" r="17" fill="#22152F"/>
+    <circle cx="231" cy="198" r="5" fill="#FFF6C8"/>
+    <circle cx="327" cy="198" r="5" fill="#FFF6C8"/>
+    <path d="M262 252L292 250" fill="none" stroke="#22152F" stroke-width="12" stroke-linecap="round"/>
+    <path d="M312 268L420 244L444 352L396 362L384 392L362 368L336 374Z" fill="#E6D8FF" stroke="#22152F" stroke-width="18" stroke-linejoin="round"/>
+    <path d="M344 236L340 216M378 228L374 208M410 222L406 202" fill="none" stroke="#22152F" stroke-width="14" stroke-linecap="round"/>
+    <path d="M346 296L402 284M352 322L408 310M358 348L392 340" fill="none" stroke="#8A5BE0" stroke-width="12" stroke-linecap="round"/>
+  </g>
+</svg>

@@ -7,15 +7,17 @@ It is part of the source-available Ghosted repository and is covered by the root
 
 1. **Create a Supabase project** (free tier). Then:
    - Open **SQL Editor** and run the complete `supabase/init_database.sql` once. See `supabase/README.md` for the schema reference and security notes.
-   - Sign-up emails (6-digit codes) are sent by this API through Gmail SMTP, not by Supabase. Users are created already confirmed once their code checks out.
-   - Enable 2-Step Verification on the dedicated Gmail account, create one Google App Password, and follow the email settings in `env.example`. The same credential sends OTPs, security notices, notifications, and digests. Run `npx tsx scripts/preview-email.ts` to see the email in a browser.
+   - Sign-up emails (6-digit codes) are sent by this API over SMTP (Brevo in production, from `no-reply@ghostd.in`), not by Supabase. Users are created already confirmed once their code checks out.
+   - Follow the email settings in `env.example`. The same SMTP login sends OTPs, security notices, notifications, and digests. Run `npx tsx scripts/preview-email.ts` to see the email in a browser.
+   - **Production mail setup (ghostd.in):** DNS is on Cloudflare. Inbound mail uses Cloudflare Email Routing (`hello`, `support`, `privacy`, `grievance` and `takedown` forward to the team inbox; `no-reply` drops). Outbound mail uses Brevo with the domain authenticated (DKIM `brevo1`/`brevo2`, branded links on `em.ghostd.in`). There is a single SPF record covering both: `v=spf1 include:_spf.mx.cloudflare.net include:spf.brevo.com ~all`.
+   - **Inbox logo (BIMI):** `public/bimi/ghosted.svg` (SVG Tiny PS) is published by the `default._bimi` TXT record. BIMI needs DMARC at `p=quarantine` or `p=reject`; Gmail and Apple Mail also need a VMC or CMC certificate before they show it.
    - **Keeping email out of spam.** Most spam-folder problems are fixed in DNS and sender setup, not code:
      - Send from the same account you sign in to SMTP with. `MAIL_FROM_EMAIL` on a different domain than `SMTP_USER` fails DMARC alignment (the API logs a warning when they differ).
      - Plain Gmail SMTP (a `@gmail.com` sender) has a low daily limit and poor reputation for automated mail. For a custom domain, use an SMTP provider that signs with your domain (Resend, Postmark, Amazon SES, Brevo; all work through the existing SMTP settings, no code change), or Google Workspace on the domain.
      - On the sending domain add **SPF** (the provider's include), **DKIM** (the provider's key) and a **DMARC** record, starting with `v=DMARC1; p=none; rua=mailto:<you>` and tightening to `quarantine` once reports look clean.
      - Check a message with Gmail's "Show original" (SPF, DKIM and DMARC should all say PASS) and watch reputation in Google Postmaster Tools.
      - The API already sends a plain-text part, `List-Unsubscribe` and `Auto-Submitted` headers, and never threads codes together.
-     - **Links to `*.vercel.app` hurt.** Phishing campaigns host fake login pages on free Vercel subdomains, so filters treat links to them with suspicion. Code emails therefore carry no links and no embedded image at all. Other emails still link to the site: put Ghosted on its own domain (set `VITE_SITE_URL` and the API's `FRONTEND_URL` to it) and send from that same domain, and this goes away.
+     - **Links to `*.vercel.app` hurt.** Phishing campaigns host fake login pages on free Vercel subdomains, so filters treat links to them with suspicion. Code emails therefore carry no links and no embedded image at all. Other emails link to the site on its own domain (`VITE_SITE_URL` and the API's `FRONTEND_URL` set to `https://ghostd.in`), sent from that same domain.
    - **Authentication → URL Configuration**: set *Site URL* to your frontend URL.
 2. **Configure secrets**: `cp env.example .env`, then fill in the values from *Project Settings → API*.
    Generate `IP_HASH_SECRET` with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`.
