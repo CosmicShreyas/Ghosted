@@ -158,7 +158,7 @@ app.get("/v1/sitemap.xml", rateLimit({ name: "sitemap", max: 30, windowSeconds: 
   const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
   const urls = [
     { loc: `${site}/`, freq: "daily", pri: "1.0" },
-    ...["about", "community", "privacy", "terms"].map((p) => ({ loc: `${site}/${p}`, freq: "monthly", pri: "0.3" })),
+    ...["about", "community", "moderation", "privacy", "terms"].map((p) => ({ loc: `${site}/${p}`, freq: "monthly", pri: "0.3" })),
     ...((data ?? []) as { slug: string; last_story_at: string | null }[]).map((r) => ({ loc: `${site}/c/${r.slug}`, freq: "weekly", pri: "0.8", mod: r.last_story_at?.slice(0, 10) })),
   ];
   const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map((u) => `  <url><loc>${esc(u.loc)}</loc>${"mod" in u && u.mod ? `<lastmod>${u.mod}</lastmod>` : ""}<changefreq>${u.freq}</changefreq><priority>${u.pri}</priority></url>`).join("\n")}\n</urlset>\n`;

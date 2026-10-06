@@ -32,6 +32,7 @@ const footerLinks = [
   { to: "/privacy", label: "Privacy Policy" },
   { to: "/terms", label: "Terms & Conditions" },
   { to: "/community", label: "Community Rules" },
+  { to: "/moderation", label: "How moderation works" },
   { to: "/feedback", label: "Feedback & Support" },
 ] as const;
 

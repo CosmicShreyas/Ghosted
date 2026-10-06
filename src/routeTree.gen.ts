@@ -18,6 +18,7 @@ import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as FeedbackRouteImport } from './routes/feedback'
 import { Route as ForHrRouteImport } from './routes/for-hr'
 import { Route as InviteRouteImport } from './routes/invite'
+import { Route as ModerationRouteImport } from './routes/moderation'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as CSlugRouteImport } from './routes/c.$slug'
@@ -70,6 +71,11 @@ const InviteRoute = InviteRouteImport.update({
   path: '/invite',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ModerationRoute = ModerationRouteImport.update({
+  id: '/moderation',
+  path: '/moderation',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PrivacyRoute = PrivacyRouteImport.update({
   id: '/privacy',
   path: '/privacy',
@@ -111,6 +117,7 @@ export interface FileRoutesByFullPath {
   '/feedback': typeof FeedbackRoute
   '/for-hr': typeof ForHrRoute
   '/invite': typeof InviteRoute
+  '/moderation': typeof ModerationRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
   '/c/$slug': typeof CSlugRoute
@@ -128,6 +135,7 @@ export interface FileRoutesByTo {
   '/feedback': typeof FeedbackRoute
   '/for-hr': typeof ForHrRoute
   '/invite': typeof InviteRoute
+  '/moderation': typeof ModerationRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
   '/c/$slug': typeof CSlugRoute
@@ -146,6 +154,7 @@ export interface FileRoutesById {
   '/feedback': typeof FeedbackRoute
   '/for-hr': typeof ForHrRoute
   '/invite': typeof InviteRoute
+  '/moderation': typeof ModerationRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
   '/c/$slug': typeof CSlugRoute
@@ -165,6 +174,7 @@ export interface FileRouteTypes {
     | '/feedback'
     | '/for-hr'
     | '/invite'
+    | '/moderation'
     | '/privacy'
     | '/terms'
     | '/c/$slug'
@@ -182,6 +192,7 @@ export interface FileRouteTypes {
     | '/feedback'
     | '/for-hr'
     | '/invite'
+    | '/moderation'
     | '/privacy'
     | '/terms'
     | '/c/$slug'
@@ -199,6 +210,7 @@ export interface FileRouteTypes {
     | '/feedback'
     | '/for-hr'
     | '/invite'
+    | '/moderation'
     | '/privacy'
     | '/terms'
     | '/c/$slug'
@@ -217,6 +229,7 @@ export interface RootRouteChildren {
   FeedbackRoute: typeof FeedbackRoute
   ForHrRoute: typeof ForHrRoute
   InviteRoute: typeof InviteRoute
+  ModerationRoute: typeof ModerationRoute
   PrivacyRoute: typeof PrivacyRoute
   TermsRoute: typeof TermsRoute
   CSlugRoute: typeof CSlugRoute
@@ -290,6 +303,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InviteRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/moderation': {
+      id: '/moderation'
+      path: '/moderation'
+      fullPath: '/moderation'
+      preLoaderRoute: typeof ModerationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/privacy': {
       id: '/privacy'
       path: '/privacy'
@@ -345,6 +365,7 @@ const rootRouteChildren: RootRouteChildren = {
   FeedbackRoute: FeedbackRoute,
   ForHrRoute: ForHrRoute,
   InviteRoute: InviteRoute,
+  ModerationRoute: ModerationRoute,
   PrivacyRoute: PrivacyRoute,
   TermsRoute: TermsRoute,
   CSlugRoute: CSlugRoute,

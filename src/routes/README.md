@@ -16,5 +16,6 @@ TanStack Start uses file-based routing. Every `.tsx` file in this directory defi
 | `for-hr.tsx` | `/for-hr` (public front door for companies: what HR gets and can never do, anonymity, "Verify as {company}"; `?company=slug` adds request counts and stage/outcome counts, `&story=<id>` the story an author pointed them to) |
 | `pulse.$slug.tsx` | `/pulse/$slug` (Company Pulse: private aggregates for that company's verified reps, printable one-page summary; `noindex`, disallowed in robots.txt) |
 | `about.tsx`, `privacy.tsx`, `terms.tsx`, `community.tsx` | Company and legal pages |
+| `moderation.tsx` | `/moderation`: how moderation works (automatic checks, held posts, reports, strikes, human review, appeals). Content: `moderationDoc` in `src/content/legal.ts`, kept in step with the backend rules |
 
 Do not expose database UUIDs in route parameters. Do not create `src/pages/`, Next.js layouts, or additional routes without an approved product need. `routeTree.gen.ts` is generated automatically and must not be edited by hand.

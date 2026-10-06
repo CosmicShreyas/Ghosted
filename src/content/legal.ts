@@ -236,6 +236,114 @@ export const termsDoc: Doc = {
   ],
 };
 
+// How moderation works, in public. Every number here is the rule the code runs (backend/src/
+// algorithms/moderation.ts, queue.ts, reports.ts, trust.ts and goofy/index.ts): change one, change both.
+export const moderationDoc: Doc = {
+  eyebrow: "How moderation works",
+  title: "Every check, out in the open.",
+  intro: "Everything posted on Ghosted goes through the same checks, whoever wrote it, companies included. This page explains exactly what those checks look for, what happens next, and how a human gets involved. The code that runs them is open source, so you can read it yourself.",
+  updated: e.effective,
+  sections: [
+    { id: "overview", heading: "1. Three possible outcomes", blocks: [
+      "Every story, chitchat, question, answer, company reply and change note is reviewed automatically the moment it's posted, before anyone else sees it. There are only three outcomes:",
+      [
+        "Published: it goes up straight away. This is what happens to the vast majority of posts.",
+        "Held for a check: it's saved but not shown yet, and you're told why. Most held posts are decided automatically within hours (see section 5).",
+        "Turned away: it isn't saved as a post, and you're told exactly what to change. You can edit and post again as many times as you need. A post turned away is never held against you.",
+      ],
+      "Every decision comes with a plain reason that says what was found. The same reason is shown to you and to our moderators.",
+    ] },
+    { id: "goofy", heading: "2. Goofy, our automatic moderator", blocks: [
+      "The automatic checks run as Goofy, Ghosted's AutoMod. Goofy has a public profile page showing everything it does: what it held, released, removed and reported, and why. It never shows who wrote anything.",
+      "Goofy only acts on the clearest cases on its own. Anything that needs judgement is held for a person, or reported to the moderation team with Goofy's reasons attached.",
+    ] },
+    { id: "checks", heading: "3. What the checks look for", blocks: [
+      "Each check is a signal with its own weight. The weights combine into a risk score between 0 and 1, so several small concerns add up, while one small concern alone doesn't.",
+      [
+        "Personal information: phone numbers, email addresses, home addresses, Aadhaar and PAN numbers, UPI IDs, card and bank details. Numbers are checked properly (Aadhaar with its Verhoeff check digit, cards with the Luhn check), so random digits aren't flagged. Hard identifiers like these are always turned away, so nobody can be identified.",
+        "Named individuals: a person's name, especially after a title or role (\"HR Mr. …\", \"the recruiter Priya …\"). The company's own name is never counted. A post whose only issue is a person's name is published with the name replaced by [name].",
+        "Slurs, attacks on a group of people, and threats: always turned away.",
+        "Graphic sexual language: held for a person to check.",
+        "Accusations stated as fact (\"they are frauds\", \"they stole\"): held, and you're asked to phrase it as your experience (\"in my experience\", \"it felt like\"). Opinions are fine; unproven claims stated as fact are a legal risk for you and for us.",
+        "Confidential material such as internal documents or credentials: held, or turned away if it contains passwords or keys.",
+        "Spam: two or more links (one in a chitchat), promotional or off-platform lures, mostly capital letters, repeated characters or words, and posts nearly identical to something you posted recently.",
+        "Self-harm language: never blocked. The post is held briefly, you're shown where to get help, and a human is told so someone can reach out.",
+      ],
+    ] },
+    { id: "swearing", heading: "4. Swearing and venting", blocks: [
+      "Venting about a bad hiring process is normal, and it's allowed. Everyday words like \"heck\", \"hell\", \"damn\", \"crap\", \"bloody\", \"shit\" and \"fuck\", and phrases like \"how on earth\" or \"what the hell\", don't count against a post at all.",
+      [
+        "Swearing aimed at a person (\"fuck you\", an insult right after \"the recruiter\") raises the risk score a little. It's an insult, not venting. On its own it doesn't block a post.",
+        "A post that is almost nothing but swearing (at least five swear words making up more than 40% of it), or heavy graphic language, is turned away. Tell people what happened in plain words and it'll land harder.",
+      ],
+      "The word lists come from open, maintained sources (the dsojevic profanity list, LDNOOBW in English and romanised Hindi, and the obscenity library), refreshed daily. Identity words, body and health words, and everyday English are never imported, however a list labels them, so people describing discrimination or their own lives are never flagged for it.",
+    ] },
+    { id: "held", heading: "5. What happens to a held post", blocks: [
+      "Held posts are re-checked with the latest word lists every 15 minutes after new posts and reports, and at least once a day. Each one is decided by fixed rules:",
+      [
+        "It now passes: published.",
+        "Its only issue is a person's name: the name is replaced with [name] and it's published. You're told.",
+        "Self-harm language and nothing else: published after 6 hours.",
+        "An accusation stated as fact: you're asked to rephrase. If it's unchanged after 72 hours, it's removed.",
+        "Insults aimed at a person, or graphic sexual language: removed after 24 hours.",
+        "Spam, links, duplicates or gibberish: removed after 24 hours, unless you have a strong track record.",
+        "Anything else that's low risk: published after 12 hours. Still unclear after 72 hours: removed.",
+      ],
+      "Whatever happens, Goofy tells you, in the tone you chose in Settings.",
+    ] },
+    { id: "learning", heading: "6. How the checks learn", blocks: [
+      "Every day, the checks learn from what actually happens on Ghosted:",
+      [
+        "Words that are common in posts that stayed up become an allow-list, so they're never flagged.",
+        "Wording that keeps showing up in posts moderators removed becomes a \"watch\" word. Watch words can only hold a post for a check. They can never block one on their own.",
+        "New spellings people use to dodge the filters (\"f.u.c.k\", letters swapped for numbers) are learned too.",
+        "Learned words that stop standing out for 30 days are retired.",
+      ],
+      "Posts turned away at the door aren't used for learning, so a few retries can't teach the checks that normal words are bad.",
+    ] },
+    { id: "reports", heading: "7. Reports", blocks: [
+      "Anyone can report a story, chitchat or profile. Reports go to a queue ranked by how serious the reason is, how much evidence there is, and how risky the content itself looks.",
+      [
+        "Each reporter's weight comes from their track record: reports that turned out right count for more over time, reports that didn't count for less. New members start with a little trust. Signed-out reports carry a fixed, low weight.",
+        "Several reports from the same person don't add up. Distinct, trusted reporters do, with diminishing returns.",
+        "One angry report never takes a post down. A post is hidden for review automatically only when at least three trusted people report a serious problem and the content itself looks risky, or when the content now fails the checks outright.",
+        "Hidden posts are re-checked: strong evidence means it's taken down; weak evidence means it's restored and the reports are dismissed. If it's in between, it waits up to 72 hours for more signal, then it's restored.",
+        "Weak reports nobody acted on are closed after 14 days, and every unresolved report is closed after 60 days.",
+      ],
+      "A company's own representatives can't report its stories to get them taken down. They can send a correction request like anyone else, and a person decides.",
+    ] },
+    { id: "strikes", heading: "8. Strikes and pauses", blocks: [
+      "A strike only happens when something that was published has to come down: Goofy removing a live post, or a report being upheld. A post turned away or held and never published is never a strike.",
+      [
+        "Second strike within 30 days: a friendly warning.",
+        "Third strike within 30 days: posting is paused for 3 days. You can still read, react and follow.",
+        "Strikes older than 30 days stop counting.",
+      ],
+      "Serious or repeated violations can still lead to a suspension or ban by our moderators, as set out in the Community Rules.",
+    ] },
+    { id: "humans", heading: "9. Where people come in", blocks: [
+      "Automatic checks handle the routine. Our moderators handle judgement calls:",
+      [
+        "Posts Goofy reports, and reports that reach the top of the queue, are reviewed by a person, usually within 24 hours.",
+        "Company replies, change notes and notes on progress steps can only be removed by a moderator. Companies can't edit, hide or remove anything.",
+        "Removal and correction requests, from anyone, are acknowledged within 24 hours and decided within 15 days. Honest experiences aren't removed just because they're negative.",
+        "Every moderator action is recorded in an internal audit log.",
+      ],
+    ] },
+    { id: "privacy", heading: "10. What moderation never does", blocks: [[
+      "It never tells anyone, including companies, who wrote a post.",
+      "It never shows your full post to anyone outside the moderation team: reviews keep only short, masked excerpts (personal numbers appear as 98•••••210).",
+      "It never uses a paid tier, a company relationship or a sponsor to change an outcome. Nothing here is for sale.",
+      "It never quietly edits your words. The only automatic change is replacing a private person's name with [name], and you're told when it happens.",
+    ]] },
+    { id: "appeal", heading: "11. If we got it wrong", blocks: [
+      "Automatic checks make mistakes. If a post was held, turned away or removed and you think that was wrong, reply to Goofy's notice or contact us through Feedback & Support. A person will look at it. See the Terms & Conditions for the full grievance process.",
+      { type: "email", email: e.email.grievance, label: "Ask for a decision to be reviewed", description: "Include the link to the post and why you think the decision was wrong" },
+      `The checks are open source at ${e.github}, so you can see exactly how they work and suggest improvements.`,
+    ] },
+  ],
+};
+
 export const communityDoc: Doc = {
   eyebrow: "Community Rules",
   title: "Be honest. Be specific. Be decent.",
