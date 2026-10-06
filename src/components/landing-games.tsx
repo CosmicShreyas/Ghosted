@@ -97,6 +97,7 @@ const LIVES = 3;
 const SAFE = COLS * ROWS - MINES;
 
 // `heat` says how close the nearest slap is: 4 right next door, 3 two steps away, 2 three, 1 further.
+// `marked` is only set on a win, to show the slaps you dodged.
 type Cell = { mine: boolean; heat: number; open: boolean; marked: boolean };
 type Slap = (typeof recruiterSlaps)[number];
 type Status = "idle" | "playing" | "won" | "lost";
@@ -213,8 +214,6 @@ export function HiringMinefield() {
   const [lives, setLives] = useState(LIVES);
   const [slaps, setSlaps] = useState<Slap[]>([]);
   const [hit, setHit] = useState<Slap | null>(null);
-  // Mark mode: taps flag a suspected slap instead of digging (right-click does the same on desktop).
-  const [marking, setMarking] = useState(false);
   const [prize, setPrize] = useState(false);
   const [round, setRound] = useState(0);
 
@@ -234,21 +233,13 @@ export function HiringMinefield() {
   const cleared = board.filter((c) => c.open && !c.mine).length;
   const over = status === "won" || status === "lost";
 
-  const marked = board.filter((c) => c.marked && !c.open).length;
-
-  const reset = () => { setBoard(blank()); setStatus("idle"); setLives(LIVES); setSlaps([]); setHit(null); setMarking(false); setPrize(false); setRound((r) => r + 1); };
-
-  const mark = (i: number) => {
-    if (over || status === "idle") return;
-    setBoard(board.map((c, j) => (j === i && !c.open ? { ...c, marked: !c.marked } : c)));
-  };
+  const reset = () => { setBoard(blank()); setStatus("idle"); setLives(LIVES); setSlaps([]); setHit(null); setPrize(false); setRound((r) => r + 1); };
 
   const dig = (i: number) => {
     if (over || hit) return;
-    if (marking) { mark(i); return; }
     const next = (status === "idle" ? plant(i) : board).map((c) => ({ ...c }));
     const cell = next[i];
-    if (!cell || cell.open || cell.marked) return;
+    if (!cell || cell.open) return;
 
     if (cell.mine) {
       cell.open = true;
@@ -300,10 +291,10 @@ export function HiringMinefield() {
           <div className="grid gap-1.5 sm:gap-2" style={{ gridTemplateColumns: `repeat(${COLS}, minmax(0, 1fr))` }}>
             {board.map((c, i) => {
               const done = c.open && !c.mine && settled(board, i);
-              return <motion.button key={i} type="button" whileHover={!c.open && !over ? { y: -3 } : {}} whileTap={!c.open && !over ? { scale: 0.9 } : {}} onClick={() => dig(i)} onContextMenu={(e) => { e.preventDefault(); mark(i); }} disabled={c.open || over}
+              return <motion.button key={i} type="button" whileHover={!c.open && !over ? { y: -3 } : {}} whileTap={!c.open && !over ? { scale: 0.9 } : {}} onClick={() => dig(i)} disabled={c.open || over}
                 aria-label={c.open ? (c.mine ? W.trap : done ? W.settledTile : `${c.heat}: ${W.legend[4 - c.heat] ?? ""}`) : c.marked ? W.markedTile : W.hidden}
                 className={cn("grid aspect-square place-items-center rounded-md border-2 font-sans text-xl font-bold tabular-nums transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent sm:text-3xl",
-                  !c.open && "cursor-pointer border-background/20 bg-primary hover:bg-primary/85", !c.open && c.marked && "border-dashed border-background/70 bg-flag-red text-primary-foreground hover:bg-flag-red/85", !c.open && marking && !over && "ring-2 ring-inset ring-accent/60", !c.open && over && "cursor-default opacity-60",
+                  !c.open && "cursor-pointer border-background/20 bg-primary hover:bg-primary/85", !c.open && c.marked && "border-dashed border-background/70 bg-flag-red text-primary-foreground hover:bg-flag-red/85", !c.open && over && "cursor-default opacity-60",
                   c.open && !c.mine && "border-transparent bg-background", c.open && !c.mine && (done ? "text-flag-green" : heatTone[c.heat]), c.open && c.mine && "border-foreground bg-flag-red text-primary-foreground")}>
                 {c.open ? (c.mine ? <motion.span initial={{ scale: 0, rotate: -50 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: "spring", stiffness: 500, damping: 12 }}><Hand className="size-6 sm:size-8" strokeWidth={2.5} /></motion.span>
                   : done ? <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 500, damping: 16 }}><Check className="size-6 sm:size-8" strokeWidth={3} /></motion.span> : c.heat)
@@ -311,16 +302,12 @@ export function HiringMinefield() {
               </motion.button>;
             })}
           </div>
-          {/* How to read the board, plus the mark switch for touch screens (no right-click there). */}
-          <div className="mt-2 flex flex-col items-start gap-x-3 gap-y-2 px-1 pb-1 text-background sm:mt-3 sm:flex-row sm:items-center">
-            <ul className="grid min-w-0 flex-1 grid-cols-2 gap-x-3 gap-y-1.5 text-[11px] font-semibold sm:flex sm:flex-wrap sm:text-xs" aria-label={W.legendLabel}>
+          {/* How to read the board. */}
+          <div className="mt-2 px-1 pb-1 text-background sm:mt-3">
+            <ul className="grid min-w-0 grid-cols-2 gap-x-3 gap-y-1.5 text-[11px] font-semibold sm:flex sm:flex-wrap sm:text-xs" aria-label={W.legendLabel}>
               {[4, 3, 2, 1].map((h) => <li key={h} className="flex items-center gap-1.5"><span className={cn("grid size-5 place-items-center rounded-full text-[11px] font-bold text-foreground", heatDot[h])}>{h}</span>{W.legend[4 - h]}</li>)}
               <li className="flex items-center gap-1.5"><span className="grid size-5 place-items-center rounded-full bg-background text-flag-green"><Check className="size-3.5" strokeWidth={3} /></span>{W.legendTick}</li>
             </ul>
-            <button type="button" onClick={() => setMarking((m) => !m)} disabled={over || status === "idle"} aria-pressed={marking}
-              className={cn("inline-flex min-h-9 items-center gap-1.5 rounded-full border-2 px-3 text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50", marking ? "border-flag-red bg-flag-red text-primary-foreground" : "border-background/40 text-background hover:border-background")}>
-              <Hand className="size-3.5" />{marking ? W.markOn : W.markOff}{marked > 0 && <span className="tabular-nums opacity-80">{marked}/{MINES}</span>}
-            </button>
           </div>
           <AnimatePresence>{hit && <motion.div key={slaps.length} initial={{ opacity: 0, scale: 0.6, rotate: -8 }} animate={{ opacity: 1, scale: 1, rotate: -3 }} exit={{ opacity: 0, scale: 1.08 }} transition={{ type: "spring", stiffness: 420, damping: 14 }} className="absolute inset-0 z-10 m-auto flex h-fit max-w-sm flex-col items-center rounded-xl border-2 border-foreground bg-flag-red p-6 text-center text-primary-foreground shadow-hard"><Hand className="size-10" strokeWidth={2.5} /><p className="mt-2 font-display text-4xl font-bold">SLAP!</p><p className="mt-1 text-sm font-bold uppercase opacity-90">{say(hit).title}</p><p className="mt-2 font-semibold">{say(hit).line}</p></motion.div>}</AnimatePresence>
         </motion.div>

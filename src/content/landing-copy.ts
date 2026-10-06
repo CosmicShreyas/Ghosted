@@ -89,7 +89,7 @@ const enRaw = {
     won: "Offer in hand! Pending “final approvals”, obviously.", lost: "Three red flags. They've “moved forward with other candidates”.",
     idle: "Tap any tile to send your application. The first step is always safe.", playing: "Numbers say how close the nearest slap is: 4 means it's right next to you, 1 means it's far away. Clear everything around a tile to earn its green tick.",
     legendLabel: "How to read the tiles", legend: ["Right next to you", "Two steps away", "Three steps away", "Far away"], legendTick: "All clear around it",
-    markOff: "Mark a slap", markOn: "Marking", trap: "Recruiter slap", settledTile: "Cleared, all clear around it", markedTile: "Marked as a slap", hidden: "Hidden tile",
+    trap: "Recruiter slap", settledTile: "Cleared, all clear around it", markedTile: "A slap you dodged", hidden: "Hidden tile",
     prize: {
       title: "Congratulations!",
       body: "You won the game nobody even dares to win. On that account, we'd like to hand you the winning prize: a trip to the sign-up page.",
@@ -242,7 +242,7 @@ const hi: Partial_ = {
     won: "ऑफ़र हाथ में! “फ़ाइनल अप्रूवल” बाक़ी हैं, ज़ाहिर है।", lost: "तीन रेड फ़्लैग। उन्होंने “दूसरे उम्मीदवारों के साथ आगे बढ़ने” का फ़ैसला किया है।",
     idle: "अपनी एप्लिकेशन भेजने के लिए कोई भी टाइल दबाइए। पहला क़दम हमेशा सुरक्षित है।", playing: "नंबर बताता है कि सबसे पास वाला थप्पड़ कितनी दूर है: 4 मतलब ठीक बगल में, 1 मतलब बहुत दूर। किसी टाइल के चारों ओर सब साफ़ कीजिए, तब उसे हरा टिक मिलेगा।",
     legendLabel: "टाइलें कैसे पढ़ें", legend: ["ठीक बगल में", "दो क़दम दूर", "तीन क़दम दूर", "बहुत दूर"], legendTick: "चारों ओर सब साफ़",
-    markOff: "थप्पड़ मार्क करें", markOn: "मार्क कर रहे हैं", trap: "रिक्रूटर का थप्पड़", settledTile: "साफ़, चारों ओर सब साफ़", markedTile: "थप्पड़ के रूप में मार्क", hidden: "छुपी हुई टाइल",
+    trap: "रिक्रूटर का थप्पड़", settledTile: "साफ़, चारों ओर सब साफ़", markedTile: "एक थप्पड़ जिससे आप बच गए", hidden: "छुपी हुई टाइल",
     prize: {
       title: "बधाई हो!",
       body: "आपने वो गेम जीत लिया जिसे जीतने की कोई हिम्मत नहीं करता। इसी ख़ुशी में हम आपको जीत का इनाम देना चाहते हैं: साइन-अप पेज की सैर।",
@@ -385,7 +385,7 @@ const kn: Partial_ = {
     won: "ಆಫರ್ ಕೈಯಲ್ಲಿ! “ಅಂತಿಮ ಅನುಮೋದನೆ” ಬಾಕಿ, ಸಹಜವಾಗಿ.", lost: "ಮೂರು ಕೆಂಪು ಧ್ವಜ. ಅವರು “ಇತರ ಅಭ್ಯರ್ಥಿಗಳೊಂದಿಗೆ ಮುಂದುವರಿದಿದ್ದಾರೆ”.",
     idle: "ಅರ್ಜಿ ಕಳುಹಿಸಲು ಯಾವುದಾದರೂ ಟೈಲ್ ಒತ್ತಿ. ಮೊದಲ ಹೆಜ್ಜೆ ಯಾವಾಗಲೂ ಸುರಕ್ಷಿತ.", playing: "ಹತ್ತಿರದ ಏಟು ಎಷ್ಟು ದೂರ ಇದೆ ಎಂದು ಸಂಖ್ಯೆ ಹೇಳುತ್ತದೆ: 4 ಎಂದರೆ ಪಕ್ಕದಲ್ಲೇ, 1 ಎಂದರೆ ತುಂಬಾ ದೂರ. ಒಂದು ಟೈಲ್ ಸುತ್ತಲಿನ ಎಲ್ಲವನ್ನೂ ಸ್ವಚ್ಛಗೊಳಿಸಿ, ಆಗ ಅದಕ್ಕೆ ಹಸಿರು ಟಿಕ್ ಸಿಗುತ್ತದೆ.",
     legendLabel: "ಟೈಲ್‌ಗಳನ್ನು ಹೇಗೆ ಓದುವುದು", legend: ["ಪಕ್ಕದಲ್ಲೇ", "ಎರಡು ಹೆಜ್ಜೆ ದೂರ", "ಮೂರು ಹೆಜ್ಜೆ ದೂರ", "ತುಂಬಾ ದೂರ"], legendTick: "ಸುತ್ತಲೂ ಎಲ್ಲಾ ಸ್ವಚ್ಛ",
-    markOff: "ಏಟು ಗುರುತಿಸಿ", markOn: "ಗುರುತಿಸಲಾಗುತ್ತಿದೆ", trap: "ರಿಕ್ರೂಟರ್ ಏಟು", settledTile: "ಸ್ವಚ್ಛ, ಸುತ್ತಲೂ ಎಲ್ಲಾ ಸ್ವಚ್ಛ", markedTile: "ಏಟು ಎಂದು ಗುರುತಿಸಲಾಗಿದೆ", hidden: "ಅಡಗಿದ ಟೈಲ್",
+    trap: "ರಿಕ್ರೂಟರ್ ಏಟು", settledTile: "ಸ್ವಚ್ಛ, ಸುತ್ತಲೂ ಎಲ್ಲಾ ಸ್ವಚ್ಛ", markedTile: "ನೀವು ತಪ್ಪಿಸಿಕೊಂಡ ಏಟು", hidden: "ಅಡಗಿದ ಟೈಲ್",
     prize: {
       title: "ಅಭಿನಂದನೆಗಳು!",
       body: "ಯಾರೂ ಗೆಲ್ಲಲು ಧೈರ್ಯ ಮಾಡದ ಆಟವನ್ನು ನೀವು ಗೆದ್ದಿದ್ದೀರಿ. ಅದಕ್ಕಾಗಿ ನಿಮಗೆ ಗೆಲುವಿನ ಬಹುಮಾನ ಕೊಡುತ್ತಿದ್ದೇವೆ: ಸೈನ್-ಅಪ್ ಪುಟಕ್ಕೆ ಒಂದು ಪ್ರವಾಸ.",
@@ -528,7 +528,7 @@ const hinglish: Partial_ = {
     won: "Offer haath mein! “Final approvals” pending hain, obviously.", lost: "Teen red flags. Woh “other candidates ke saath aage badh gaye”.",
     idle: "Application bhejne ke liye koi bhi tile tap karo. Pehla step hamesha safe hai.", playing: "Number batata hai sabse paas wala thappad kitna door hai: 4 matlab bilkul bagal mein, 1 matlab bahut door. Kisi tile ke aas-paas sab clear karo, tab usse green tick milega.",
     legendLabel: "Tiles kaise padhein", legend: ["Bilkul bagal mein", "Do steps door", "Teen steps door", "Bahut door"], legendTick: "Aas-paas sab clear",
-    markOff: "Thappad mark karo", markOn: "Mark kar rahe ho", trap: "Recruiter ka thappad", settledTile: "Clear, aas-paas sab clear", markedTile: "Thappad mark kiya", hidden: "Chhupi tile",
+    trap: "Recruiter ka thappad", settledTile: "Clear, aas-paas sab clear", markedTile: "Thappad jisse tum bach gaye", hidden: "Chhupi tile",
     prize: {
       title: "Congratulations!",
       body: "Tumne woh game jeet liya jise jeetne ki koi himmat nahi karta. Isi khushi mein hum tumhe winning prize de rahe hain: sign-up page ki ek trip.",
