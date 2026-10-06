@@ -1,9 +1,12 @@
-import { useEffect, useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
-import { Check, Copy, Hand, Heart, HeartCrack, Mail, PenLine, RotateCcw, Search, Trophy } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { Check, Copy, Flag, Gift, Hand, Heart, HeartCrack, Mail, PenLine, RotateCcw, Search, Trophy } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { openStoryComposer } from "@/lib/guest";
+import { useMe } from "@/lib/session";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { track } from "@/lib/api";
 import { useLanding } from "@/content/landing-copy";
 import { cn } from "@/lib/utils";
@@ -89,15 +92,16 @@ export function GhostOMeter() {
 
 const COLS = 8;
 const ROWS = 5;
-const MINES = 7;
+const MINES = 4;
 const LIVES = 3;
 const SAFE = COLS * ROWS - MINES;
 
-type Cell = { mine: boolean; adj: number; open: boolean };
+// `heat` says how close the nearest slap is: 4 right next door, 3 two steps away, 2 three, 1 further.
+type Cell = { mine: boolean; heat: number; open: boolean; marked: boolean };
 type Slap = (typeof recruiterSlaps)[number];
 type Status = "idle" | "playing" | "won" | "lost";
 
-const blank = (): Cell[] => Array.from({ length: COLS * ROWS }, () => ({ mine: false, adj: 0, open: false }));
+const blank = (): Cell[] => Array.from({ length: COLS * ROWS }, () => ({ mine: false, heat: 0, open: false, marked: false }));
 
 const around = (i: number) => {
   const r = Math.floor(i / COLS);
@@ -111,23 +115,97 @@ const around = (i: number) => {
   return out;
 };
 
+// Walking steps between two tiles (no diagonal shortcuts), so a diagonal neighbour is two steps away.
+// On an 8x5 board with four slaps this spreads the numbers out evenly enough to plan a route.
+const steps = (a: number, b: number) => Math.abs(Math.floor(a / COLS) - Math.floor(b / COLS)) + Math.abs((a % COLS) - (b % COLS));
+const heatOf = (distance: number) => Math.max(1, 5 - distance);
+
 // Mines are placed after the first click, never on or next to it, so the first dig is always safe.
+// They never touch each other and are split across both halves of the board, so the heat numbers
+// can always be read like a map instead of the slaps bunching up in one corner.
 function plant(first: number): Cell[] {
-  const board = blank();
   const keepClear = new Set([first, ...around(first)]);
-  let placed = 0;
-  while (placed < MINES) {
-    const i = Math.floor(Math.random() * board.length);
-    const cell = board[i];
-    if (cell && !cell.mine && !keepClear.has(i)) { cell.mine = true; placed++; }
+  for (let attempt = 0; ; attempt++) {
+    const mines: number[] = [];
+    let tries = 0;
+    while (mines.length < MINES && tries++ < 500) {
+      const i = Math.floor(Math.random() * COLS * ROWS);
+      if (keepClear.has(i) || mines.some((m) => steps(m, i) < 3)) continue;
+      mines.push(i);
+    }
+    const left = mines.filter((m) => m % COLS < COLS / 2).length;
+    if (mines.length < MINES || ((left < 2 || left > MINES - 2) && attempt < 50)) continue;
+    const board = blank();
+    for (const m of mines) { const cell = board[m]; if (cell) cell.mine = true; }
+    board.forEach((cell, i) => { cell.heat = heatOf(Math.min(...mines.map((m) => steps(m, i)))); });
+    return board;
   }
-  board.forEach((cell, i) => { cell.adj = around(i).filter((n) => board[n]?.mine).length; });
-  return board;
 }
 
+// A cleared tile earns its tick only once all eight tiles around it are cleared (so none is a slap).
+const settled = (board: Cell[], i: number) => around(i).every((n) => board[n]?.open && !board[n]?.mine);
 
-// Danger escalates: 1 calm, 2 careful, 3+ run.
-const adjTone = ["", "text-primary", "text-flag-amber", "text-flag-red", "text-flag-red"];
+// Hotter means closer: 4 is red, 1 is calm.
+const heatTone = ["", "text-flag-green", "text-primary", "text-flag-amber", "text-flag-red"];
+const heatDot = ["", "bg-flag-green", "bg-primary", "bg-flag-amber", "bg-flag-red"];
+
+const CONFETTI = ["var(--primary)", "var(--accent)", "var(--flag-green)", "var(--flag-red)", "var(--flag-amber)", "#ffffff"];
+
+// Full-screen confetti for a win. Pure motion, no library; nothing renders with reduced motion.
+function Confetti() {
+  const reduce = useReducedMotion();
+  const [pieces] = useState(() => Array.from({ length: 110 }, (_, i) => ({
+    left: Math.random() * 100, delay: (i % 2) * 0.9 + Math.random() * 0.7, duration: 2.6 + Math.random() * 1.8,
+    drift: (Math.random() - 0.5) * 220, spin: (Math.random() - 0.5) * 900, w: 6 + Math.random() * 8, round: Math.random() < 0.3,
+    color: CONFETTI[i % CONFETTI.length],
+  })));
+  if (reduce || typeof document === "undefined") return null;
+  return createPortal(<div aria-hidden="true" className="pointer-events-none fixed inset-0 z-[60] overflow-hidden">
+    {pieces.map((p, i) => <motion.span key={i} initial={{ y: "-10vh", x: 0, rotate: 0, opacity: 1 }} animate={{ y: "110vh", x: p.drift, rotate: p.spin, opacity: [1, 1, 0.8] }} transition={{ duration: p.duration, delay: p.delay, ease: "easeIn" }}
+      className={cn("absolute top-0 block border border-black/20", p.round ? "rounded-full" : "rounded-[2px]")} style={{ left: `${p.left}%`, width: p.w, height: p.round ? p.w : p.w * 1.6, background: p.color }} />)}
+  </div>, document.body);
+}
+
+// The prize: a countdown, then the way in. Signed-in players are sent back to their dashboard instead.
+function WinPrize({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const P = useLanding().mine.prize;
+  const { signedIn } = useMe();
+  const [count, setCount] = useState(3);
+  const claimRef = useRef<HTMLAnchorElement>(null);
+  // Each game remounts this (see `round` below), so the countdown starts fresh at 3.
+  useEffect(() => {
+    if (!open) return;
+    // Countdown over: the prize button takes focus, ready for Enter.
+    if (count <= 0) { claimRef.current?.focus(); return; }
+    const t = window.setTimeout(() => setCount((n) => n - 1), 1000);
+    return () => window.clearTimeout(t);
+  }, [open, count]);
+  return <>
+    {open && <Confetti />}
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      {/* Focus starts on the dialog itself rather than "Keep playing", so a stray Enter doesn't dismiss the prize. */}
+      <DialogContent onOpenAutoFocus={(e) => { e.preventDefault(); (e.currentTarget as HTMLElement | null)?.focus(); }} className="max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-md overflow-y-auto rounded-xl border-2 border-foreground bg-card p-6 text-center shadow-hard focus:outline-none sm:p-8">
+        <motion.div initial={{ scale: 0.4, rotate: -12 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: "spring", stiffness: 380, damping: 14 }} className="mx-auto grid size-20 place-items-center rounded-full border-2 border-foreground bg-accent shadow-hard-sm"><Trophy className="size-10" strokeWidth={2.2} /></motion.div>
+        <DialogTitle className="mt-4 font-display text-3xl font-bold leading-tight sm:text-4xl">{P.title}</DialogTitle>
+        <DialogDescription className="mt-2 text-base text-foreground">{P.body}</DialogDescription>
+        <div className="mt-5 rounded-lg border-2 border-foreground bg-background p-4" aria-live="polite">
+          {count > 0
+            ? <><p className="text-sm font-semibold text-muted-foreground">{P.boarding}</p>
+              <AnimatePresence mode="wait"><motion.p key={count} initial={{ scale: 1.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.5, opacity: 0 }} transition={{ duration: 0.3 }} className="font-display text-6xl font-bold tabular-nums text-primary">{count}...</motion.p></AnimatePresence></>
+            : <motion.p initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="font-display text-xl font-bold">{P.ready}</motion.p>}
+        </div>
+        <div className="mt-5 flex flex-col gap-2">
+          {count > 0
+            ? <Button size="lg" className="w-full" disabled><Gift />{P.claim}</Button>
+            : <Button size="lg" className="w-full" asChild>{signedIn
+              ? <Link ref={claimRef} to="/dashboard" onClick={onClose}><Gift />{P.claimIn}</Link>
+              : <Link ref={claimRef} to="/auth" onClick={onClose}><Gift />{P.claim}</Link>}</Button>}
+          <Button variant="ghost" className="w-full" onClick={onClose}>{P.later}</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  </>;
+}
 
 export function HiringMinefield() {
   const [board, setBoard] = useState<Cell[]>(blank);
@@ -135,6 +213,17 @@ export function HiringMinefield() {
   const [lives, setLives] = useState(LIVES);
   const [slaps, setSlaps] = useState<Slap[]>([]);
   const [hit, setHit] = useState<Slap | null>(null);
+  // Mark mode: taps flag a suspected slap instead of digging (right-click does the same on desktop).
+  const [marking, setMarking] = useState(false);
+  const [prize, setPrize] = useState(false);
+  const [round, setRound] = useState(0);
+
+  // The prize appears a beat after the last tile, so the finished board registers first.
+  useEffect(() => {
+    if (status !== "won") return;
+    const t = window.setTimeout(() => setPrize(true), 700);
+    return () => window.clearTimeout(t);
+  }, [status]);
 
   useEffect(() => {
     if (!hit) return;
@@ -145,13 +234,21 @@ export function HiringMinefield() {
   const cleared = board.filter((c) => c.open && !c.mine).length;
   const over = status === "won" || status === "lost";
 
-  const reset = () => { setBoard(blank()); setStatus("idle"); setLives(LIVES); setSlaps([]); setHit(null); };
+  const marked = board.filter((c) => c.marked && !c.open).length;
+
+  const reset = () => { setBoard(blank()); setStatus("idle"); setLives(LIVES); setSlaps([]); setHit(null); setMarking(false); setPrize(false); setRound((r) => r + 1); };
+
+  const mark = (i: number) => {
+    if (over || status === "idle") return;
+    setBoard(board.map((c, j) => (j === i && !c.open ? { ...c, marked: !c.marked } : c)));
+  };
 
   const dig = (i: number) => {
     if (over || hit) return;
+    if (marking) { mark(i); return; }
     const next = (status === "idle" ? plant(i) : board).map((c) => ({ ...c }));
     const cell = next[i];
-    if (!cell || cell.open) return;
+    if (!cell || cell.open || cell.marked) return;
 
     if (cell.mine) {
       cell.open = true;
@@ -171,10 +268,12 @@ export function HiringMinefield() {
       return;
     }
 
-    // One click, one tile: no classic flood-fill cascade.
+    // One click, one tile: no flood-fill cascade, so every tile is a decision.
     cell.open = true;
     setBoard(next);
-    setStatus(next.filter((c) => c.open && !c.mine).length === SAFE ? "won" : "playing");
+    const won = next.filter((c) => c.open && !c.mine).length === SAFE;
+    if (won) next.forEach((c) => { if (c.mine) c.marked = true; });
+    setStatus(won ? "won" : "playing");
   };
 
   const W = useLanding().mine;
@@ -199,9 +298,29 @@ export function HiringMinefield() {
       <div className="mt-6 grid gap-5 lg:grid-cols-[1.5fr_1fr]">
         <motion.div animate={hit ? { x: [0, -12, 10, -6, 4, 0] } : { x: 0 }} transition={{ duration: 0.45 }} className="relative rounded-xl border-2 border-foreground bg-foreground p-2 shadow-hard sm:p-3">
           <div className="grid gap-1.5 sm:gap-2" style={{ gridTemplateColumns: `repeat(${COLS}, minmax(0, 1fr))` }}>
-            {board.map((c, i) => <motion.button key={i} type="button" whileHover={!c.open && !over ? { y: -3 } : {}} whileTap={!c.open && !over ? { scale: 0.9 } : {}} onClick={() => dig(i)} disabled={c.open || over} aria-label={c.open ? (c.mine ? "Recruiter trap" : `${c.adj} traps nearby`) : "Hidden tile"} className={cn("grid aspect-square place-items-center rounded-md border-2 font-sans text-xl font-bold tabular-nums transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent sm:text-3xl", !c.open && "cursor-pointer border-background/20 bg-primary hover:bg-primary/85", !c.open && over && "cursor-default opacity-60", c.open && !c.mine && "border-transparent", c.open && !c.mine && (c.adj ? "bg-background" : "bg-background text-flag-green"), c.open && c.mine && "border-foreground bg-flag-red text-primary-foreground", c.open && !c.mine && adjTone[Math.min(c.adj, 4)])}>
-              {c.open && (c.mine ? <motion.span initial={{ scale: 0, rotate: -50 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: "spring", stiffness: 500, damping: 12 }}><Hand className="size-6 sm:size-8" strokeWidth={2.5} /></motion.span> : c.adj || <Check className="size-6 sm:size-8" strokeWidth={3} />)}
-            </motion.button>)}
+            {board.map((c, i) => {
+              const done = c.open && !c.mine && settled(board, i);
+              return <motion.button key={i} type="button" whileHover={!c.open && !over ? { y: -3 } : {}} whileTap={!c.open && !over ? { scale: 0.9 } : {}} onClick={() => dig(i)} onContextMenu={(e) => { e.preventDefault(); mark(i); }} disabled={c.open || over}
+                aria-label={c.open ? (c.mine ? W.trap : done ? W.settledTile : `${c.heat}: ${W.legend[4 - c.heat] ?? ""}`) : c.marked ? W.markedTile : W.hidden}
+                className={cn("grid aspect-square place-items-center rounded-md border-2 font-sans text-xl font-bold tabular-nums transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent sm:text-3xl",
+                  !c.open && "cursor-pointer border-background/20 bg-primary hover:bg-primary/85", !c.open && c.marked && "bg-flag-amber text-foreground hover:bg-flag-amber/85", !c.open && marking && !over && "ring-2 ring-inset ring-accent/60", !c.open && over && "cursor-default opacity-60",
+                  c.open && !c.mine && "border-transparent bg-background", c.open && !c.mine && (done ? "text-flag-green" : heatTone[c.heat]), c.open && c.mine && "border-foreground bg-flag-red text-primary-foreground")}>
+                {c.open ? (c.mine ? <motion.span initial={{ scale: 0, rotate: -50 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: "spring", stiffness: 500, damping: 12 }}><Hand className="size-6 sm:size-8" strokeWidth={2.5} /></motion.span>
+                  : done ? <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 500, damping: 16 }}><Check className="size-6 sm:size-8" strokeWidth={3} /></motion.span> : c.heat)
+                  : c.marked && <Flag className="size-5 sm:size-7" strokeWidth={2.5} />}
+              </motion.button>;
+            })}
+          </div>
+          {/* How to read the board, plus the mark switch for touch screens (no right-click there). */}
+          <div className="mt-2 flex flex-col items-start gap-x-3 gap-y-2 px-1 pb-1 text-background sm:mt-3 sm:flex-row sm:items-center">
+            <ul className="grid min-w-0 flex-1 grid-cols-2 gap-x-3 gap-y-1.5 text-[11px] font-semibold sm:flex sm:flex-wrap sm:text-xs" aria-label={W.legendLabel}>
+              {[4, 3, 2, 1].map((h) => <li key={h} className="flex items-center gap-1.5"><span className={cn("grid size-5 place-items-center rounded-full text-[11px] font-bold text-foreground", heatDot[h])}>{h}</span>{W.legend[4 - h]}</li>)}
+              <li className="flex items-center gap-1.5"><span className="grid size-5 place-items-center rounded-full bg-background text-flag-green"><Check className="size-3.5" strokeWidth={3} /></span>{W.legendTick}</li>
+            </ul>
+            <button type="button" onClick={() => setMarking((m) => !m)} disabled={over || status === "idle"} aria-pressed={marking}
+              className={cn("inline-flex min-h-9 items-center gap-1.5 rounded-full border-2 px-3 text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50", marking ? "border-flag-amber bg-flag-amber text-foreground" : "border-background/40 text-background hover:border-background")}>
+              <Flag className="size-3.5" />{marking ? W.markOn : W.markOff}{marked > 0 && <span className="tabular-nums opacity-80">{marked}/{MINES}</span>}
+            </button>
           </div>
           <AnimatePresence>{hit && <motion.div key={slaps.length} initial={{ opacity: 0, scale: 0.6, rotate: -8 }} animate={{ opacity: 1, scale: 1, rotate: -3 }} exit={{ opacity: 0, scale: 1.08 }} transition={{ type: "spring", stiffness: 420, damping: 14 }} className="absolute inset-0 z-10 m-auto flex h-fit max-w-sm flex-col items-center rounded-xl border-2 border-foreground bg-flag-red p-6 text-center text-primary-foreground shadow-hard"><Hand className="size-10" strokeWidth={2.5} /><p className="mt-2 font-display text-4xl font-bold">SLAP!</p><p className="mt-1 text-sm font-bold uppercase opacity-90">{say(hit).title}</p><p className="mt-2 font-semibold">{say(hit).line}</p></motion.div>}</AnimatePresence>
         </motion.div>
@@ -232,5 +351,6 @@ export function HiringMinefield() {
         </div>
       </motion.div>}</AnimatePresence>
     </div>
+    <WinPrize key={round} open={prize} onClose={() => setPrize(false)} />
   </section>;
 }
