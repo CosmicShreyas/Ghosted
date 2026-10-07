@@ -164,7 +164,11 @@ app.get("/v1/sitemap.xml", rateLimit({ name: "sitemap", max: 30, windowSeconds: 
   ];
   const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map((u) => `  <url><loc>${esc(u.loc)}</loc>${"mod" in u && u.mod ? `<lastmod>${u.mod}</lastmod>` : ""}<changefreq>${u.freq}</changefreq><priority>${u.pri}</priority></url>`).join("\n")}\n</urlset>\n`;
   c.header("Content-Type", "application/xml; charset=utf-8");
-  c.header("Cache-Control", "public, max-age=3600, s-maxage=3600");
+  // Browser and crawler caching only. A shared (s-maxage) copy got stored Brotli-compressed by the
+  // site's /sitemap.xml rewrite and then served to crawlers that hadn't asked for Brotli, which
+  // Search Console reported as "Couldn't fetch". The query is cheap and rate-limited.
+  c.header("Cache-Control", "public, max-age=3600");
+  c.header("Vary", "Accept-Encoding", { append: true });
   return c.body(xml);
 });
 
