@@ -75,10 +75,11 @@ import { ShoutoutDialog } from "@/components/green-flag";
 // stories (filterable), and the stats rail.
 export const Route = createFileRoute("/c/$slug")({
   // The company's name and story count, so search results and link previews name the company.
-  // Best effort: if the API is slow or down, the page falls back to a generic title.
+  // Best effort: if the API is slow or down, the page falls back to a generic title. The server
+  // (what crawlers read) gives up after 3 seconds; in the browser a slow reply still gets its title.
   loader: async ({ params }) => {
     if (!apiEnabled) return null;
-    try { const r = await api<{ company: { name: string; storyCount: number; flagScore: number | null; scoreCounts?: Record<string, number>; avgDaysWaited?: number | null; lastStoryAt?: string | null; website?: string | null; about?: string | null; hqCity?: string | null } }>(`/v1/companies/${params.slug}`, { timeoutMs: 3000 }); return r.company; }
+    try { const r = await api<{ company: { name: string; storyCount: number; flagScore: number | null; scoreCounts?: Record<string, number>; avgDaysWaited?: number | null; lastStoryAt?: string | null; website?: string | null; about?: string | null; hqCity?: string | null } }>(`/v1/companies/${params.slug}`, { timeoutMs: typeof window === "undefined" ? 3000 : 15000 }); return r.company; }
     catch { return null; }
   },
   head: ({ params, loaderData }) => {
