@@ -104,6 +104,8 @@ app.use(async (c, next) => {
 // of its own, is private.
 app.use(async (c, next) => {
   await next();
+  // A public view (no cookies, no token, viewer ignored) keeps the handler's shared caching.
+  if (c.get("publicView") && !c.req.header("cookie") && !c.req.header("authorization") && !c.res.headers.has("set-cookie")) return;
   const personal = !!c.req.header("authorization") || !!c.get("sessionRead") || !!c.get("profile");
   const sharedCache = (c.res.headers.get("Cache-Control") ?? "").includes("public");
   if (personal || (c.req.header("cookie") && !sharedCache)) c.header("Cache-Control", "private, no-store");

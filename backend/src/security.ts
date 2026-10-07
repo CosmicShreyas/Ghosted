@@ -44,7 +44,9 @@ export type Profile = {
 export type Notify = { relatable: boolean; chitchatReplies: boolean; newFollowers: boolean; flaggedCompanies: boolean; weeklyDigest: boolean };
 
 // `sessionRead`: this request looked at the caller's session, so its response may be personal.
-export type AppEnv = { Variables: { profile: Profile | null; requestId: string; accessToken: string | undefined; sessionRead: boolean | undefined } };
+// `publicView`: the handler built a response that is the same for everyone and the request carried no
+// credentials at all, so the CDN may keep it (see the caching middleware in app.ts).
+export type AppEnv = { Variables: { profile: Profile | null; requestId: string; accessToken: string | undefined; sessionRead: boolean | undefined; publicView: boolean | undefined } };
 
 // ---------- client identity ----------
 

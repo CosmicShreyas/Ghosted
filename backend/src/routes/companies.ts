@@ -139,9 +139,11 @@ export const companyRoutes = new Hono<AppEnv>()
     // ?view=public: the signed-out page, the same for everyone, so the CDN can keep a copy for a
     // minute (and serve a slightly older one while it refreshes). The site's server asks for this to
     // render company pages for search engines and first visits; browsers then fetch their own view.
-    const shared = c.req.query("view") === "public";
+    // Only a request with no cookies or token gets the cached copy, so a refreshed session can never
+    // end up in a shared response.
+    const shared = c.req.query("view") === "public" && !c.req.header("cookie") && !c.req.header("authorization");
     const viewer = shared ? null : c.get("profile");
-    if (shared) { c.header("Cache-Control", "public, max-age=0, s-maxage=60, stale-while-revalidate=600"); c.header("Vary", "Accept-Encoding", { append: true }); }
+    if (shared) { c.set("publicView", true); c.header("Cache-Control", "public, max-age=0, s-maxage=60, stale-while-revalidate=600"); c.header("Vary", "Accept-Encoding", { append: true }); }
     const [stats, first, rel, waiting, mine, similar] = await Promise.all([
       companyStats(id, viewer),
       companyStories(id, viewer, { limit: 10 }),
