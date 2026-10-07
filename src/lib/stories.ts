@@ -101,6 +101,7 @@ export type CompanyDto = {
   scores: Company["scores"] | null; scoreCounts?: Record<keyof Company["scores"], number>; salary: [number, number] | null; storyCount: number; avgDaysWaited: number | null;
   domain: string | null; website: string | null; logoUrl: string | null; about: string | null; industry: string | null;
   size: string | null; hqCity: string | null; founded: number | null; careersUrl: string | null;
+  lastStoryAt?: string | null;
   // Search results carry the company's reply pledge badge (backend pledges.ts).
   pledge?: Pledge | null;
 };

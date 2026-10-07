@@ -31,7 +31,7 @@ export function SiteHeader() {
 
 // The footer's columns, each with a heading.
 const footerColumns = [
-  { title: "Ghosted", links: [{ to: "/about", label: "About" }, { to: "/feedback", label: "Feedback & Support" }, { to: "/for-hr", label: "For HR teams" }] },
+  { title: "Ghosted", links: [{ to: "/companies", label: "All companies" }, { to: "/about", label: "About" }, { to: "/feedback", label: "Feedback & Support" }, { to: "/for-hr", label: "For HR teams" }] },
   { title: "Policies", links: [{ to: "/privacy", label: "Privacy Policy" }, { to: "/terms", label: "Terms & Conditions" }, { to: "/community", label: "Community Rules" }] },
   { title: "Safety & trust", links: [{ to: "/moderation", label: "How moderation works" }, { to: "/takedown", label: "Takedown requests" }] },
 ] as const;

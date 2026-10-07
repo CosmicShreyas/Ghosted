@@ -47,13 +47,14 @@ export function pageHead(h: Head) {
 
 export const organizationLd = {
   "@context": "https://schema.org", "@type": "Organization", "@id": `${SITE_URL}/#organization`,
-  name: SITE_NAME, url: SITE_URL, logo: IMAGE,
+  // The other ways people write the name, so a search for any of them finds this site.
+  name: SITE_NAME, alternateName: ["Ghosted India", "ghostd", "ghostd.in"], url: SITE_URL, logo: IMAGE,
   description: "Anonymous hiring experiences from real candidates in India, searchable by company.",
   areaServed: "IN", sameAs: ["https://github.com/CosmicShreyas/Ghosted"],
 };
 export const websiteLd = {
   "@context": "https://schema.org", "@type": "WebSite", "@id": `${SITE_URL}/#website`,
-  name: SITE_NAME, url: SITE_URL, inLanguage: "en-IN", publisher: { "@id": `${SITE_URL}/#organization` },
+  name: SITE_NAME, alternateName: ["Ghosted India", "ghostd.in"], url: SITE_URL, inLanguage: "en-IN", publisher: { "@id": `${SITE_URL}/#organization` },
   description: "Know what happened before you apply. Real candidate experiences: interview rounds, waiting time, communication, rejections, offers and ghosting.",
 };
 export const breadcrumbLd = (items: { name: string; path: string }[]) => ({

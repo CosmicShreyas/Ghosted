@@ -8,7 +8,8 @@ TanStack Start uses file-based routing. Every `.tsx` file in this directory defi
 | `auth.tsx` | `/auth` |
 | `dashboard.tsx` | `/dashboard` (`?view=` selects a dashboard view) |
 | `u.$id.tsx` | `/u/:id` using a 15-digit public user ID |
-| `c.$slug.tsx` | `/c/:slug` |
+| `c.$slug.tsx` | `/c/:slug` (rendered on the server from the API's cached signed-out view, so search engines read the stories; "Similar companies" links at the bottom) |
+| `companies.tsx` | `/companies`: every company with a published story, filterable by industry and city (filters stay in the page, not the URL). The crawlable index of company pages |
 | `compare.tsx` | `/compare?a=:slug&b=:slug` (two companies side by side; noindex) |
 | `s.$id.tsx` | `/s/:id` using a 15-digit public story ID |
 | `feedback.tsx` | `/feedback` |

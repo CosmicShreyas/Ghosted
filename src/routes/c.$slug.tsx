@@ -16,7 +16,9 @@ import { CompanyMark } from "@/components/ghosted";
 import { BackButton } from "@/components/back-button";
 import { SlidingPill, usePill } from "@/components/sliding-pill";
 import { Button } from "@/components/ui/button";
-import { useCompanyPage, type CompanyInterest } from "@/lib/companies";
+import { useCompanyPage, type CompanyInterest, type PageDto } from "@/lib/companies";
+import { companyFromApi } from "@/lib/stories";
+import { INDUSTRY_LABEL } from "@/lib/industries";
 import { useReachEnd, useStoryFeed } from "@/lib/feed";
 import { useSaved } from "@/lib/saved";
 import { useAccountActions, useAuthGuard, useMe, useTone, voice } from "@/lib/session";
@@ -71,19 +73,40 @@ import { AskCandidates, ContentRequestDialog, RepReplySlot, RepVerifyDialog } fr
 import { TypicalProcess } from "@/components/typical-process";
 import { ShoutoutDialog } from "@/components/green-flag";
 
+// Other companies worth a look (same industry first), as plain links so search engines follow them
+// from one company page to the next. Shown under the stories.
+function SimilarCompanies({ list }: { list: Company[] }) {
+  if (!list.length) return null;
+  return <section aria-labelledby="similar-heading" className="mt-8">
+    <div className="mb-3 flex items-baseline justify-between gap-3"><h2 id="similar-heading" className="font-display text-xl font-bold">Similar companies</h2><Link to="/companies" className="text-sm font-semibold text-primary hover:underline">All companies</Link></div>
+    <ul className="grid gap-3 sm:grid-cols-2">{list.map((c) => <li key={c.id}>
+      <Link to="/c/$slug" params={{ slug: c.id }} className="flex items-center gap-3 rounded-xl border-2 border-foreground bg-card p-3 shadow-hard-sm transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        <CompanyMark company={c} size="sm" />
+        <span className="min-w-0 flex-1"><span className="block truncate font-bold">{c.name}</span><span className="block truncate text-xs text-muted-foreground">{c.storyCount ?? 0} {(c.storyCount ?? 0) === 1 ? "story" : "stories"}{c.industry ? `, ${INDUSTRY_LABEL[c.industry] ?? c.industry}` : ""}</span></span>
+        <span className="font-display text-lg font-bold tabular-nums">{c.score}</span>
+      </Link>
+    </li>)}</ul>
+  </section>;
+}
+
 // A company's page, addressed by its slug. Same layout as people pages: header, what people say,
 // stories (filterable), and the stats rail.
 export const Route = createFileRoute("/c/$slug")({
-  // The company's name and story count, so search results and link previews name the company.
-  // Best effort: if the API is slow or down, the page falls back to a generic title. The server
-  // (what crawlers read) gives up after 3 seconds; in the browser a slow reply still gets its title.
+  // The whole page (company, stats, first stories), fetched once: it fills the title and structured
+  // data, renders the page into the HTML search engines read, and seeds the page's own query so the
+  // browser doesn't fetch it a second time. Best effort: if the API is slow or down, the page falls
+  // back to a generic title and loads in the browser.
   loader: async ({ params }) => {
     if (!apiEnabled) return null;
-    try { const r = await api<{ company: { name: string; storyCount: number; flagScore: number | null; scoreCounts?: Record<string, number>; avgDaysWaited?: number | null; lastStoryAt?: string | null; website?: string | null; about?: string | null; hqCity?: string | null } }>(`/v1/companies/${params.slug}`, { timeoutMs: typeof window === "undefined" ? 3000 : 15000 }); return r.company; }
+    const server = typeof window === "undefined";
+    // The server always renders the signed-out view, from the API's CDN-cached copy (fast).
+    // Up to 8 seconds on the server: a crawler is better served by the full page a little late than
+    // by a loading screen on time (the CDN copy usually answers in well under a second).
+    try { return { data: await api<PageDto>(`/v1/companies/${params.slug}${server ? "?view=public" : ""}`, { timeoutMs: server ? 8000 : 15000 }), viewer: !server }; }
     catch { return null; }
   },
   head: ({ params, loaderData }) => {
-    const c = loaderData;
+    const c = loaderData?.data.company;
     const path = `/c/${params.slug}`;
     const image = ogImage.company(params.slug);
     if (!c) return pageHead({ title: "Company hiring experiences | Ghosted", description: "Interview rounds, waiting time, communication and outcomes from candidates who applied here, shared anonymously on Ghosted.", path, image });
@@ -109,7 +132,7 @@ export const Route = createFileRoute("/c/$slug")({
       // Empty company pages are thin content: kept out of the index until someone shares a story.
       noindex: n === 0,
       jsonLd: [
-        breadcrumbLd([{ name: "Ghosted", path: "/" }, { name: c.name, path }]),
+        breadcrumbLd([{ name: "Ghosted", path: "/" }, { name: "Companies", path: "/companies" }, { name: c.name, path }]),
         { "@context": "https://schema.org", "@type": "WebPage", name: title, description, url: `${SITE_URL}${path}`, isPartOf: { "@id": `${SITE_URL}/#website` }, ...(c.lastStoryAt && { dateModified: c.lastStoryAt }), about: { "@type": "Organization", name: c.name, ...(c.website && { url: c.website }), ...(c.hqCity && { address: { "@type": "PostalAddress", addressLocality: c.hqCity, addressCountry: "IN" } }) } },
         ...ratingLd,
       ],
@@ -150,7 +173,9 @@ function CompanyPageRoute() {
   const { me } = useMe();
   const { waiting, signedOut } = useAuthGuard("optional");
   const { logout } = useAccountActions();
-  const hook = useCompanyPage(slug);
+  const loaded = Route.useLoaderData();
+  const hook = useCompanyPage(slug, loaded);
+  const similar = (hook.raw?.similar ?? loaded?.data.similar ?? []).map(companyFromApi);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const filterPill = usePill(filter);
@@ -171,6 +196,8 @@ function CompanyPageRoute() {
     signature: `${slug}|${filter}|${query}|${stage}|${since}`,
     filter: (s) => matches(`${s.title ?? ""} ${s.body} ${s.role ?? ""}`),
     path: `/v1/companies/${slug}/stories`, params: `&sentiment=${filter}${stage ? `&stage=${stage}` : ""}${since ? `&since=${since}` : ""}`, topic: `company:${slug}`,
+    // The unfiltered list starts from the stories the page already loaded (and is in the server's HTML).
+    initial: filter === "all" && !query && !stage && !since && page ? { stories: page.stories, next: page.nextCursor } : null,
   });
   const sentinel = useReachEnd(feed.loadMore, feed.hasMore);
   const goView = (v: View) => navigate({ to: "/dashboard", search: { view: v } });
@@ -258,6 +285,8 @@ function CompanyPageRoute() {
               <div ref={sentinel} aria-hidden="true" />
             </div>}
       </section>
+      <SimilarCompanies list={similar} />
+
     </div>
     <div data-lenis-prevent className="hidden xl:sticky xl:top-[5.5rem] xl:block xl:max-h-[calc(100vh-6.5rem)] xl:self-start xl:overflow-y-auto xl:overflow-x-hidden xl:overscroll-contain xl:pb-2 xl:pr-2 no-scrollbar"><CompanyRail page={page} /></div>
     <ReportCompanyDialog open={reporting} onOpenChange={setReporting} name={name} onSubmit={hook.report} />

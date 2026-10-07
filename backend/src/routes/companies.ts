@@ -72,6 +72,17 @@ const newCompany = z.object({
   captchaToken: z.string().max(12000).optional(),
 }).strict();
 
+// "Similar companies" on a company page: others in the same industry that have stories, busiest
+// first, topped up with the busiest companies overall. Links between company pages help visitors
+// and search engines find the rest. Best effort: a failed lookup just shows none.
+async function similarCompanies(row: CompanyScoreRow, n = 6): Promise<CompanyScoreRow[]> {
+  const base = () => admin().from("company_scores").select("*").gt("story_count", 0).neq("slug", row.slug).order("story_count", { ascending: false }).limit(n);
+  const same = row.industry ? ((await base().eq("industry", row.industry)).data ?? []) as CompanyScoreRow[] : [];
+  if (same.length >= n) return same;
+  const more = ((await base()).data ?? []) as CompanyScoreRow[];
+  return [...same, ...more.filter((m) => !same.some((s) => s.slug === m.slug))].slice(0, n);
+}
+
 export const companyRoutes = new Hono<AppEnv>()
   .get("/", rateLimit({ name: "companies", max: 180, windowSeconds: 60 }), validate("query", z.object({
     sort: z.enum(["score", "worst", "stories", "recent", "az"]).default("stories"),
@@ -125,16 +136,22 @@ export const companyRoutes = new Hono<AppEnv>()
   // best and worst experiences, your follow/bell state, and the first page of stories.
   .get("/:slug", optionalAuth, rateLimit({ name: "company", max: 180, windowSeconds: 60 }), slugParam, async (c) => {
     const { row, id } = await companyBySlug(c.req.valid("param").slug);
-    const viewer = c.get("profile");
-    const [stats, first, rel, waiting, mine] = await Promise.all([
+    // ?view=public: the signed-out page, the same for everyone, so the CDN can keep a copy for a
+    // minute (and serve a slightly older one while it refreshes). The site's server asks for this to
+    // render company pages for search engines and first visits; browsers then fetch their own view.
+    const shared = c.req.query("view") === "public";
+    const viewer = shared ? null : c.get("profile");
+    if (shared) { c.header("Cache-Control", "public, max-age=0, s-maxage=60, stale-while-revalidate=600"); c.header("Vary", "Accept-Encoding", { append: true }); }
+    const [stats, first, rel, waiting, mine, similar] = await Promise.all([
       companyStats(id, viewer),
       companyStories(id, viewer, { limit: 10 }),
       viewer ? companyRelationship(viewer.id, id) : Promise.resolve(null),
       waitingCount(id),
       viewer ? admin().from("company_interest").select("user_id").eq("company_id", id).eq("user_id", viewer.id).is("notified_at", null).maybeSingle().then((r) => !!r.data) : Promise.resolve(false),
+      similarCompanies(row),
     ]);
     // "I want to know": how many members are waiting for this company's first story, and whether you are.
-    return c.json({ company: companyDto(row), stats, relationship: rel, interest: { waiting, mine }, ...first });
+    return c.json({ company: companyDto(row), stats, relationship: rel, interest: { waiting, mine }, similar: similar.map(companyDto), ...first });
   })
 
   .post("/:slug/interest", requireAuth, rateLimit({ name: "company-interest", max: 60, windowSeconds: 3600, by: "user" }), slugParam, async (c) => {

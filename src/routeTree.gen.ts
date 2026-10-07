@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as CommunityRouteImport } from './routes/community'
+import { Route as CompaniesRouteImport } from './routes/companies'
 import { Route as CompareRouteImport } from './routes/compare'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as FeedbackRouteImport } from './routes/feedback'
@@ -45,6 +46,11 @@ const AuthRoute = AuthRouteImport.update({
 const CommunityRoute = CommunityRouteImport.update({
   id: '/community',
   path: '/community',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CompaniesRoute = CompaniesRouteImport.update({
+  id: '/companies',
+  path: '/companies',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CompareRoute = CompareRouteImport.update({
@@ -118,6 +124,7 @@ export interface FileRoutesByFullPath {
   '/about': typeof AboutRoute
   '/auth': typeof AuthRoute
   '/community': typeof CommunityRoute
+  '/companies': typeof CompaniesRoute
   '/compare': typeof CompareRoute
   '/dashboard': typeof DashboardRoute
   '/feedback': typeof FeedbackRoute
@@ -137,6 +144,7 @@ export interface FileRoutesByTo {
   '/about': typeof AboutRoute
   '/auth': typeof AuthRoute
   '/community': typeof CommunityRoute
+  '/companies': typeof CompaniesRoute
   '/compare': typeof CompareRoute
   '/dashboard': typeof DashboardRoute
   '/feedback': typeof FeedbackRoute
@@ -157,6 +165,7 @@ export interface FileRoutesById {
   '/about': typeof AboutRoute
   '/auth': typeof AuthRoute
   '/community': typeof CommunityRoute
+  '/companies': typeof CompaniesRoute
   '/compare': typeof CompareRoute
   '/dashboard': typeof DashboardRoute
   '/feedback': typeof FeedbackRoute
@@ -178,6 +187,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/auth'
     | '/community'
+    | '/companies'
     | '/compare'
     | '/dashboard'
     | '/feedback'
@@ -197,6 +207,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/auth'
     | '/community'
+    | '/companies'
     | '/compare'
     | '/dashboard'
     | '/feedback'
@@ -216,6 +227,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/auth'
     | '/community'
+    | '/companies'
     | '/compare'
     | '/dashboard'
     | '/feedback'
@@ -236,6 +248,7 @@ export interface RootRouteChildren {
   AboutRoute: typeof AboutRoute
   AuthRoute: typeof AuthRoute
   CommunityRoute: typeof CommunityRoute
+  CompaniesRoute: typeof CompaniesRoute
   CompareRoute: typeof CompareRoute
   DashboardRoute: typeof DashboardRoute
   FeedbackRoute: typeof FeedbackRoute
@@ -279,6 +292,13 @@ declare module '@tanstack/react-router' {
       path: '/community'
       fullPath: '/community'
       preLoaderRoute: typeof CommunityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/companies': {
+      id: '/companies'
+      path: '/companies'
+      fullPath: '/companies'
+      preLoaderRoute: typeof CompaniesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/compare': {
@@ -380,6 +400,7 @@ const rootRouteChildren: RootRouteChildren = {
   AboutRoute: AboutRoute,
   AuthRoute: AuthRoute,
   CommunityRoute: CommunityRoute,
+  CompaniesRoute: CompaniesRoute,
   CompareRoute: CompareRoute,
   DashboardRoute: DashboardRoute,
   FeedbackRoute: FeedbackRoute,

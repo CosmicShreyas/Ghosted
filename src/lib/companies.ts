@@ -66,7 +66,7 @@ export type ProcessSummary =
 // interest: members waiting for this company's first story ("I want to know"), and whether you are.
 export type CompanyInterest = { waiting: number; mine: boolean };
 export type CompanyPage = { company: Company; stats: CompanyStats; relationship: CompanyRelationship | null; stories: StoryModel[]; nextCursor: string | null; interest?: CompanyInterest };
-type PageDto = { interest?: CompanyInterest; company: CompanyDto; stats: Omit<CompanyStats, "bestStory" | "worstStory"> & { bestStory: StoryDto | null; worstStory: StoryDto | null }; relationship: CompanyRelationship | null; stories: StoryDto[]; nextCursor: string | null };
+export type PageDto = { similar?: CompanyDto[]; interest?: CompanyInterest; company: CompanyDto; stats: Omit<CompanyStats, "bestStory" | "worstStory"> & { bestStory: StoryDto | null; worstStory: StoryDto | null }; relationship: CompanyRelationship | null; stories: StoryDto[]; nextCursor: string | null };
 
 // Average stars behind a sample story, from its company's scores (samples have no ratings of their own).
 const sampleAvg = (s: StoryModel) => (s.outcome === "offer" ? 4.4 : s.outcome === "rejected" ? 3 : 1.8);
@@ -99,13 +99,19 @@ function samplePage(slug: string, rel: CompanyRelationship | null): CompanyPage 
 const DEMO = "ghosted.demoCompanyFollows";
 const readDemo = (): Record<string, CompanyRelationship> => { try { return JSON.parse(localStorage.getItem(DEMO) ?? "{}") as Record<string, CompanyRelationship>; } catch { return {}; } };
 
-export function useCompanyPage(slug: string) {
+// `initial` is what the route loader already fetched. On the server it's the signed-out view (it
+// fills the HTML search engines read), so the browser refreshes it at once for the viewer's own
+// follow state; fetched in the browser, it's already the viewer's and is used as is.
+export function useCompanyPage(slug: string, initial?: { data: PageDto; viewer: boolean } | null) {
   const qc = useQueryClient();
   // The page loads alongside the company index (not after it): stories about other companies fill
   // in their details as soon as the index arrives.
   const { index } = useCompanyIndex();
   const key = ["company-page", slug];
-  const q = useQuery({ queryKey: key, queryFn: () => api<PageDto>(`/v1/companies/${slug}`), enabled: apiEnabled, retry: (n, e) => !(e as { status?: number }).status && n < 2 });
+  const q = useQuery({
+    queryKey: key, queryFn: () => api<PageDto>(`/v1/companies/${slug}`), enabled: apiEnabled, retry: (n, e) => !(e as { status?: number }).status && n < 2,
+    ...(initial && { initialData: initial.data, initialDataUpdatedAt: () => (initial.viewer ? Date.now() : 0) }),
+  });
   // New stories, follows and edits about this company refresh the page.
   useLive(apiEnabled ? `company:${slug}` : null, () => void qc.invalidateQueries({ queryKey: key }));
 
@@ -138,9 +144,12 @@ export function useCompanyPage(slug: string) {
   const rel = page?.relationship ?? { following: false, notify: false };
   return {
     page,
+    raw: apiEnabled ? q.data : undefined,
     loading: apiEnabled && q.isPending,
-    notFound: apiEnabled ? (q.error as { status?: number } | null)?.status === 404 : page === null,
-    error: apiEnabled && q.isError && (q.error as { status?: number }).status !== 404,
+    // A failed refresh keeps the page already on screen (from the server, or an earlier load); only a
+    // first load that fails shows the error or not-found state.
+    notFound: apiEnabled ? !q.data && (q.error as { status?: number } | null)?.status === 404 : page === null,
+    error: apiEnabled && !q.data && q.isError && (q.error as { status?: number }).status !== 404,
     follow: () => set("POST", {}, { ...rel, following: true }),
     unfollow: () => set("DELETE", undefined, { following: false, notify: false }),
     setNotify: (notify: boolean) => set("POST", { notify }, { following: true, notify }),

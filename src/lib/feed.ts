@@ -27,8 +27,11 @@ async function samplePage(source: StoryModel[], offset: number): Promise<Page> {
 // without it, through `sample`. `signature` changes when a filter or search changes, restarting it.
 // `filter` narrows API pages on the page side (search, flag filters) since the API filters by
 // company/outcome only.
-export function useStoryFeed({ sample, signature, filter, path = "/v1/stories", params = "", topic = "feed", pageSize = 10, enabled = true }: {
+// `initial`: a first page the caller already has (a company page's loader fetched it), so the list
+// renders straight away, including in the server's HTML. It's refetched once the browser is ready.
+export function useStoryFeed({ sample, signature, filter, path = "/v1/stories", params = "", topic = "feed", pageSize = 10, enabled = true, initial }: {
   sample: StoryModel[]; signature: string; filter?: (s: StoryModel) => boolean; path?: string; params?: string; topic?: string | null; pageSize?: number; enabled?: boolean;
+  initial?: { stories: StoryModel[]; next: string | null } | null;
 }) {
   const qc = useQueryClient();
   const { index, ready } = useCompanyIndex();
@@ -44,6 +47,7 @@ export function useStoryFeed({ sample, signature, filter, path = "/v1/stories", 
     },
     initialPageParam: null as string | number | null,
     getNextPageParam: (last) => last.next,
+    ...(apiEnabled && initial && { initialData: { pages: [{ items: initial.stories.filter((s) => !filter || filter(s)).map((s) => ({ key: s.id, story: s })), next: initial.next }], pageParams: [null] }, initialDataUpdatedAt: 0 }),
     enabled: enabled && (apiEnabled ? ready : sample.length > 0),
     staleTime: apiEnabled ? 30_000 : Infinity,
   });
