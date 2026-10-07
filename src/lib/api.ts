@@ -4,6 +4,8 @@
 // Sessions live in encrypted HttpOnly cookies set by the API. This file never sees or stores a token:
 // `credentials: "include"` just lets the browser send them, and the API refreshes them silently.
 
+import { SITE_URL } from "@/lib/meta";
+
 // In development, a localhost API URL is rewritten to whatever host the page was opened on, so the
 // dev site works from a phone on the same Wi-Fi (there, "localhost" would be the phone itself).
 const devApiUrl = (url: string) => {
@@ -15,7 +17,8 @@ const devApiUrl = (url: string) => {
   if (/^(localhost|127\.0\.0\.1)$/.test(u.hostname) && window.location.hostname !== u.hostname) u.hostname = window.location.hostname;
   return u.toString().replace(/\/$/, "");
 };
-const RAW_API_URL = (import.meta.env["VITE_API_URL"] as string | undefined)?.replace(/\/$/, "") || null;
+
+const RAW_API_URL =(import.meta.env["VITE_API_URL"] as string | undefined)?.replace(/\/$/, "") || null;
 export const API_URL = RAW_API_URL && devApiUrl(RAW_API_URL);
 export const apiEnabled = API_URL !== null;
 
@@ -33,9 +36,13 @@ export class ApiRequestError extends Error {
   }
 }
 
+// On the server (route loaders that fill in page titles for search engines and link previews) a
+// relative `/api` has no page to resolve against, so it goes through the site's own address instead.
+const base = () => (API_URL?.startsWith("/") && typeof window === "undefined" ? `${SITE_URL}${API_URL}` : API_URL);
+
 export async function api<T>(path: string, { method = "GET", body, timeoutMs }: { method?: string; body?: unknown; timeoutMs?: number } = {}): Promise<T> {
   if (!API_URL) throw new ApiRequestError(0, "api_disabled", "The API isn't configured.");
-  const res = await fetch(`${API_URL}${path}`, {
+  const res = await fetch(`${base()}${path}`, {
     method,
     credentials: "include",
     // Optional cap, so a stalled connection fails (and can be retried) instead of hanging forever.

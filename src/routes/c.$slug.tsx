@@ -78,7 +78,7 @@ export const Route = createFileRoute("/c/$slug")({
   // Best effort: if the API is slow or down, the page falls back to a generic title.
   loader: async ({ params }) => {
     if (!apiEnabled) return null;
-    try { const r = await api<{ company: { name: string; storyCount: number; flagScore: number | null; about?: string | null; hqCity?: string | null } }>(`/v1/companies/${params.slug}`, { timeoutMs: 3000 }); return r.company; }
+    try { const r = await api<{ company: { name: string; storyCount: number; flagScore: number | null; scoreCounts?: Record<string, number>; avgDaysWaited?: number | null; lastStoryAt?: string | null; website?: string | null; about?: string | null; hqCity?: string | null } }>(`/v1/companies/${params.slug}`, { timeoutMs: 3000 }); return r.company; }
     catch { return null; }
   },
   head: ({ params, loaderData }) => {
@@ -87,17 +87,30 @@ export const Route = createFileRoute("/c/$slug")({
     const image = ogImage.company(params.slug);
     if (!c) return pageHead({ title: "Company hiring experiences | Ghosted", description: "Interview rounds, waiting time, communication and outcomes from candidates who applied here, shared anonymously on Ghosted.", path, image });
     const n = c.storyCount;
-    const title = `${c.name} hiring experiences, interview process and Flag Score | Ghosted`;
+    // Worded the way people search ("<company> interview experience"), with the count up front.
+    const title = n
+      ? `${c.name} Interview Experience & Hiring Process (${n} ${n === 1 ? "Story" : "Stories"}) | Ghosted`
+      : `${c.name} Interview Experience & Hiring Process | Ghosted`;
+    const wait = c.avgDaysWaited != null ? ` Candidates waited about ${c.avgDaysWaited} ${c.avgDaysWaited === 1 ? "day" : "days"} for replies.` : "";
     const description = n
-      ? `${n} anonymous ${n === 1 ? "candidate experience" : "candidate experiences"} of ${c.name}'s hiring: interview rounds, how long replies took, communication, rejections, offers and ghosting.${c.flagScore != null ? ` Flag Score ${c.flagScore}/100.` : ""}`
+      ? `Read ${n} anonymous ${n === 1 ? "candidate experience" : "candidate experiences"} of ${c.name}'s interview process: rounds, how long replies took, rejections, offers and ghosting.${wait}${c.flagScore != null ? ` Flag Score ${c.flagScore}/100.` : ""}`
       : `Interviewed at ${c.name}? Be the first to share how their hiring went, anonymously, and help the next candidate know what to expect.`;
+    // Stars in search results: Google's employer rating markup. The Flag Score (0 to 100) maps back
+    // onto the 1 to 5 scale candidates rate on. Only with a few ratings, so one story can't set it.
+    const rated = Math.max(0, ...Object.values(c.scoreCounts ?? {}));
+    const ratingLd = c.flagScore != null && rated >= 3 ? [{
+      "@context": "https://schema.org", "@type": "EmployerAggregateRating",
+      itemReviewed: { "@type": "Organization", name: c.name, ...(c.website && { sameAs: c.website }) },
+      ratingValue: Math.round((c.flagScore / 25 + 1) * 10) / 10, bestRating: 5, worstRating: 1, ratingCount: rated,
+    }] : [];
     return pageHead({
       title, description, path, image,
       // Empty company pages are thin content: kept out of the index until someone shares a story.
       noindex: n === 0,
       jsonLd: [
         breadcrumbLd([{ name: "Ghosted", path: "/" }, { name: c.name, path }]),
-        { "@context": "https://schema.org", "@type": "WebPage", name: title, description, url: `${SITE_URL}${path}`, isPartOf: { "@id": `${SITE_URL}/#website` }, about: { "@type": "Organization", name: c.name, ...(c.hqCity && { address: { "@type": "PostalAddress", addressLocality: c.hqCity, addressCountry: "IN" } }) } },
+        { "@context": "https://schema.org", "@type": "WebPage", name: title, description, url: `${SITE_URL}${path}`, isPartOf: { "@id": `${SITE_URL}/#website` }, ...(c.lastStoryAt && { dateModified: c.lastStoryAt }), about: { "@type": "Organization", name: c.name, ...(c.website && { url: c.website }), ...(c.hqCity && { address: { "@type": "PostalAddress", addressLocality: c.hqCity, addressCountry: "IN" } }) } },
+        ...ratingLd,
       ],
     });
   },

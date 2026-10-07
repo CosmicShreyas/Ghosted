@@ -158,6 +158,7 @@ app.get("/v1/sitemap.xml", rateLimit({ name: "sitemap", max: 30, windowSeconds: 
   const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
   const urls = [
     { loc: `${site}/`, freq: "daily", pri: "1.0" },
+    { loc: `${site}/for-hr`, freq: "monthly", pri: "0.5" },
     ...["about", "community", "moderation", "takedown", "privacy", "terms"].map((p) => ({ loc: `${site}/${p}`, freq: "monthly", pri: "0.3" })),
     ...((data ?? []) as { slug: string; last_story_at: string | null }[]).map((r) => ({ loc: `${site}/c/${r.slug}`, freq: "weekly", pri: "0.8", mod: r.last_story_at?.slice(0, 10) })),
   ];
