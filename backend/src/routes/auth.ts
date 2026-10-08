@@ -17,6 +17,7 @@ import { ipKey } from "../security.js";
 import { hit } from "../funnel.js";
 import { banOf, bannedError, ensureOpen } from "../platform.js";
 import { consumeCode, isVerified, OTP_MINUTES, sendCode, verifySignupCode } from "../otp.js";
+import { adAttribution, adHit } from "../ads.js";
 
 const email = z.string().trim().toLowerCase().email().max(254);
 // Length beats complexity rules; 10+ chars, and not absurdly long (bcrypt truncates at 72 bytes).
@@ -73,6 +74,8 @@ export const authRoutes = new Hono<AppEnv>()
     captchaToken,
     // An invite code from /invite?ref=…; applied when the profile is created (security.ts).
     ref: z.string().regex(/^[A-Z2-9]{8}$/).optional(),
+    // The ad this visit came from, if any (ads.ts). Only adds to that ad's sign-up count; never stored with the account.
+    ad: adAttribution.optional(),
   }).strict()), async (c) => {
     await ensureOpen("signupsOpen");
     const body = c.req.valid("json");
@@ -92,6 +95,7 @@ export const authRoutes = new Hono<AppEnv>()
     signedIn(c, data.user.id, data.session.access_token, { profile: null, email: null });
     later(addNotification(data.user.id, "system", "Welcome to Ghosted. You're anonymous by default: share your first story whenever you're ready."));
     later(hit("signup"));
+    if (body.ad) later(adHit(body.ad, "signup"));
     return c.json({ ok: true }, 201);
   })
 

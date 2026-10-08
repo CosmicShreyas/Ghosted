@@ -24,6 +24,7 @@ import { MotionConfig } from "motion/react";
 import { usePrefs } from "@/lib/prefs";
 import { resyncPush } from "@/lib/push";
 import { THEME_BOOT, useApplyTheme, useSyncEmailTheme } from "@/lib/theme";
+import { captureAd } from "@/lib/ad-attribution";
 
 import appCss from "../styles.css?url";
 
@@ -150,6 +151,8 @@ function MotionPrefs({ children }: { children: ReactNode }) {
   useSyncEmailTheme(); // and emails in the same palette
   // Also flags <html> so the CSS rule in styles.css stops CSS animations (marquees, orbits…).
   useEffect(() => { document.documentElement.toggleAttribute("data-reduce-motion", reduceMotion); }, [reduceMotion]);
+  // Arrived from an ad link: count it against that ad (lib/ad-attribution.ts).
+  useEffect(() => captureAd(), []);
   // The app is live. After a slow load, keep the early reveal on until the entrance animations have
   // finished underneath it, then hand control back to Motion (so nothing blinks out and back in).
   useEffect(() => {

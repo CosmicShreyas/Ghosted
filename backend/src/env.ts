@@ -30,6 +30,10 @@ const schema = z.object({
   VERCEL_ENV: z.string().optional(),
   // Vercel Cron sends this as "Authorization: Bearer <CRON_SECRET>" (weekly digest). 16+ chars.
   CRON_SECRET: z.string().min(16).optional(),
+  // Shared with the site's server (its SITE_RENDER_KEY). Pages rendered for search engines all reach
+  // the API from Vercel's own addresses, so with this key their read-only requests skip the per-address
+  // rate limit. Never set it in a VITE_* variable. 32+ chars; unset = no exemption.
+  SITE_RENDER_KEY: z.string().min(32).optional().or(z.literal("").transform(() => undefined)),
   // Where Goofy sends his daily brief of things that need a human (comma-separated). Optional.
   // The admin app's address(es), comma-separated. Admin endpoints answer only requests from these
   // origins; empty = the admin API is switched off entirely (every /v1/admin call is a 404).

@@ -22,6 +22,7 @@ import { ThemeToggle } from "@/components/theme-picker";
 import { useResolvedTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { users } from "@/mock/data";
+import { currentAd } from "@/lib/ad-attribution";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -212,7 +213,8 @@ function AuthPage() {
   const createAccount = () => run(async () => {
     // An invite code remembered from /invite?ref=… gives the inviter credit once you share a story.
     const ref = pendingRef();
-    if (apiEnabled) { await authApi.signup({ fullName, email, password, verificationToken: token, handle, avatarSeed: look.seed, pastel: look.pastel, acceptTerms: true, ...(ref && { ref }) }); clearRef(); }
+    const ad = currentAd(); // the ad this visit came from, if any: counted, never stored with the account
+    if (apiEnabled) { await authApi.signup({ fullName, email, password, verificationToken: token, handle, avatarSeed: look.seed, pastel: look.pastel, acceptTerms: true, ...(ref && { ref }), ...(ad && { ad }) }); clearRef(); }
     await enterDashboard(true);
   });
 

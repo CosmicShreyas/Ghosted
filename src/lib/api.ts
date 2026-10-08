@@ -39,6 +39,10 @@ export class ApiRequestError extends Error {
 // On the server (route loaders that fill in page titles for search engines and link previews) a
 // relative `/api` has no page to resolve against, so it goes through the site's own address instead.
 const base = () => (API_URL?.startsWith("/") && typeof window === "undefined" ? `${SITE_URL}${API_URL}` : API_URL);
+// Server only: the key that lets the API recognise the site's own renderer (all of its requests come
+// from Vercel's addresses, so they'd otherwise share one rate limit). Never reaches the browser:
+// it's a plain server environment variable, not a VITE_* one.
+const renderKey = () => (typeof window === "undefined" && typeof process !== "undefined" ? process.env["SITE_RENDER_KEY"] : undefined);
 
 export async function api<T>(path: string, { method = "GET", body, timeoutMs }: { method?: string; body?: unknown; timeoutMs?: number } = {}): Promise<T> {
   if (!API_URL) throw new ApiRequestError(0, "api_disabled", "The API isn't configured.");
@@ -48,7 +52,7 @@ export async function api<T>(path: string, { method = "GET", body, timeoutMs }: 
     // Optional cap, so a stalled connection fails (and can be retried) instead of hanging forever.
     ...(timeoutMs && { signal: AbortSignal.timeout(timeoutMs) }),
     // X-Ghosted-Client is the API's CSRF check: other sites can't send it.
-    headers: { "X-Ghosted-Client": "web", ...(body !== undefined && { "Content-Type": "application/json" }) },
+    headers: { "X-Ghosted-Client": "web", ...(body !== undefined && { "Content-Type": "application/json" }), ...(renderKey() && { "X-Ghosted-Render": renderKey()! }) },
     body: body !== undefined ? JSON.stringify(body) : null,
   });
   const json = (await res.json().catch(() => ({}))) as { error?: { code: string; message: string; fields?: Record<string, string> } };
@@ -76,7 +80,7 @@ export const authApi = {
   // `emailTheme`: the theme the page is showing, so the code email arrives in the same palette.
   sendCode: (email: string, name: string | undefined, captchaToken: string | undefined, emailTheme?: "light" | "dark") => api<Ok & { expiresInMinutes: number }>("/v1/auth/otp/send", { method: "POST", body: { email, ...(name ? { name } : {}), captchaToken, ...(emailTheme && { emailTheme }) } }),
   verifyCode: (email: string, code: string) => api<{ verificationToken: string }>("/v1/auth/otp/verify", { method: "POST", body: { email, code } }),
-  signup: (input: { fullName: string; email: string; password: string; verificationToken: string; handle: string; avatarSeed: string; pastel: string; acceptTerms: true; ref?: string }) => api<Ok>("/v1/auth/signup", { method: "POST", body: input }),
+  signup: (input: { fullName: string; email: string; password: string; verificationToken: string; handle: string; avatarSeed: string; pastel: string; acceptTerms: true; ref?: string; ad?: { campaign: string; content: string } }) => api<Ok>("/v1/auth/signup", { method: "POST", body: input }),
   // With two-step sign-in on, this returns a ticket instead of logging in; finish with loginMfa.
   login: (email: string, password: string, captchaToken: string | undefined) => api<(Ok & { profile?: Record<string, unknown> }) | { mfaRequired: true; method: MfaMethod; ticket: string }>("/v1/auth/login", { method: "POST", body: { email, password, captchaToken } }),
   loginMfa: (ticket: string, code: string) => api<Ok & { usedRecoveryCode: boolean }>("/v1/auth/login/mfa", { method: "POST", body: { ticket, code } }),

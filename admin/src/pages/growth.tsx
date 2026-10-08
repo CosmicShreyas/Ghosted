@@ -21,7 +21,8 @@ function CopyButton({ text, label, icon: Icon = Copy }: { text: string; label: s
 }
 
 // ---------- the funnel: where people come in, and where they drop off ----------
-type FunnelData = { installed: boolean; days: number; now: Record<string, number>; before: Record<string, number> };
+type AdRow = { campaign: string; content: string; visits: number; signups: number };
+type FunnelData = { installed: boolean; days: number; now: Record<string, number>; before: Record<string, number>; ads?: { installed: boolean; rows: AdRow[] } };
 const STEPS: { id: string; label: string; ids: string[] }[] = [
   { id: "visit", label: "Landing visits", ids: ["visit"] },
   { id: "tools", label: "Free tool uses", ids: ["ghostometer", "timeline_check", "followup"] },
@@ -48,6 +49,20 @@ function Funnel() {
         </li>;
       })}</ol>
       <p className="mt-3 text-xs text-muted-foreground">Daily totals only; nothing about who. The change compares with the {d.days} days before.</p>
+      {/* Which ad brought people in: from the ad link's utm_campaign and utm_content (backend ads.ts). */}
+      <div className="mt-6">
+        <p className="text-sm font-bold">Ads</p>
+        {!d.ads?.installed ? <p className="mt-1 text-sm text-muted-foreground">Run the “Ad results” section of init_database.sql in Supabase to start counting ad visits and sign-ups.</p>
+          : !d.ads.rows.length ? <p className="mt-1 text-sm text-muted-foreground">No ad visits in this period yet. Ad links need utm_campaign and utm_content.</p>
+          : <div className="mt-2 overflow-x-auto"><table className="w-full min-w-[28rem] text-sm">
+              <thead><tr className="border-b-2 border-foreground/15 text-left text-xs text-muted-foreground"><th className="py-2 pr-3 font-semibold">Campaign</th><th className="py-2 pr-3 font-semibold">Ad</th><th className="py-2 pr-3 text-right font-semibold">Visits</th><th className="py-2 pr-3 text-right font-semibold">Sign-ups</th><th className="py-2 text-right font-semibold">Sign-up rate</th></tr></thead>
+              <tbody>{d.ads.rows.map((r) => <tr key={`${r.campaign}/${r.content}`} className="border-b border-foreground/10">
+                <td className="py-2 pr-3">{r.campaign}</td><td className="py-2 pr-3 font-semibold">{r.content}</td>
+                <td className="py-2 pr-3 text-right tabular-nums">{r.visits.toLocaleString("en-IN")}</td><td className="py-2 pr-3 text-right tabular-nums">{r.signups.toLocaleString("en-IN")}</td>
+                <td className="py-2 text-right tabular-nums">{r.visits ? `${((r.signups / r.visits) * 100).toFixed(1)}%` : "-"}</td>
+              </tr>)}</tbody>
+            </table></div>}
+      </div>
     </>}
   </Panel>;
 }

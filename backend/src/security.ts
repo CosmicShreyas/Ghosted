@@ -1,4 +1,4 @@
-import { createHmac, randomUUID } from "node:crypto";
+import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import { isGeneratedHandle, randomHandle } from "./lib/handles.js";
 import type { Context, MiddlewareHandler } from "hono";
 import { env } from "./env.js";
@@ -74,8 +74,17 @@ function memoryHit(key: string, windowSeconds: number) {
   return hits;
 }
 
+// The site's own server rendering a page (it sends SITE_RENDER_KEY). Read-only requests only.
+function fromSiteRenderer(c: Context) {
+  const want = env().SITE_RENDER_KEY, got = c.req.header("x-ghosted-render");
+  if (!want || !got || (c.req.method !== "GET" && c.req.method !== "HEAD")) return false;
+  const a = Buffer.from(got), b = Buffer.from(want);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
 export function rateLimit({ name, max, windowSeconds, by = "ip" }: Limit): MiddlewareHandler<AppEnv> {
   return async (c, next) => {
+    if (fromSiteRenderer(c)) return next();
     const who = by === "user" && c.get("profile") ? `u:${c.get("profile")!.id}` : `ip:${ipKey(c)}`;
     const key = `${name}:${who}`;
     let hits: number;

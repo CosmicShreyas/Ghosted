@@ -24,6 +24,7 @@ import { inspectWebsite, SiteCheckError } from "../lib/site-check.js";
 import { gatherFacts } from "../lib/company-facts.js";
 import { offsetQ, PAGE, paged } from "../admin-paging.js";
 import { funnel } from "../funnel.js";
+import { adResults } from "../ads.js";
 import { publishChangeEffects } from "../changes.js";
 import { withdrawPledge } from "../pledges.js";
 import { INDUSTRIES } from "../lib/industries.js";
@@ -244,7 +245,7 @@ export const adminExtraRoutes = new Hono<AdminEnv>()
     return c.json({ ok: true });
   })
   // The growth funnel: visits → free tools → company searches → sign-ups → first stories.
-  .get("/growth/funnel", validate("query", z.object({ days: z.coerce.number().int().refine((d) => [7, 30, 90].includes(d)).default(7) })), async (c) => c.json(await funnel(c.req.valid("query").days)))
+  .get("/growth/funnel", validate("query", z.object({ days: z.coerce.number().int().refine((d) => [7, 30, 90].includes(d)).default(7) })), async (c) => { const days = c.req.valid("query").days; const [f, ads] = await Promise.all([funnel(days), adResults(days)]); return c.json({ ...f, ads }); })
   .get("/storage", async (c) => {
     const p = await platform(true);
     const limit = p.storageLimitMb * 1024 * 1024;

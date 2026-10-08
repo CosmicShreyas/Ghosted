@@ -33,6 +33,7 @@ import { voiceRoutes } from "./routes/company-voice.js";
 import { pushRoutes } from "./routes/push.js";
 import { ipKey, limitBy, optionalAuth, rateLimit, type AppEnv } from "./security.js";
 import { createChallenge } from "./captcha.js";
+import { adAttribution, adHit } from "./ads.js";
 import { later, versions } from "./live.js";
 import { runDigest } from "./notify.js";
 import { runAll } from "./automation.js";
@@ -179,8 +180,10 @@ app.get("/v1/sitemap.xml", rateLimit({ name: "sitemap", max: 30, windowSeconds: 
 // the server). Anonymous daily totals, nothing about the visitor is stored.
 const CLIENT_EVENTS = ["visit", "ghostometer", "timeline_check", "followup", "company_search", "invite_open"] as const;
 app.post("/v1/track", rateLimit({ name: "track", max: 120, windowSeconds: 600 }), async (c) => {
-  const body = (await c.req.json().catch(() => ({}))) as { event?: string };
+  const body = (await c.req.json().catch(() => ({}))) as { event?: string; ad?: unknown };
   if ((CLIENT_EVENTS as readonly string[]).includes(body.event ?? "")) later(hit(body.event as FunnelEvent));
+  // A visit that arrived from an ad link: counted against that ad (ads.ts).
+  if (body.event === "ad_visit") { const ad = adAttribution.safeParse(body.ad); if (ad.success) later(adHit(ad.data, "visit")); }
   return c.body(null, 204);
 });
 

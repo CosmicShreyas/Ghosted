@@ -277,6 +277,10 @@ Separate admin identities; these are not member profiles.
 
 `funnel_daily` holds one counter per event per day (landing visits, free tool uses, company searches, invite link opens, sign-ups, first stories). It stores counts only: no user ids, no IPs. The browser reports its events through `POST /v1/track`; sign-ups and first stories are counted on the server. `funnel_hit(event)` increments a counter and is callable only by the service role. The admin Growth page reads it through `GET /v1/admin/growth/funnel`.
 
+### Ad results
+
+From the "Ad results" section (`backend/src/ads.ts`). `ad_daily` holds one counter per day, ad and event (`visit` or `signup`), keyed by the ad link's `utm_campaign` and `utm_content` (lowercase letters, digits, `_` and `-`, up to 40 characters). Counts only: no user ids, no IPs. The site keeps an ad's labels for that browser tab only and reports the visit through `POST /v1/track` (`event: "ad_visit"`); a sign-up in the same tab sends them with `POST /v1/auth/signup`, which adds to that ad's sign-up count and never stores them with the account. `ad_hit(campaign, content, event)` is callable only by the service role. The admin Growth page shows the totals per ad through `GET /v1/admin/growth/funnel`.
+
 `applications.nudged_at` records when a tracked application that went quiet (twice the usual wait, at least 30 days) got its one "share what happened" notification and email (`backend/src/nudges.ts`, run by the daily automation). The section is at the end of `init_database.sql` and is safe to run again.
 
 ### Ask candidates, Right of Reply and removal requests

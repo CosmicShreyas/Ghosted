@@ -1919,4 +1919,31 @@ alter table public.content_requests add column if not exists basis text check (b
 alter table public.content_requests add column if not exists good_faith boolean;
 alter table public.content_requests add column if not exists outcome text check (outcome is null or outcome in ('no_action','author_corrected','redacted','removed','other'));
 
+-- ============================================================================
+-- Ad results (backend/src/ads.ts): how many visits and sign-ups each ad brought, per day. An ad
+-- link carries utm_campaign and utm_content; the site keeps them for that browser tab only and
+-- the API adds one to the matching counter. Counts only: no user ids, no IPs, nothing that
+-- identifies anyone.
+-- Safe to run again.
+-- ============================================================================
+create table if not exists public.ad_daily (
+  day      date not null default current_date,
+  campaign text not null check (campaign ~ '^[a-z0-9_-]{1,40}$'),
+  content  text not null check (content ~ '^[a-z0-9_-]{1,40}$'),
+  event    text not null check (event in ('visit','signup')),
+  count    integer not null default 0,
+  primary key (day, campaign, content, event)
+);
+alter table public.ad_daily enable row level security;
+revoke all on public.ad_daily from anon, authenticated;
+grant select, insert, update, delete on public.ad_daily to service_role;
+
+create or replace function public.ad_hit(p_campaign text, p_content text, p_event text)
+returns void language sql security definer set search_path = '' as $$
+  insert into public.ad_daily as a (day, campaign, content, event, count) values (current_date, p_campaign, p_content, p_event, 1)
+  on conflict (day, campaign, content, event) do update set count = a.count + 1;
+$$;
+revoke all on function public.ad_hit(text, text, text) from public, anon, authenticated;
+grant execute on function public.ad_hit(text, text, text) to service_role;
+
 commit;
