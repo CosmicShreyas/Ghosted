@@ -54,6 +54,7 @@ Before opening a pull request that changes the API, run `npm run typecheck` in t
   - CSRF: requests that change data need the `X-Ghosted-Client: web` header, and CORS only allows listed origins, with credentials.
   - For long access tokens, set Supabase → **Authentication → Sessions / JWT expiry** to `259200` (3 days). Otherwise Supabase's default 1-hour tokens are just refreshed quietly.
   - **Hosting:** cookies only flow when the frontend and API are the *same site*, such as `localhost` on different ports. Two separate `*.vercel.app` project domains count as different sites, so the frontend deployment must proxy API requests through its own Vercel URL. Do not point the browser directly at a separate backend `*.vercel.app` URL when using these cookies.
+  - **Region:** the API runs in Vercel's Mumbai region (`"regions": ["bom1"]` in `backend/vercel.json`), next to the Supabase project (ap-south-1). Most requests make several database round trips, so keep the two in the same region; if the database ever moves, move this too.
 - **Rate limiting** uses fixed windows stored in Postgres, so it works across all serverless instances. It's keyed by an HMAC of the IP address (raw IPs are never stored), or by user ID for logged-in actions. Responses include `RateLimit-*` headers and `Retry-After`.
 
   | Action | Limit |
