@@ -1,6 +1,8 @@
-// Dashboard → Play: Ghost Blasters, full size, with the leaderboard beside it (below on phones).
-// The game code only loads when this view opens.
-import { lazy, Suspense } from "react";
+// Dashboard → Play: a picker of games. Ghost Blasters (with its leaderboard beside it, below on
+// phones) plus three quick hiring games (components/play-games.tsx). Each game's code only loads
+// when it's opened.
+import { lazy, Suspense, useState } from "react";
+import { SlidingPill, usePill } from "@/components/sliding-pill";
 import { useQuery } from "@tanstack/react-query";
 import { Trophy } from "lucide-react";
 import { Avatar } from "@/components/ghosted";
@@ -10,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { card } from "./ui-kit";
 
 const GhostBlastersGame = lazy(() => import("@/components/ghost-blasters").then((m) => ({ default: m.GhostBlastersGame })));
+const PlayGame = lazy(() => import("@/components/play-games").then((m) => ({ default: m.PlayGame })));
 
 type Entry = { rank: number; handle: string; avatarSeed: string; pastel: string; xp: number; level: number; offers: number };
 
@@ -37,18 +40,40 @@ function Leaderboard() {
   </aside>;
 }
 
+const GAMES = [
+  { id: "blasters", label: "Ghost Blasters", blurb: ["Waiting on a reply? Blast the bad hiring practices while you wait. Offers from Green Flag Recruiters earn Experience.", "A short arcade break. Collect offers from Green Flag Recruiters to earn Experience."] },
+  { id: "flags", label: "Red or Green Flag", blurb: ["Job posts and recruiter lines, 45 seconds. Can you spot the red flags faster than HR can write them?", "Judge job-post and recruiter lines as red or green flags against the clock."] },
+  { id: "translator", label: "Corporate Translator", blurb: ["“We'll keep your resume on file.” Match what they say to what they actually mean.", "A memory game: match recruiter phrases to what they mean."] },
+  { id: "counter", label: "The Counter Offer", blurb: ["You've got an offer. Ask for more without getting ghosted.", "Negotiate a salary against a hidden budget."] },
+] as const;
+type GameId = (typeof GAMES)[number]["id"];
+
 export function PlayView() {
   const tone = useTone();
+  const [game, setGame] = useState<GameId>("blasters");
+  const pill = usePill(game);
+  const current = GAMES.find((g) => g.id === game)!;
+  const fallback = <div className="skeleton h-[min(72vh,40rem)] min-h-[26rem] rounded-xl border-2 border-foreground" />;
   return <section className="space-y-4">
     <div>
       <h1 className="font-display text-3xl font-bold">Play</h1>
-      <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{voice(tone, "Waiting on a reply? Blast the bad hiring practices while you wait. Offers from Green Flag Recruiters earn Experience.", "A short arcade break. Collect offers from Green Flag Recruiters to earn Experience.")}</p>
+      <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{voice(tone, current.blurb[0], current.blurb[1])}</p>
     </div>
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
-      <Suspense fallback={<div className="skeleton h-[min(72vh,40rem)] min-h-[26rem] rounded-xl border-2 border-foreground" />}>
-        <GhostBlastersGame />
-      </Suspense>
-      <Leaderboard />
+    {/* Game picker: scrolls sideways on phones rather than wrapping into a tall stack. */}
+    <div className="-mx-1 overflow-x-auto px-1 pb-1 no-scrollbar-touch">
+      <div ref={pill.ref} className="relative flex w-max gap-2" role="tablist" aria-label="Games">
+        <SlidingPill pill={pill} className="rounded-full bg-primary" />
+        {GAMES.map((g) => <button key={g.id} data-pill={g.id} type="button" role="tab" aria-selected={game === g.id} onClick={() => setGame(g.id)}
+          className={cn("relative min-h-10 whitespace-nowrap rounded-full border-2 border-foreground px-4 text-sm font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", game === g.id ? "text-primary-foreground" : "bg-card hover:bg-muted")}>
+          <span className="relative">{g.label}</span>
+        </button>)}
+      </div>
     </div>
+    {game === "blasters"
+      ? <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
+          <Suspense fallback={fallback}><GhostBlastersGame /></Suspense>
+          <Leaderboard />
+        </div>
+      : <Suspense fallback={fallback}><PlayGame key={game} id={game} /></Suspense>}
   </section>;
 }
