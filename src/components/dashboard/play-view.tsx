@@ -42,9 +42,9 @@ function Leaderboard() {
 
 const GAMES = [
   { id: "blasters", label: "Ghost Blasters", blurb: ["Waiting on a reply? Blast the bad hiring practices while you wait. Offers from Green Flag Recruiters earn Experience.", "A short arcade break. Collect offers from Green Flag Recruiters to earn Experience."] },
-  { id: "flags", label: "Red or Green Flag", blurb: ["Job posts and recruiter lines, 45 seconds. Can you spot the red flags faster than HR can write them?", "Judge job-post and recruiter lines as red or green flags against the clock."] },
-  { id: "translator", label: "Corporate Translator", blurb: ["“We'll keep your resume on file.” Match what they say to what they actually mean.", "A memory game: match recruiter phrases to what they mean."] },
-  { id: "counter", label: "The Counter Offer", blurb: ["You've got an offer. Ask for more without getting ghosted.", "Negotiate a salary against a hidden budget."] },
+  { id: "catcher", label: "Offer Catcher", blurb: ["Offers are raining. So are red flags. Catch the right ones in your inbox.", "Catch offer letters, dodge red flags. Three lives."] },
+  { id: "flight", label: "Follow-Up Flight", blurb: ["Your follow-up email, versus the walls of silence. Keep it flying.", "Fly your follow-up through the gaps. Tap to flap."] },
+  { id: "dash", label: "Notice Period Dash", blurb: ["Run your notice period. Jump the take-homes, duck the Ghosters.", "An endless runner: jump obstacles, duck Ghosters, collect offers."] },
 ] as const;
 type GameId = (typeof GAMES)[number]["id"];
 
